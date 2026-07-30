@@ -125,7 +125,7 @@ export async function POST(request: Request) {
     const orderNumber = `BG-${Math.floor(1000 + Math.random() * 9000)}`;
 
     // 4. Create the Order in a Transaction
-    const order = await prisma.$transaction(async (tx) => {
+    const order = await prisma.$transaction(async (tx: any) => {
       const createdOrder = await tx.order.create({
         data: {
           user_id: user.id,
