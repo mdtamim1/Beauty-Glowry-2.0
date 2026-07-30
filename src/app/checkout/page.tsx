@@ -24,6 +24,38 @@ function CheckoutContent() {
   const [submitting, setSubmitting] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
 
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponError, setCouponError] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setCouponLoading(true);
+    setCouponError('');
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode.trim(), orderAmount: subtotal }),
+      });
+      const data = await res.json();
+      setCouponLoading(false);
+      if (!res.ok) {
+        setCouponError(data.error || 'Failed to apply coupon');
+        setCouponApplied(false);
+        setCouponDiscount(0);
+        return;
+      }
+      setCouponApplied(true);
+      setCouponDiscount(data.discountAmount);
+    } catch (e) {
+      setCouponLoading(false);
+      setCouponError('Connection failed.');
+    }
+  };
+
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -40,7 +72,7 @@ function CheckoutContent() {
     return acc + price * item.quantity;
   }, 0);
   const shipping = subtotal >= 1500 ? 0 : 120;
-  const total = subtotal + shipping;
+  const total = Math.max(0, subtotal + shipping - couponDiscount);
 
   const update = (field: string, val: string) => setForm((prev) => ({ ...prev, [field]: val }));
 
@@ -62,6 +94,7 @@ function CheckoutContent() {
         subtotal,
         shipping,
         total,
+        discount: couponDiscount,
       };
 
       const res = await fetch('/api/orders', {
@@ -546,11 +579,60 @@ function CheckoutContent() {
                     <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Subtotal</span>
                     <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>৳{subtotal.toLocaleString()}</span>
                   </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                     <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Shipping</span>
                     <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, fontWeight: 600, color: shipping === 0 ? 'var(--sage)' : 'var(--text-primary)' }}>
                       {shipping === 0 ? 'FREE' : `৳${shipping}`}
                     </span>
+                  </div>
+                  {couponApplied && (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
+                      <span style={{ fontSize: 13, color: 'var(--sage-dark)' }}>Coupon Discount</span>
+                      <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 13, fontWeight: 600, color: 'var(--sage-dark)' }}>−৳{couponDiscount.toLocaleString()}</span>
+                    </div>
+                  )}
+
+                  {/* Coupon entry */}
+                  <div style={{ borderTop: '1px dashed var(--border-default)', paddingTop: 14, marginBottom: 10 }}>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <input
+                        type="text"
+                        placeholder="Coupon Code"
+                        value={couponCode}
+                        onChange={(e) => setCouponCode(e.target.value)}
+                        disabled={couponApplied || couponLoading}
+                        className="input-field"
+                        style={{
+                          flex: 1,
+                          textTransform: 'uppercase',
+                          fontSize: 12,
+                          padding: '6px 12px',
+                          border: couponApplied ? '1px solid var(--sage)' : '1px solid var(--border-default)',
+                          background: couponApplied ? 'rgba(139,157,119,0.04)' : 'transparent',
+                          color: couponApplied ? 'var(--sage-dark)' : 'var(--text-primary)'
+                        }}
+                      />
+                      <button
+                        type="button"
+                        onClick={couponApplied ? () => { setCouponApplied(false); setCouponDiscount(0); setCouponCode(''); } : handleApplyCoupon}
+                        disabled={couponLoading || (!couponCode.trim() && !couponApplied)}
+                        className={couponApplied ? "btn-outline" : "btn-primary"}
+                        style={{
+                          fontSize: 11,
+                          padding: '6px 16px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.04em'
+                        }}
+                      >
+                        {couponLoading ? '...' : couponApplied ? 'Remove' : 'Apply'}
+                      </button>
+                    </div>
+                    {couponError && (
+                      <p style={{ fontSize: 11, color: '#E05A5A', marginTop: 6, textAlign: 'left', margin: '6px 0 0 0' }}>⚠️ {couponError}</p>
+                    )}
+                    {couponApplied && (
+                      <p style={{ fontSize: 11, color: 'var(--sage-dark)', marginTop: 6, textAlign: 'left', margin: '6px 0 0 0' }}>✓ Coupon applied successfully! Discount: ৳{couponDiscount}</p>
+                    )}
                   </div>
                   <div
                     style={{

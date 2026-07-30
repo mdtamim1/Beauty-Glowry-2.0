@@ -40,12 +40,19 @@ export async function GET(request: Request) {
         images: {
           orderBy: { position: 'asc' },
         },
+        reviews: true,
       },
     });
 
     // Map database structures to match frontend expectations
     const formattedProducts = dbProducts.map((p) => {
-      const mainImage = p.images[0]?.url || p.images[0]?.url || '';
+      const mainImage = p.images[0]?.url || '';
+      const reviewsData = p.reviews || [];
+      const reviewCount = reviewsData.length;
+      const averageRating = reviewCount > 0
+        ? Number((reviewsData.reduce((acc, r) => acc + r.rating, 0) / reviewCount).toFixed(1))
+        : 5.0;
+
       return {
         id: isNaN(Number(p.id)) ? p.id : Number(p.id),
         name: p.name,
@@ -57,8 +64,8 @@ export async function GET(request: Request) {
         discountPrice: p.discount_price ? Number(p.discount_price) : undefined,
         image: mainImage,
         stock: p.stock_qty,
-        rating: 4.8,
-        reviewCount: 12,
+        rating: averageRating,
+        reviewCount: reviewCount,
         isBestseller: p.is_featured,
         isNew: p.is_featured,
         description: p.description || '',

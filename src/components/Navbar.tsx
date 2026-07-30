@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { ShoppingBag, Search, Menu, X, ChevronDown, Heart, User } from 'lucide-react';
 import { useCartStore } from '../store/useCartStore';
+import { useAuthStore } from '../store/useAuthStore';
 import CartDrawer from './CartDrawer';
 import LiveSearch from './LiveSearch';
 import CustomerAccountModal from './CustomerAccountModal';
@@ -46,6 +47,7 @@ export default function Navbar() {
   const [megaOpen, setMegaOpen] = useState<string | null>(null);
 
   const cart = useCartStore((s) => s.cart);
+  const user = useAuthStore((s) => s.user);
   const wishlist = useCartStore((s) => s.wishlist);
   const totalCount = cart.reduce((acc, item) => acc + item.quantity, 0);
   const wishlistCount = wishlist.length;
@@ -228,10 +230,29 @@ export default function Navbar() {
             <button
               onClick={() => setAccountOpen(true)}
               aria-label="Account"
-              style={{ padding: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', borderRadius: 2 }}
+              style={{ padding: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               className="btn-ghost"
             >
-              <User size={18} />
+              {user ? (
+                <div style={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: '50%',
+                  background: 'var(--accent, #C9956D)',
+                  color: '#FFFFFF',
+                  fontSize: 10,
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textTransform: 'uppercase',
+                  fontFamily: "'DM Sans', sans-serif"
+                }}>
+                  {user.name.charAt(0)}
+                </div>
+              ) : (
+                <User size={18} />
+              )}
             </button>
 
             <button

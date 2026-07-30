@@ -1,12 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, ArrowLeft, Check, Sparkles, RefreshCw } from 'lucide-react';
 import { products, skinConcerns } from '../../data/products';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import ProductCard from '../../components/ProductCard';
+import { useAuthStore } from '../../store/useAuthStore';
 
 const QUESTIONS = [
   {
@@ -74,19 +75,59 @@ const SKIN_TYPE_MAP: Record<string, string[]> = {
 };
 
 export default function QuizPage() {
+  const { token, updateSkinProfile } = useAuthStore();
+
   const [step, setStep] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [completed, setCompleted] = useState(false);
+  const [history, setHistory] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
 
   const currentQ = QUESTIONS[step];
   const isLastStep = step === QUESTIONS.length - 1;
   const progress = ((step) / QUESTIONS.length) * 100;
 
-  const handleAnswer = (value: string) => {
+  useEffect(() => {
+    if (token) {
+      fetch('/api/quiz/history', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+        .then(res => res.json())
+        .then(data => {
+          if (data.success) {
+            setHistory(data.history || []);
+          }
+        })
+        .catch(console.error);
+    }
+  }, [token, completed]);
+
+  const handleAnswer = async (value: string) => {
     const updated = { ...answers, [currentQ.id]: value };
     setAnswers(updated);
 
     if (isLastStep) {
+      if (token) {
+        try {
+          await fetch('/api/quiz/history', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              skin_type: updated.skin_type,
+              concern: updated.concern,
+              routine_type: updated.routine,
+              budget: updated.budget,
+              answers_json: JSON.stringify(updated)
+            })
+          });
+          updateSkinProfile(updated.skin_type);
+        } catch (e) {
+          console.error('Failed to sync skin quiz with database:', e);
+        }
+      }
       setTimeout(() => setCompleted(true), 300);
     } else {
       setTimeout(() => setStep(step + 1), 300);
@@ -159,6 +200,60 @@ export default function QuizPage() {
           <p style={{ fontSize: 15, color: 'var(--text-secondary)', maxWidth: 480, margin: '0 auto 32px' }}>
             4 questions. 2 minutes. Your perfect clinical routine.
           </p>
+
+          {step === 0 && !completed && history.length > 0 && (
+            <div style={{ marginTop: 24, maxWidth: 480, margin: '24px auto 0' }}>
+              <button
+                onClick={() => setShowHistory(!showHistory)}
+                className="btn-outline"
+                style={{ fontSize: 12, padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
+              >
+                📜 {showHistory ? 'Hide Previous Diagnostics' : `View Skincare Profile History (${history.length})`}
+              </button>
+
+              {showHistory && (
+                <div
+                  className="animate-scale-in"
+                  style={{
+                    marginTop: 16,
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 4,
+                    padding: 16,
+                    textAlign: 'left',
+                    maxHeight: 280,
+                    overflowY: 'auto'
+                  }}
+                >
+                  <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: 'var(--text-primary)' }}>Your Skin Diagnostics History</h4>
+                  {history.map((h, i) => (
+                    <div
+                      key={h.id}
+                      style={{
+                        paddingBottom: i !== history.length - 1 ? 12 : 0,
+                        marginBottom: i !== history.length - 1 ? 12 : 0,
+                        borderBottom: i !== history.length - 1 ? '1px solid var(--border-subtle)' : 'none'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', textTransform: 'capitalize' }}>
+                          Type: {h.skin_type}
+                        </span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
+                          {new Date(h.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </span>
+                      </div>
+                      <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                        Concern: <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{h.concern}</span> · 
+                        Routine: <span style={{ textTransform: 'capitalize' }}>{h.routine_type}</span> · 
+                        Budget: <span style={{ textTransform: 'capitalize' }}>{h.budget}</span>
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {!completed && (
             <>

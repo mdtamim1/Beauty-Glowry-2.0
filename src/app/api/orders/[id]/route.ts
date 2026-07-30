@@ -17,14 +17,37 @@ export async function PUT(
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
+    const currentStatus = order.status.toLowerCase();
+    const newStatus = data.status ? data.status.toLowerCase() : currentStatus;
+    const isStatusChanged = newStatus !== currentStatus;
+
+    // Build DB update structure
+    const updateData: any = {};
+    if (data.status) updateData.status = newStatus;
+    if (data.payment_status) updateData.payment_status = data.payment_status.toLowerCase();
+    if (data.payment_method) updateData.payment_method = data.payment_method;
+    if (data.customerNote !== undefined) updateData.customer_notes = data.customerNote;
+    if (data.shopNote !== undefined) updateData.admin_notes = data.shopNote;
+    if (data.courier !== undefined) updateData.courier = data.courier;
+    if (data.thana !== undefined) updateData.thana = data.thana;
+    if (data.area !== undefined) updateData.area = data.area;
+
     const updatedOrder = await prisma.order.update({
       where: { order_number: id },
-      data: {
-        status: data.status ? data.status.toLowerCase() : order.status,
-        payment_status: data.payment_status ? data.payment_status.toLowerCase() : order.payment_status,
-        payment_method: data.payment_method || order.payment_method,
-      },
+      data: updateData,
     });
+
+    // Log the status transition if status changed
+    if (isStatusChanged) {
+      const formatStatus = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+      await prisma.orderStatusHistory.create({
+        data: {
+          order_id: order.id,
+          status: formatStatus(newStatus),
+          note: data.statusNote || `Advanced status from ${formatStatus(currentStatus)} to ${formatStatus(newStatus)}`,
+        },
+      });
+    }
 
     return NextResponse.json({ success: true, order: updatedOrder });
   } catch (error: any) {

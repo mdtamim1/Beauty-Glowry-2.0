@@ -3,6 +3,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { X, User, Mail, Phone, Lock, Eye, EyeOff, CheckCircle, Shield, ArrowLeft, RefreshCw } from 'lucide-react';
 import { signIn } from 'next-auth/react';
+import Link from 'next/link';
+import { useAuthStore } from '../store/useAuthStore';
 
 
 interface CustomerAccountModalProps {
@@ -11,6 +13,7 @@ interface CustomerAccountModalProps {
 }
 
 export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccountModalProps) {
+  const { user, login, logout } = useAuthStore();
   const [isSignUp, setIsSignUp] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [name, setName] = useState('');
@@ -83,7 +86,7 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
       const response = await fetch('/api/auth/otp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, isSignUp }),
       });
       const data = await response.json();
 
@@ -157,7 +160,14 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
       const response = await fetch('/api/auth/otp/verify', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, code: enteredCode }),
+        body: JSON.stringify({
+          email,
+          code: enteredCode,
+          isSignUp,
+          name,
+          phone,
+          password
+        }),
       });
       const data = await response.json();
 
@@ -167,6 +177,8 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
         setError(data.error || 'Invalid verification code.');
         return;
       }
+
+      login(data.user, data.token);
 
       setSuccess(true);
       setTimeout(() => {
@@ -303,7 +315,119 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
           <X size={16} />
         </button>
 
-        {success ? (
+        {user ? (
+          /* Profile Card Screen */
+          <div style={{ padding: '32px 28px 28px' }}>
+            <div style={{ textAlign: 'center', marginBottom: 24 }}>
+              <div style={{
+                width: 64,
+                height: 64,
+                borderRadius: '50%',
+                background: `${c.accent}15`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 12px',
+                border: `1px solid ${c.border}`,
+                fontSize: 24,
+                fontWeight: 700,
+                color: c.accent,
+                textTransform: 'uppercase',
+              }}>
+                {user.name.charAt(0)}
+              </div>
+              <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 24, fontWeight: 500, color: c.text, marginBottom: 4 }}>
+                {user.name}
+              </h2>
+              <p style={{ fontSize: 11, color: c.muted, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+                {user.role === 'admin' ? '⚜️ Admin Account' : 'Skincare Profile'}
+              </p>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, background: c.elevated, padding: 18, borderRadius: 10, border: `1px solid ${c.border}`, marginBottom: 24 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: c.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Email Address</span>
+                <span style={{ fontSize: 13, color: c.text, fontWeight: 500 }}>{user.email}</span>
+              </div>
+              
+              {user.phone && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                  <span style={{ fontSize: 9, fontWeight: 700, color: c.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Phone Number</span>
+                  <span style={{ fontSize: 13, color: c.text, fontWeight: 500 }}>{user.phone}</span>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <span style={{ fontSize: 9, fontWeight: 700, color: c.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Skin Profile</span>
+                <span style={{ fontSize: 13, color: c.accent, fontWeight: 600 }}>
+                  {user.skin_type ? `${user.skin_type.toUpperCase()} Skin` : 'Quiz not completed yet'}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {user.role === 'admin' && (
+                <Link
+                  href="/admin"
+                  onClick={onClose}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    background: c.accent,
+                    color: '#FFFFFF',
+                    border: 'none',
+                    borderRadius: 8,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    textAlign: 'center',
+                    textDecoration: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                    boxShadow: `0 4px 12px ${c.accent}30`,
+                    display: 'block',
+                  }}
+                  onMouseEnter={e => (e.currentTarget.style.background = c.accentHover)}
+                  onMouseLeave={e => (e.currentTarget.style.background = c.accent)}
+                >
+                  ⚜️ Access Admin Console
+                </Link>
+              )}
+
+              <button
+                onClick={() => {
+                  logout();
+                  onClose();
+                }}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: 'transparent',
+                  color: c.danger,
+                  border: `1px solid ${c.danger}40`,
+                  borderRadius: 8,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  letterSpacing: '0.05em',
+                  textTransform: 'uppercase',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = `${c.danger}06`;
+                  e.currentTarget.style.borderColor = c.danger;
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'transparent';
+                  e.currentTarget.style.borderColor = `${c.danger}40`;
+                }}
+              >
+                Sign Out / Exit Dashboard
+              </button>
+            </div>
+          </div>
+        ) : success ? (
           /* Success Screen */
           <div style={{ padding: '48px 30px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
             <div style={{

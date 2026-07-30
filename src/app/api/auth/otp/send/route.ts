@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
+import { prisma } from '../../../../../lib/prisma';
 
 // Temporary server-side storage for OTPs
 if (!(global as any).otpStore) {
@@ -9,9 +10,28 @@ const otpStore = (global as any).otpStore;
 
 export async function POST(request: Request) {
   try {
-    const { email } = await request.json();
+    const { email, isSignUp } = await request.json();
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
+    }
+
+    // Check if account already exists on Sign Up, or doesn't exist on Sign In
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (isSignUp && existingUser) {
+      return NextResponse.json(
+        { error: 'An account with this email already exists. Please sign in instead.' },
+        { status: 400 }
+      );
+    }
+
+    if (!isSignUp && !existingUser) {
+      return NextResponse.json(
+        { error: 'No account found with this email. Please sign up first.' },
+        { status: 400 }
+      );
     }
 
     // Generate random 6-digit OTP code

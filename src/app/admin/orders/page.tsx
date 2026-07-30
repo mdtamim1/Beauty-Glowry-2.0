@@ -54,6 +54,7 @@ interface Order {
   status: OrderStatus; date: string; notes?: string;
   district?: string; thana?: string; area?: string;
   courier?: string; customerNote?: string; shopNote?: string;
+  orderHistory?: Array<{ status: string; date: string; note: string }>;
 }
 
 const STATUS_STYLES: Record<OrderStatus, { bg: string; color: string }> = {
@@ -136,11 +137,13 @@ function ViewOrderModal({ order, onClose, onSave }: {
   const [memoNo, setMemoNo] = useState('');
   const [customerNote, setCustomerNote] = useState(order.customerNote || '');
   const [shopNote, setShopNote] = useState(order.shopNote || '');
+  const [orderHistory, setOrderHistory] = useState(() => order.orderHistory || []);
   const [deliveryCharge, setDeliveryCharge] = useState(order.shipping);
   const [discount, setDiscount] = useState(0);
   const [paidAmount, setPaidAmount] = useState(0);
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
+  const [couponDiscount, setCouponDiscount] = useState(0);
 
   // Product search
   const [productSearch, setProductSearch] = useState('');
@@ -192,17 +195,32 @@ function ViewOrderModal({ order, onClose, onSave }: {
   };
 
   const subTotal = orderItems.reduce((a, i) => a + i.price * i.qty, 0);
-  const couponDiscount = couponApplied ? Math.round(subTotal * 0.1) : 0;
-  const total = subTotal + deliveryCharge - discount - couponDiscount;
+  const total = Math.max(0, subTotal + deliveryCharge - discount - couponDiscount);
 
-  const applyCoupon = () => {
-    if (couponCode.toUpperCase() === 'GLOWRY10') { setCouponApplied(true); }
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode.trim(), orderAmount: subTotal }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCouponApplied(true);
+        setCouponDiscount(data.discountAmount);
+      } else {
+        alert(data.error || 'Failed to apply coupon');
+      }
+    } catch (e) {
+      alert('Failed to connect to coupon validation service');
+    }
   };
 
   const handleUpdate = () => {
     if (!customerName || !customerPhone || !customerAddress) return;
     const updatedOrder: Order = {
-      id: order.id,
+      ...order,
       customer: customerName,
       phone: customerPhone,
       email: customerEmail,
@@ -213,8 +231,9 @@ function ViewOrderModal({ order, onClose, onSave }: {
       payment: payment.split(' ')[0],
       status,
       date: orderDate,
-      district, thana, area, courier, customerNote, shopNote,
-    };
+      district, thana, area, courier, customerNote, shopNote, orderHistory,
+      statusNote: status !== order.status ? `Advanced status from ${order.status} to ${status}` : undefined,
+    } as any;
     onSave(updatedOrder);
     onClose();
   };
@@ -409,6 +428,102 @@ function ViewOrderModal({ order, onClose, onSave }: {
                   ))}
                 </div>
               </LabeledField>
+            </div>
+
+            {/* Order Status History Timeline & Suggestions */}
+            <div style={{ marginTop: 24, borderTop: `1px solid ${C.border}`, paddingTop: 20 }}>
+              <h3 style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: C.accent, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Calendar size={13} /> Order Status Timeline & Suggestions
+              </h3>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 20, alignItems: 'start' }}>
+                {/* Left: Timeline logs */}
+                <div style={{ background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14 }}>
+                  <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.muted, marginBottom: 12 }}>
+                    Timeline Log Entries ({orderHistory.length})
+                  </p>
+
+                  {orderHistory.length > 0 ? (
+                    <div style={{ position: 'relative', paddingLeft: 16, borderLeft: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', gap: 14 }}>
+                      {orderHistory.map((h: any, index: number) => (
+                        <div key={index} style={{ position: 'relative' }}>
+                          <div style={{
+                            position: 'absolute', left: -22, top: 4, width: 9, height: 9, borderRadius: '50%',
+                            background: h.status.toLowerCase() === status.toLowerCase() ? C.success : C.accent,
+                            border: `2px solid ${C.elevated}`
+                          }} />
+                          <div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                              <span style={{ fontSize: 11, fontWeight: 700, color: C.text }}>{h.status}</span>
+                              <span style={{ fontSize: 9, color: C.muted }}>
+                                {new Date(h.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                              </span>
+                            </div>
+                            {h.note && (
+                              <p style={{ fontSize: 10, color: C.textSec, fontStyle: 'italic' }}>{h.note}</p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p style={{ fontSize: 11, color: C.muted, fontStyle: 'italic' }}>No timeline entries available.</p>
+                  )}
+                </div>
+
+                {/* Right: Suggested next status */}
+                <div style={{ background: 'rgba(201, 149, 109, 0.03)', border: `1px solid rgba(201, 149, 109, 0.12)`, borderRadius: 8, padding: 14 }}>
+                  <p style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', color: C.accent, marginBottom: 8 }}>
+                    💡 Suggested Action
+                  </p>
+                  {(() => {
+                    const flow = ['Pending', 'Processing', 'Shipped', 'Delivered'];
+                    const currentIndex = flow.findIndex(f => f.toLowerCase() === status.toLowerCase());
+                    if (currentIndex === -1 || currentIndex === flow.length - 1) {
+                      return <p style={{ fontSize: 11, color: C.muted, fontStyle: 'italic' }}>Order is in final state ({status}).</p>;
+                    }
+                    const nextStatus = flow[currentIndex + 1];
+                    return (
+                      <div>
+                        <p style={{ fontSize: 11, color: C.textSec, marginBottom: 12 }}>
+                          Advance order to <strong style={{ color: C.text }}>{nextStatus}</strong>:
+                        </p>
+                        <button
+                          onClick={() => {
+                            setStatus(nextStatus as any);
+                            // Add a status transitions entry in client state so they see it instantly
+                            const tempHistory = {
+                              status: nextStatus,
+                              date: new Date().toISOString(),
+                              note: `Advanced to ${nextStatus}`
+                            };
+                            setOrderHistory([tempHistory, ...orderHistory]);
+                          }}
+                          style={{
+                            width: '100%',
+                            padding: '8px 12px',
+                            background: C.accent,
+                            color: '#FFFFFF',
+                            border: 'none',
+                            borderRadius: 6,
+                            fontSize: 11,
+                            fontWeight: 700,
+                            letterSpacing: '0.05em',
+                            textTransform: 'uppercase',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          Apply: {nextStatus} →
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
             </div>
           </div>
 
@@ -623,8 +738,8 @@ function ViewOrderModal({ order, onClose, onSave }: {
 
         {/* ── Footer */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 28px', borderTop: `1px solid ${C.border}`, background: C.elevated, flexShrink: 0 }}>
-          <button onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.muted, cursor: 'pointer' }}>
-            <Printer size={14} /> Print Invoice
+          <button onClick={() => window.open(`/api/orders/${order.id}/invoice`, '_blank')} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.muted, cursor: 'pointer' }}>
+            <Printer size={14} /> Download Invoice PDF
           </button>
           <div style={{ display: 'flex', gap: 10 }}>
             <button onClick={onClose} style={{ padding: '9px 20px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.muted, cursor: 'pointer' }}>
@@ -673,6 +788,7 @@ function CreateOrderModal({ onClose, onSave }: { onClose: () => void; onSave: (o
   const [paidAmount, setPaidAmount] = useState(0);
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
+  const [couponDiscount, setCouponDiscount] = useState(0);
 
   // Product search
   const [productSearch, setProductSearch] = useState('');
@@ -712,11 +828,26 @@ function CreateOrderModal({ onClose, onSave }: { onClose: () => void; onSave: (o
   };
 
   const subTotal = orderItems.reduce((a, i) => a + i.price * i.qty, 0);
-  const couponDiscount = couponApplied ? Math.round(subTotal * 0.1) : 0;
-  const total = subTotal + deliveryCharge - discount - couponDiscount;
+  const total = Math.max(0, subTotal + deliveryCharge - discount - couponDiscount);
 
-  const applyCoupon = () => {
-    if (couponCode.toUpperCase() === 'GLOWRY10') { setCouponApplied(true); }
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    try {
+      const res = await fetch('/api/coupons/validate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: couponCode.trim(), orderAmount: subTotal }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setCouponApplied(true);
+        setCouponDiscount(data.discountAmount);
+      } else {
+        alert(data.error || 'Failed to apply coupon');
+      }
+    } catch (e) {
+      alert('Failed to connect to coupon validation service');
+    }
   };
 
   const handleSave = () => {
@@ -1237,6 +1368,12 @@ export default function AdminOrders() {
         body: JSON.stringify({
           status: updatedOrder.status,
           payment_method: updatedOrder.payment,
+          customerNote: updatedOrder.customerNote,
+          shopNote: updatedOrder.shopNote,
+          courier: updatedOrder.courier,
+          thana: updatedOrder.thana,
+          area: updatedOrder.area,
+          statusNote: (updatedOrder as any).statusNote,
         }),
       });
       if (!res.ok) throw new Error('Failed to update order');

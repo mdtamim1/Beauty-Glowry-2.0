@@ -22,12 +22,30 @@ export async function GET(
         images: {
           orderBy: { position: 'asc' },
         },
+        reviews: {
+          include: {
+            user: true,
+          },
+          orderBy: { created_at: 'desc' },
+        },
+        qnas: {
+          include: {
+            user: true,
+          },
+          orderBy: { created_at: 'desc' },
+        },
       },
     });
 
     if (!p) {
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
+
+    const reviewsData = p.reviews || [];
+    const reviewCount = reviewsData.length;
+    const averageRating = reviewCount > 0
+      ? Number((reviewsData.reduce((acc, r) => acc + r.rating, 0) / reviewCount).toFixed(1))
+      : 5.0;
 
     const formattedProduct = {
       id: isNaN(Number(p.id)) ? p.id : Number(p.id),
@@ -40,8 +58,8 @@ export async function GET(
       discountPrice: p.discount_price ? Number(p.discount_price) : undefined,
       image: p.images[0]?.url || '',
       stock: p.stock_qty,
-      rating: 4.8,
-      reviewCount: 12,
+      rating: averageRating,
+      reviewCount: reviewCount,
       isBestseller: p.is_featured,
       isNew: p.is_featured,
       description: p.description || '',
@@ -59,6 +77,21 @@ export async function GET(
       })),
       productImages: p.images.map((img) => img.url),
       size: p.variants[0]?.size || '30ml',
+      reviews: reviewsData.map((r: any) => ({
+        id: r.id,
+        name: r.user?.name || 'Glowry Customer',
+        rating: r.rating,
+        text: r.comment || '',
+        date: r.created_at.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+        verified: r.verified_purchase,
+      })),
+      qnas: (p.qnas || []).map((q: any) => ({
+        id: q.id,
+        question: q.question,
+        answer: q.answer || null,
+        askedBy: q.user?.name || 'Customer',
+        date: q.created_at.toLocaleDateString('en-US', { month: 'short', year: 'numeric' }),
+      })),
     };
 
     return NextResponse.json(formattedProduct);

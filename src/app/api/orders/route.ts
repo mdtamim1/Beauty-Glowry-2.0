@@ -19,6 +19,9 @@ export async function GET() {
             },
           },
         },
+        status_history: {
+          orderBy: { created_at: 'desc' },
+        },
       },
       orderBy: { created_at: 'desc' },
     });
@@ -50,7 +53,17 @@ export async function GET() {
         payment: o.payment_method,
         status: status as any,
         date: o.created_at.toISOString().slice(0, 10),
-        notes: '',
+        notes: o.customer_notes || '',
+        customerNote: o.customer_notes || '',
+        shopNote: o.admin_notes || '',
+        thana: o.thana || '',
+        area: o.area || '',
+        courier: o.courier || '',
+        orderHistory: o.status_history.map((h: any) => ({
+          status: h.status,
+          date: h.created_at.toISOString(),
+          note: h.note || '',
+        })),
         district: o.address?.city || '',
       };
     });
@@ -79,6 +92,7 @@ export async function POST(request: Request) {
       subtotal,
       shipping,
       total,
+      discount = 0,
     } = data;
 
     if (!name || !phone || !email || !address || !items || items.length === 0) {
@@ -110,16 +124,25 @@ export async function POST(request: Request) {
       }
     }
 
-    // 2. Create Address record linked to this user
-    const addressRecord = await prisma.address.create({
-      data: {
+    // 2. Address Resolution: Find or create default address for the user
+    let addressRecord = await prisma.address.findFirst({
+      where: {
         user_id: user.id,
-        label: 'Shipping Address',
-        address_line: `${address}, ${district}, ${division}`,
-        city: district,
-        zip: '1000',
+        address_line: address,
       },
     });
+
+    if (!addressRecord) {
+      addressRecord = await prisma.address.create({
+        data: {
+          user_id: user.id,
+          label: 'Default Shipping Address',
+          address_line: address,
+          city: district || 'Dhaka',
+          zip: '1000',
+        },
+      });
+    }
 
     // 3. Generate unique order number (format: BG-XXXX)
     const orderNumber = `BG-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -132,12 +155,22 @@ export async function POST(request: Request) {
           order_number: orderNumber,
           status: 'pending',
           subtotal: subtotal,
-          discount: 0,
+          discount: discount,
           shipping_fee: shipping,
           total: total,
           payment_method: paymentMethod,
           payment_status: 'pending',
           address_id: addressRecord.id,
+          customer_notes: notes || '',
+        },
+      });
+
+      // Log the initial status in timeline history
+      await tx.orderStatusHistory.create({
+        data: {
+          order_id: createdOrder.id,
+          status: 'Pending',
+          note: 'Order placed via storefront',
         },
       });
 

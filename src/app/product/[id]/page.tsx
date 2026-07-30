@@ -11,9 +11,11 @@ import {
 } from 'lucide-react';
 import { products, Product, brands } from '../../../data/products';
 import { useCartStore } from '../../../store/useCartStore';
+import { useAuthStore } from '../../../store/useAuthStore';
 import Navbar from '../../../components/Navbar';
 import Footer from '../../../components/Footer';
 import ProductCard from '../../../components/ProductCard';
+import { HelpCircle as HelpCircleIcon } from 'lucide-react';
 
 // ─── Star Rating ───────────────────────────────────────────────────
 function StarRating({ rating, size = 14 }: { rating: number; size?: number }) {
@@ -86,6 +88,8 @@ export default function ProductDetailPage() {
       .then((data) => {
         if (data && data.id) {
           setProduct(data);
+          if (data.reviews) setReviews(data.reviews);
+          if (data.qnas) setQnas(data.qnas);
         }
       })
       .catch((err) => console.error('Failed to load product from DB:', err));
@@ -94,13 +98,27 @@ export default function ProductDetailPage() {
   const [isAdded, setIsAdded] = useState(false);
   const [zoom, setZoom] = useState(false);
   const [zoomPos, setZoomPos] = useState({ x: 50, y: 50 });
-  const [reviews, setReviews] = useState([
-    { name: 'Tanvir Hossain', rating: 5, text: 'Incredible results. My skin texture improved dramatically within 2 weeks.', date: 'Jul 2024' },
-    { name: 'Anika Sultana', rating: 5, text: 'Absorbs beautifully with zero residue. Ingredient transparency is great.', date: 'Jun 2024' },
-  ]);
+  const [reviews, setReviews] = useState<any[]>([]);
+  const [qnas, setQnas] = useState<any[]>([]);
   const [reviewName, setReviewName] = useState('');
   const [reviewText, setReviewText] = useState('');
   const [reviewRating, setReviewRating] = useState(5);
+  
+  const [questionText, setQuestionText] = useState('');
+  const [qnaError, setQnaError] = useState('');
+  const [qnaSuccess, setQnaSuccess] = useState(false);
+  const [qnaLoading, setQnaLoading] = useState(false);
+
+  const [reviewError, setReviewError] = useState('');
+  const [reviewLoading, setReviewLoading] = useState(false);
+
+  const { user, token } = useAuthStore();
+
+  useEffect(() => {
+    if (user) {
+      setReviewName(user.name);
+    }
+  }, [user]);
 
   const imgRef = useRef<HTMLDivElement>(null);
   const { addToCart, toggleWishlist, isInWishlist, clearCart } = useCartStore();
@@ -131,11 +149,88 @@ export default function ProductDetailPage() {
     router.push('/checkout');
   };
 
-  const handleSubmitReview = (e: React.FormEvent) => {
+  const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reviewName.trim() || !reviewText.trim()) return;
-    setReviews([{ name: reviewName, rating: reviewRating, text: reviewText, date: 'Just now' }, ...reviews]);
-    setReviewName(''); setReviewText(''); setReviewRating(5);
+    if (!reviewText.trim()) return;
+    if (!user) {
+      setReviewError('You must be logged in to submit a review.');
+      return;
+    }
+
+    setReviewLoading(true);
+    setReviewError('');
+
+    try {
+      const response = await fetch(`/api/products/${product?.id}/reviews`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          rating: reviewRating,
+          comment: reviewText.trim(),
+          userId: user.id
+        }),
+      });
+      const data = await response.json();
+      setReviewLoading(false);
+
+      if (!response.ok) {
+        setReviewError(data.error || 'Failed to submit review.');
+        return;
+      }
+
+      setReviews([data.review, ...reviews]);
+      setReviewText('');
+      setReviewRating(5);
+      alert('Review posted successfully!');
+    } catch (err) {
+      setReviewLoading(false);
+      setReviewError('Failed to connect to server.');
+    }
+  };
+
+  const handleAskQuestion = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!questionText.trim()) return;
+    if (!user) {
+      setQnaError('You must be logged in to ask a question.');
+      return;
+    }
+
+    setQnaLoading(true);
+    setQnaError('');
+    setQnaSuccess(false);
+
+    try {
+      const response = await fetch(`/api/products/${product?.id}/qnas`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          question: questionText.trim(),
+          userId: user.id
+        }),
+      });
+      const data = await response.json();
+      setQnaLoading(false);
+
+      if (!response.ok) {
+        setQnaError(data.error || 'Failed to submit question.');
+        return;
+      }
+
+      setQnas([data.qna, ...qnas]);
+      setQuestionText('');
+      setQnaSuccess(true);
+      setTimeout(() => setQnaSuccess(false), 3000);
+    } catch (err) {
+      setQnaLoading(false);
+      setQnaError('Failed to connect to server.');
+    }
   };
 
   if (!product) {
@@ -154,7 +249,7 @@ export default function ProductDetailPage() {
   const price = selectedVariant?.price ?? product.price;
   const discount = product.originalPrice > product.price
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0;
-  const avgRating = (reviews.reduce((a, r) => a + r.rating, 0) / reviews.length).toFixed(1);
+  const avgRating = reviews.length > 0 ? (reviews.reduce((a, r) => a + r.rating, 0) / reviews.length).toFixed(1) : '5.0';
   const related = products.filter(p => p.id !== product.id && p.category === product.category).slice(0, 4);
 
   return (
@@ -710,18 +805,24 @@ export default function ProductDetailPage() {
             {/* List + Form */}
             <div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 36 }}>
-                {reviews.map((r, i) => (
-                  <div key={i} style={{ padding: 20, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 6 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-                      <div>
-                        <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{r.name}</p>
-                        <StarRating rating={r.rating} size={12} />
-                      </div>
-                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.date}</span>
-                    </div>
-                    <p style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--text-secondary)', fontStyle: 'italic' }}>"{r.text}"</p>
+                {reviews.length === 0 ? (
+                  <div style={{ padding: '24px', textAlign: 'center', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 6, color: 'var(--text-muted)', fontSize: 13, fontStyle: 'italic' }}>
+                    No reviews written yet. Be the first to share your experience!
                   </div>
-                ))}
+                ) : (
+                  reviews.map((r: any, i: number) => (
+                    <div key={i} style={{ padding: 20, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 6 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                        <div>
+                          <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{r.name}</p>
+                          <StarRating rating={r.rating} size={12} />
+                        </div>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{r.date}</span>
+                      </div>
+                      <p style={{ fontSize: 13, lineHeight: 1.7, color: 'var(--text-secondary)', fontStyle: 'italic' }}>"{r.text}"</p>
+                    </div>
+                  ))
+                )}
               </div>
 
               {/* Review Form */}
@@ -729,18 +830,159 @@ export default function ProductDetailPage() {
                 <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 22, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 18 }}>
                   Write a Review
                 </h3>
+                {!user && (
+                  <div style={{ padding: '12px 16px', background: 'rgba(201,149,109,0.08)', border: '1px solid rgba(201,149,109,0.2)', borderRadius: 6, marginBottom: 16, fontSize: 12, color: 'var(--accent)' }}>
+                    🔒 Please log in to your account to write a review.
+                  </div>
+                )}
+                {reviewError && (
+                  <div style={{ padding: '10px 14px', background: 'rgba(224,90,90,0.08)', borderLeft: '3px solid var(--danger, #E05A5A)', color: 'var(--danger, #E05A5A)', fontSize: 12, borderRadius: 3, marginBottom: 16 }}>
+                    {reviewError}
+                  </div>
+                )}
                 <form onSubmit={handleSubmitReview} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                    <input type="text" placeholder="Your Name" value={reviewName} onChange={(e) => setReviewName(e.target.value)} required className="input-field" />
-                    <select value={reviewRating} onChange={(e) => setReviewRating(Number(e.target.value))} className="input-field">
+                    <input
+                      type="text"
+                      placeholder="Your Name"
+                      value={reviewName}
+                      onChange={(e) => setReviewName(e.target.value)}
+                      required
+                      readOnly={!!user}
+                      disabled={!user}
+                      className="input-field"
+                      style={{ background: !!user ? 'var(--bg-elevated)' : 'var(--bg-surface)' }}
+                    />
+                    <select
+                      value={reviewRating}
+                      onChange={(e) => setReviewRating(Number(e.target.value))}
+                      disabled={!user}
+                      className="input-field"
+                    >
                       {[5,4,3,2,1].map(s => <option key={s} value={s}>{'⭐'.repeat(s)} — {s} Stars</option>)}
                     </select>
                   </div>
-                  <textarea rows={3} placeholder="Share your experience..." value={reviewText} onChange={(e) => setReviewText(e.target.value)} required className="input-field" style={{ resize: 'vertical' }} />
-                  <button type="submit" className="btn-primary" style={{ alignSelf: 'flex-start' }}>
-                    Post Review <ArrowRight size={13} />
+                  <textarea
+                    rows={3}
+                    placeholder="Share your experience..."
+                    value={reviewText}
+                    onChange={(e) => setReviewText(e.target.value)}
+                    required
+                    disabled={!user || reviewLoading}
+                    className="input-field"
+                    style={{ resize: 'vertical' }}
+                  />
+                  <button
+                    type="submit"
+                    className="btn-primary"
+                    disabled={!user || reviewLoading}
+                    style={{
+                      alignSelf: 'flex-start',
+                      opacity: (!user || reviewLoading) ? 0.6 : 1,
+                      cursor: (!user || reviewLoading) ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {reviewLoading ? 'Posting...' : 'Post Review'} <ArrowRight size={13} />
                   </button>
                 </form>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ══ QUESTIONS & ANSWERS ═══════════════════════════════════════════ */}
+      <section style={{ padding: '72px 0', background: 'var(--bg-base)', borderTop: '1px solid var(--border-default)' }}>
+        <div className="container-lg">
+          <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 56 }}>
+            {/* Left Side: Summary & Ask box */}
+            <div>
+              <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 400, color: 'var(--text-primary)', marginBottom: 16 }}>
+                Questions & Answers
+              </h2>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 24 }}>
+                Have a question about formulations, ingredients, or suitability? Ask our skincare specialists or check answers from our community.
+              </p>
+
+              <div style={{ padding: 20, border: '1px solid var(--border-default)', borderRadius: 6, background: 'var(--bg-surface)' }}>
+                <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '0.04em', textTransform: 'uppercase', marginBottom: 14 }}>
+                  Ask a Question
+                </h3>
+                {qnaError && (
+                  <div style={{ padding: '8px 12px', background: 'rgba(224,90,90,0.08)', borderLeft: '3px solid var(--danger, #E05A5A)', color: 'var(--danger, #E05A5A)', fontSize: 11, borderRadius: 3, marginBottom: 12 }}>
+                    {qnaError}
+                  </div>
+                )}
+                {qnaSuccess && (
+                  <div style={{ padding: '8px 12px', background: 'rgba(76,175,130,0.08)', borderLeft: '3px solid var(--success, #4CAF82)', color: 'var(--success, #4CAF82)', fontSize: 11, borderRadius: 3, marginBottom: 12 }}>
+                    ✓ Question posted successfully.
+                  </div>
+                )}
+                <form onSubmit={handleAskQuestion} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <textarea
+                    rows={3}
+                    placeholder={user ? "What would you like to know?" : "Please sign in to ask a question..."}
+                    value={questionText}
+                    onChange={(e) => setQuestionText(e.target.value)}
+                    required
+                    disabled={!user || qnaLoading}
+                    className="input-field"
+                    style={{ resize: 'none', fontSize: 12.5 }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={!user || qnaLoading}
+                    className="btn-primary"
+                    style={{
+                      width: '100%',
+                      padding: '10px',
+                      fontSize: 11,
+                      letterSpacing: '0.05em',
+                      textTransform: 'uppercase',
+                      opacity: (!user || qnaLoading) ? 0.6 : 1,
+                      cursor: (!user || qnaLoading) ? 'not-allowed' : 'pointer'
+                    }}
+                  >
+                    {qnaLoading ? 'Posting...' : 'Ask Question'}
+                  </button>
+                </form>
+              </div>
+            </div>
+
+            {/* Right Side: Questions list */}
+            <div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+                {qnas.length === 0 ? (
+                  <div style={{ padding: '48px 24px', textAlign: 'center', background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 6, color: 'var(--text-muted)' }}>
+                    <HelpCircleIcon size={32} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
+                    <p style={{ fontSize: 13, fontStyle: 'italic' }}>No questions asked yet. Be the first to ask!</p>
+                  </div>
+                ) : (
+                  qnas.map((q: any) => (
+                    <div key={q.id} style={{ padding: 22, background: 'var(--bg-elevated)', border: '1px solid var(--border-default)', borderRadius: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+                        <h4 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Q: {q.question}</h4>
+                        <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: "'DM Mono', monospace" }}>{q.date}</span>
+                      </div>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>Asked by: {q.askedBy}</p>
+
+                      {q.answer ? (
+                        <div style={{ background: 'var(--bg-surface)', borderLeft: '3px solid var(--accent)', padding: '12px 16px', borderRadius: '0 6px 6px 0' }}>
+                          <p style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text-secondary)' }}>
+                            <strong>A:</strong> {q.answer}
+                          </p>
+                          <p style={{ fontSize: 10, color: 'var(--accent)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 6 }}>
+                            ✓ Answered by Beauty Glowry Dermatologist
+                          </p>
+                        </div>
+                      ) : (
+                        <div style={{ background: 'rgba(201,149,109,0.03)', borderLeft: '3px solid var(--border-default)', padding: '10px 16px', borderRadius: '0 6px 6px 0', fontSize: 11.5, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                          ⌛ Question is pending review by our skincare experts.
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>

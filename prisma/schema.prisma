@@ -24,8 +24,24 @@ model User {
   carts         Cart[]
   orders        Order[]
   notifications Notification[]
+  skin_profiles UserSkinProfile[]
 
   @@map("users")
+}
+
+model UserSkinProfile {
+  id            String   @id @default(uuid())
+  user_id       String
+  skin_type     String
+  concern       String
+  routine_type  String
+  budget        String
+  answers_json  String
+  created_at    DateTime @default(now())
+
+  user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+
+  @@map("user_skin_profiles")
 }
 
 model Address {
@@ -211,6 +227,13 @@ model Order {
   address_id     String
   created_at     DateTime    @default(now())
   
+  customer_notes String?     @default("")
+  admin_notes    String?     @default("")
+  courier        String?     @default("")
+  thana          String?     @default("")
+  area           String?     @default("")
+  status_history OrderStatusHistory[]
+  
   user           User?       @relation(fields: [user_id], references: [id], onDelete: SetNull)
   address        Address     @relation(fields: [address_id], references: [id], onDelete: Restrict)
   items          OrderItem[]
@@ -257,14 +280,16 @@ model Banner {
 }
 
 model BlogPost {
-  id           String   @id @default(uuid())
+  id           String    @id @default(uuid())
   title        String
-  slug         String   @unique
+  slug         String    @unique
   content      String
+  summary      String?
   cover_image  String?
   author       String?
   tags         String[]
-  is_published Boolean  @default(false)
+  is_published Boolean   @default(false)
+  created_at   DateTime  @default(now())
 
   @@map("blog_posts")
 }
@@ -301,4 +326,16 @@ model Notification {
   user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("notifications")
+}
+
+model OrderStatusHistory {
+  id         String   @id @default(uuid())
+  order_id   String
+  status     String
+  note       String?
+  created_at DateTime @default(now())
+
+  order      Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
+
+  @@map("order_status_history")
 }
