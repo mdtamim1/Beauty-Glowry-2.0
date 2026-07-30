@@ -23,12 +23,12 @@ export async function GET() {
       orderBy: { created_at: 'desc' },
     });
 
-    const formattedOrders = dbOrders.map((o) => {
+    const formattedOrders = dbOrders.map((o: any) => {
       const customerName = o.address?.user?.name || 'Guest';
       const customerPhone = o.address?.user?.phone || '';
       const customerEmail = o.address?.user?.email || '';
 
-      const items = o.items.map((item) => ({
+      const items = o.items.map((item: any) => ({
         name: item.product_variant?.product?.name || 'Unknown Skincare Product',
         qty: item.quantity,
         price: Number(item.price_at_purchase),
