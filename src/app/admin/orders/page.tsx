@@ -1,0 +1,1415 @@
+'use client';
+
+import React, { useState, useMemo, useEffect } from 'react';
+import {
+  Search, ChevronDown, Eye, X, Printer, RefreshCw, Filter,
+  Plus, Trash2, Package, Save, Tag, Hash, User, Phone,
+  Mail, MapPin, Truck, Calendar, FileText, ShoppingCart,
+  AlertCircle, Check, Copy
+} from 'lucide-react';
+import { products } from '../../../data/products';
+
+const C = {
+  surface: '#1A1A17', elevated: '#222220', border: 'rgba(255,255,255,0.07)',
+  borderFocus: 'rgba(201,149,109,0.6)',
+  text: '#F0EBE3', textSec: '#B0A8A0', muted: '#7A7470',
+  accent: '#C9956D', success: '#4CAF82', warning: '#F0A54B', danger: '#E05A5A', info: '#60A5FA',
+};
+
+// ─── Bangladesh Districts & Thanas ──────────────────────────────────────
+const BD_LOCATIONS: Record<string, string[]> = {
+  Dhaka: ['Adabar', 'Badda', 'Banani', 'Demra', 'Dhanmondi', 'Gulshan', 'Hazaribagh', 'Jatrabari', 'Kadamtali', 'Kalabagan', 'Khilgaon', 'Mirpur', 'Mohammadpur', 'Motijheel', 'Pallabi', 'Ramna', 'Sabujbagh', 'Tejgaon', 'Turag', 'Uttara'],
+  Chittagong: ['Agrabad', 'Anwara', 'Bayezid', 'Chandgaon', 'Chittagong Sadar', 'Double Mooring', 'Halishahar', 'Karnaphuli', 'Kotwali', 'Pahartali', 'Panchlaish', 'Patenga', 'Raozan', 'Sitakunda'],
+  Sylhet: ['Balaganj', 'Beanibazar', 'Biswanath', 'Companiganj', 'Dakshin Surma', 'Fenchuganj', 'Golapganj', 'Gowainghat', 'Jaintiapur', 'Kanaighat', 'Osmani Nagar', 'South Surma', 'Sylhet Sadar', 'Zakiganj'],
+  Rajshahi: ['Bagha', 'Bagmara', 'Boalia', 'Charghat', 'Durgapur', 'Godagari', 'Matihar', 'Mohanpur', 'Paba', 'Puthia', 'Rajpara', 'Rajshahi Sadar', 'Shah Makhdum', 'Tanore'],
+  Khulna: ['Batiaghata', 'Dacope', 'Daulatpur', 'Dighalia', 'Dumuria', 'Fultala', 'Khan Jahan Ali', 'Khalishpur', 'Khulna Sadar', 'Kotwali', 'Koyra', 'Paikgachha', 'Rupsha', 'Sonadanga', 'Terokhada'],
+  Barisal: ['Agailjhara', 'Babuganj', 'Bakerganj', 'Banaripara', 'Barisal Sadar', 'Gauranadi', 'Hizla', 'Mehendiganj', 'Muladi', 'Wazirpur'],
+  Rangpur: ['Badarganj', 'Gangachara', 'Kaunia', 'Mithapukur', 'Pirgachha', 'Pirganj', 'Rangpur Sadar', 'Taraganj'],
+  Mymensingh: ['Bhaluka', 'Dhobaura', 'Fulbaria', 'Gaffargaon', 'Gauripur', 'Haluaghat', 'Ishwarganj', 'Muktagachha', 'Mymensingh Sadar', 'Nandail', 'Phulpur', 'Trishal'],
+  Comilla: ['Barura', 'Brahmanpara', 'Burichang', 'Chandina', 'Chauddagram', 'Comilla Sadar', 'Daudkandi', 'Debidwar', 'Homna', 'Laksam', 'Lalmai', 'Meghna', 'Muradnagar', 'Nangalkot', 'Titas'],
+  Narayanganj: ['Araihazar', 'Bandar', 'Narayanganj Sadar', 'Rupganj', 'Sonargaon'],
+  Gazipur: ['Gazipur Sadar', 'Kaliakair', 'Kaliganj', 'Kapasia', 'Sreepur', 'Tongi'],
+  Cumilla: ['Comilla Adarsha', 'Sadar South'],
+};
+
+const COURIERS = ['Pathao', 'Paperfly', 'Sundarban', 'SA Paribahan', 'Redx', 'eCourier', 'Steadfast', 'Custom'];
+const PAYMENT_METHODS = ['Cash on Delivery (COD)', 'bKash', 'Nagad', 'Rocket', 'Credit/Debit Card', 'Bank Transfer'];
+
+// ─── Types ───────────────────────────────────────────────────────────────
+type OrderStatus = 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Refunded';
+
+interface OrderItem {
+  productId: number;
+  name: string;
+  size: string;
+  sku: string;
+  qty: number;
+  price: number;
+}
+
+interface Order {
+  id: string; customer: string; phone: string; email: string;
+  address: string; items: { name: string; qty: number; price: number }[];
+  total: number; shipping: number; payment: string;
+  status: OrderStatus; date: string; notes?: string;
+  district?: string; thana?: string; area?: string;
+  courier?: string; customerNote?: string; shopNote?: string;
+}
+
+const STATUS_STYLES: Record<OrderStatus, { bg: string; color: string }> = {
+  Pending: { bg: 'rgba(122,116,112,0.15)', color: C.muted },
+  Processing: { bg: 'rgba(240,165,75,0.15)', color: C.warning },
+  Shipped: { bg: 'rgba(96,165,250,0.15)', color: C.info },
+  Delivered: { bg: 'rgba(76,175,130,0.15)', color: C.success },
+  Refunded: { bg: 'rgba(224,90,90,0.15)', color: C.danger },
+};
+
+const ALL_STATUSES: OrderStatus[] = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Refunded'];
+
+const INITIAL_ORDERS: Order[] = [
+  { id: 'BG-9940', customer: 'Sumaiya Rahman', phone: '01711223344', email: 'sumaiya@gmail.com', address: 'House 12, Road 4, Dhanmondi', items: [{ name: 'Niacinamide 10% Serum', qty: 1, price: 1250 }, { name: 'HA Hydration Serum', qty: 1, price: 1150 }], total: 2400, shipping: 0, payment: 'bKash', status: 'Delivered', date: '2026-07-29', district: 'Dhaka', courier: 'Pathao' },
+  { id: 'BG-9939', customer: 'Imtiaz Ahmed', phone: '01855667788', email: 'imtiaz@outlook.com', address: 'Flat 3B, Gulshan-2', items: [{ name: 'Ceramide Barrier Cream', qty: 2, price: 1650 }], total: 3300, shipping: 0, payment: 'COD', status: 'Shipped', date: '2026-07-29', district: 'Dhaka', courier: 'Paperfly' },
+  { id: 'BG-9938', customer: 'Afrin Jahan', phone: '01966778899', email: 'afrin@yahoo.com', address: 'Chittagong Sadar', items: [{ name: 'Centella Asiatica Essence', qty: 1, price: 950 }], total: 950, shipping: 120, payment: 'Nagad', status: 'Processing', date: '2026-07-28', district: 'Chittagong', courier: 'Sundarban' },
+  { id: 'BG-9937', customer: 'Fahim Shahriar', phone: '01712345678', email: 'fahim@gmail.com', address: 'Sylhet Sadar', items: [{ name: 'Vitamin C 15% Emulsion', qty: 1, price: 1850 }], total: 1850, shipping: 120, payment: 'COD', status: 'Pending', date: '2026-07-28', district: 'Sylhet' },
+  { id: 'BG-9936', customer: 'Nadia Islam', phone: '01611223344', email: 'nadia@gmail.com', address: 'Mirpur-10', items: [{ name: 'Salicylic Acid Cleanser', qty: 2, price: 750 }], total: 1500, shipping: 0, payment: 'bKash', status: 'Pending', date: '2026-07-27', district: 'Dhaka' },
+  { id: 'BG-9935', customer: 'Rahim Khan', phone: '01722334455', email: 'rahim@gmail.com', address: 'Uttara', items: [{ name: 'Niacinamide 10% Serum', qty: 3, price: 1250 }], total: 3750, shipping: 0, payment: 'Card', status: 'Delivered', date: '2026-07-26', district: 'Dhaka' },
+  { id: 'BG-9934', customer: 'Tasnim Akter', phone: '01833445566', email: 'tasnim@gmail.com', address: 'Khulna Sadar', items: [{ name: 'Ceramide Barrier Cream', qty: 1, price: 1650 }], total: 1650, shipping: 120, payment: 'COD', status: 'Refunded', date: '2026-07-25', district: 'Khulna' },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────
+function genInvoiceNo() {
+  return 'BG-' + Math.floor(1000 + Math.random() * 9000);
+}
+
+function todayStr() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+// ─── Shared Input Style ───────────────────────────────────────────────────
+const iS = {
+  width: '100%', padding: '9px 12px',
+  background: C.elevated, border: `1px solid ${C.border}`,
+  borderRadius: 6, fontSize: 13, color: C.text,
+  fontFamily: "'DM Sans', sans-serif", outline: 'none',
+};
+
+function LabeledField({ label, required, children }: { label: string; required?: boolean; children: React.ReactNode }) {
+  return (
+    <div>
+      <label style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 6 }}>
+        {label}{required && <span style={{ color: C.danger }}> *</span>}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+// ─── View/Edit Order Modal ─────────────────────────────────────────────────────
+function ViewOrderModal({ order, onClose, onSave }: {
+  order: Order;
+  onClose: () => void;
+  onSave: (order: Order) => void;
+}) {
+  const [customerName, setCustomerName] = useState(order.customer);
+  const [customerPhone, setCustomerPhone] = useState(order.phone);
+  const [customerEmail, setCustomerEmail] = useState(order.email || '');
+  const [customerAddress, setCustomerAddress] = useState(() => {
+    let addr = order.address || '';
+    if (order.district && addr.endsWith(order.district)) {
+      addr = addr.substring(0, addr.lastIndexOf(order.district)).trim().replace(/,\s*$/, '');
+    }
+    if (order.thana && addr.endsWith(order.thana)) {
+      addr = addr.substring(0, addr.lastIndexOf(order.thana)).trim().replace(/,\s*$/, '');
+    }
+    return addr;
+  });
+  const [courier, setCourier] = useState(order.courier || COURIERS[0]);
+  const [status, setStatus] = useState<OrderStatus>(order.status);
+  const [orderDate, setOrderDate] = useState(order.date);
+  const [district, setDistrict] = useState(order.district || 'Dhaka');
+  const [thana, setThana] = useState(order.thana || '');
+  const [area, setArea] = useState(order.area || '');
+  const [payment, setPayment] = useState(() => {
+    const found = PAYMENT_METHODS.find(m => m.toLowerCase().includes(order.payment.toLowerCase()));
+    return found || PAYMENT_METHODS[0];
+  });
+  const [memoNo, setMemoNo] = useState('');
+  const [customerNote, setCustomerNote] = useState(order.customerNote || '');
+  const [shopNote, setShopNote] = useState(order.shopNote || '');
+  const [deliveryCharge, setDeliveryCharge] = useState(order.shipping);
+  const [discount, setDiscount] = useState(0);
+  const [paidAmount, setPaidAmount] = useState(0);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState(false);
+
+  // Product search
+  const [productSearch, setProductSearch] = useState('');
+  const [orderItems, setOrderItems] = useState<OrderItem[]>(() => {
+    return order.items.map((item, index) => {
+      const foundProduct = products.find(p => p.name === item.name || item.name.includes(p.name) || p.name.includes(item.name));
+      return {
+        productId: foundProduct?.id ?? (1000 + index),
+        name: item.name,
+        size: foundProduct?.size ?? '—',
+        sku: foundProduct?.variants[0]?.sku ?? `BG-${foundProduct?.id ?? (1000 + index)}`,
+        qty: item.qty,
+        price: item.price,
+      };
+    });
+  });
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const thanas = BD_LOCATIONS[district] || [];
+
+  const filteredProducts = useMemo(() =>
+    productSearch.length > 0
+      ? products.filter(p =>
+          p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+          p.category.toLowerCase().includes(productSearch.toLowerCase())
+        ).slice(0, 8)
+      : [],
+    [productSearch]
+  );
+
+  const addProduct = (p: typeof products[0]) => {
+    const existing = orderItems.find(i => i.productId === p.id);
+    if (existing) {
+      setOrderItems(prev => prev.map(i => i.productId === p.id ? { ...i, qty: i.qty + 1 } : i));
+    } else {
+      setOrderItems(prev => [...prev, {
+        productId: p.id, name: p.name, size: p.size || '—',
+        sku: p.variants[0]?.sku || `BG-${p.id}`, qty: 1, price: p.price,
+      }]);
+    }
+    setProductSearch('');
+    setShowDropdown(false);
+  };
+
+  const removeItem = (id: number) => setOrderItems(prev => prev.filter(i => i.productId !== id));
+  const updateQty = (id: number, qty: number) => {
+    if (qty < 1) { removeItem(id); return; }
+    setOrderItems(prev => prev.map(i => i.productId === id ? { ...i, qty } : i));
+  };
+
+  const subTotal = orderItems.reduce((a, i) => a + i.price * i.qty, 0);
+  const couponDiscount = couponApplied ? Math.round(subTotal * 0.1) : 0;
+  const total = subTotal + deliveryCharge - discount - couponDiscount;
+
+  const applyCoupon = () => {
+    if (couponCode.toUpperCase() === 'GLOWRY10') { setCouponApplied(true); }
+  };
+
+  const handleUpdate = () => {
+    if (!customerName || !customerPhone || !customerAddress) return;
+    const updatedOrder: Order = {
+      id: order.id,
+      customer: customerName,
+      phone: customerPhone,
+      email: customerEmail,
+      address: `${customerAddress}${thana ? ', ' + thana : ''}${district ? ', ' + district : ''}`,
+      items: orderItems.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
+      total,
+      shipping: deliveryCharge,
+      payment: payment.split(' ')[0],
+      status,
+      date: orderDate,
+      district, thana, area, courier, customerNote, shopNote,
+    };
+    onSave(updatedOrder);
+    onClose();
+  };
+
+  const quickNotes = ['Urgent delivery request', 'Handle with care', 'Gift wrap please', 'Call before delivery'];
+
+  const statusColor = STATUS_STYLES[status].color;
+  const statusBg = STATUS_STYLES[status].bg;
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,0.75)' }} />
+      <div
+        style={{
+          position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+          zIndex: 100, width: '96%', maxWidth: 1400, maxHeight: '92vh',
+          background: C.surface, border: `1px solid ${C.border}`,
+          borderRadius: 12, overflow: 'hidden',
+          boxShadow: '0 48px 120px rgba(0,0,0,0.7)',
+          display: 'flex', flexDirection: 'column',
+        }}
+      >
+        {/* ── Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 28px', borderBottom: `1px solid ${C.border}`, background: C.elevated, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: `${C.info}20`, border: `1px solid ${C.info}40`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Eye size={16} style={{ color: C.info }} />
+            </div>
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Edit Order Details</h2>
+              <p style={{ fontSize: 11, color: C.muted }}>Modify order settings, customer data, and item quantities</p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {/* Status Badge */}
+            <span style={{ padding: '5px 14px', background: statusBg, border: `1px solid ${statusColor}40`, borderRadius: 6, fontSize: 12, fontWeight: 700, color: statusColor }}>
+              {status}
+            </span>
+            {/* Invoice */}
+            <div style={{ padding: '5px 12px', background: `${C.accent}15`, border: `1px solid ${C.accent}30`, borderRadius: 5, fontSize: 12, fontWeight: 700, color: C.accent, fontFamily: "'DM Mono', monospace" }}>
+              {order.id}
+            </div>
+            <button onClick={onClose} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: `1px solid ${C.border}`, borderRadius: 7, cursor: 'pointer', color: C.muted }}>
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Body — 2 column layout */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 440px', overflow: 'hidden', flex: 1 }}>
+          {/* LEFT — Customer & Delivery Info */}
+          <div style={{ overflowY: 'auto', padding: '22px 24px', borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            {/* Store + Invoice */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <LabeledField label="Store Name">
+                <input value="Beauty Glowry" readOnly style={{ ...iS, color: C.muted, cursor: 'not-allowed' }} />
+              </LabeledField>
+              <LabeledField label="Invoice Number">
+                <div style={{ position: 'relative' }}>
+                  <input value={order.id} readOnly style={{ ...iS, fontFamily: "'DM Mono', monospace", color: C.accent, cursor: 'not-allowed' }} />
+                  <Hash size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted }} />
+                </div>
+              </LabeledField>
+            </div>
+
+            {/* Customer Name + Phone + Email */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <LabeledField label="Customer Name" required>
+                <div style={{ position: 'relative' }}>
+                  <User size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                  <input
+                    type="text" placeholder="Full Name" value={customerName}
+                    onChange={e => setCustomerName(e.target.value)}
+                    style={{ ...iS, paddingLeft: 28 }}
+                    onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                    onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                  />
+                </div>
+              </LabeledField>
+              <LabeledField label="Customer Phone" required>
+                <div style={{ position: 'relative' }}>
+                  <Phone size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                  <input
+                    type="tel" placeholder="01XXXXXXXXX" value={customerPhone}
+                    onChange={e => setCustomerPhone(e.target.value)}
+                    style={{ ...iS, paddingLeft: 28 }}
+                    onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                    onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                  />
+                </div>
+              </LabeledField>
+              <LabeledField label="Email / Gmail">
+                <div style={{ position: 'relative' }}>
+                  <Mail size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                  <input
+                    type="email" placeholder="customer@gmail.com" value={customerEmail}
+                    onChange={e => setCustomerEmail(e.target.value)}
+                    style={{ ...iS, paddingLeft: 28 }}
+                    onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                    onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                  />
+                </div>
+              </LabeledField>
+            </div>
+
+            {/* Address */}
+            <LabeledField label="Customer Address" required>
+              <div style={{ position: 'relative' }}>
+                <MapPin size={12} style={{ position: 'absolute', left: 10, top: 12, color: C.muted, pointerEvents: 'none' }} />
+                <textarea
+                  rows={2} placeholder="House No, Road, Village / Area..."
+                  value={customerAddress} onChange={e => setCustomerAddress(e.target.value)}
+                  style={{ ...iS, paddingLeft: 28, resize: 'none' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                  onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                />
+              </div>
+            </LabeledField>
+
+            {/* Courier + Status + Date */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <LabeledField label="Courier">
+                <div style={{ position: 'relative' }}>
+                  <select value={courier} onChange={e => setCourier(e.target.value)} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
+                    {COURIERS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                </div>
+              </LabeledField>
+              <LabeledField label="Order Status">
+                <div style={{ position: 'relative' }}>
+                  <select value={status} onChange={e => setStatus(e.target.value as OrderStatus)} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer', color: STATUS_STYLES[status].color, background: STATUS_STYLES[status].bg, border: `1px solid ${STATUS_STYLES[status].color}40` }}>
+                    {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: STATUS_STYLES[status].color, pointerEvents: 'none' }} />
+                </div>
+              </LabeledField>
+              <LabeledField label="Order Date">
+                <input type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} style={{ ...iS, colorScheme: 'dark' }} />
+              </LabeledField>
+            </div>
+
+            {/* District + Thana + Area */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <LabeledField label="District">
+                <div style={{ position: 'relative' }}>
+                  <select value={district} onChange={e => { setDistrict(e.target.value); setThana(''); }} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
+                    {Object.keys(BD_LOCATIONS).map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                </div>
+              </LabeledField>
+              <LabeledField label="Thana / Upazila">
+                <div style={{ position: 'relative' }}>
+                  <select value={thana} onChange={e => setThana(e.target.value)} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
+                    <option value="">Select Thana</option>
+                    {thanas.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                </div>
+              </LabeledField>
+              <LabeledField label="Area / Neighborhood">
+                <input type="text" placeholder="Block C, Section 7..." value={area} onChange={e => setArea(e.target.value)}
+                  style={iS}
+                  onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                  onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                />
+              </LabeledField>
+            </div>
+
+            {/* Notes */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <LabeledField label="Customer Note">
+                <textarea rows={2} placeholder="Note for customer..." value={customerNote} onChange={e => setCustomerNote(e.target.value)}
+                  style={{ ...iS, resize: 'none' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                  onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                />
+              </LabeledField>
+              <LabeledField label="Shop Note">
+                <textarea rows={2} placeholder="Internal note..." value={shopNote} onChange={e => setShopNote(e.target.value)}
+                  style={{ ...iS, resize: 'none' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                  onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                />
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 7 }}>
+                  {quickNotes.map(t => (
+                    <button key={t} onClick={() => setShopNote(t)} style={{ fontSize: 10, padding: '2px 8px', background: `${C.accent}12`, border: `1px solid ${C.accent}30`, borderRadius: 3, color: C.accent, cursor: 'pointer', transition: 'background 0.15s' }}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </LabeledField>
+            </div>
+          </div>
+
+          {/* RIGHT — Products + Pricing */}
+          <div style={{ overflowY: 'auto', padding: '22px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Product Search */}
+            <div style={{ position: 'relative' }}>
+              <LabeledField label="Add Products">
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                    <input
+                      type="text"
+                      placeholder="Search product name..."
+                      value={productSearch}
+                      onChange={e => { setProductSearch(e.target.value); setShowDropdown(true); }}
+                      onFocus={() => setShowDropdown(true)}
+                      style={{ ...iS, paddingLeft: 32 }}
+                    />
+                  </div>
+                </div>
+              </LabeledField>
+
+              {/* Dropdown */}
+              {showDropdown && filteredProducts.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                  background: C.elevated, border: `1px solid ${C.border}`,
+                  borderRadius: 8, overflow: 'hidden', boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
+                }}>
+                  {filteredProducts.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => addProduct(p)}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '10px 14px', background: 'none', border: 'none',
+                        borderBottom: `1px solid ${C.border}`, cursor: 'pointer', textAlign: 'left',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = `${C.accent}10`)}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >
+                      <div style={{ width: 34, height: 34, borderRadius: 5, overflow: 'hidden', flexShrink: 0, border: `1px solid ${C.border}` }}>
+                        <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name.slice(0, 36)}...</p>
+                        <p style={{ fontSize: 10, color: C.muted }}>{p.size} · ৳{p.price.toLocaleString()}</p>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, fontFamily: "'DM Mono', monospace", flexShrink: 0 }}>৳{p.price.toLocaleString()}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Order Items Table */}
+            <div style={{ background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 50px 70px 30px', gap: 8, padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+                {['Product / Size', 'Qty', 'Price', ''].map(h => (
+                  <span key={h} style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>{h}</span>
+                ))}
+              </div>
+
+              <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                {orderItems.length === 0 ? (
+                  <div style={{ padding: '32px 16px', textAlign: 'center', color: C.muted }}>
+                    <ShoppingCart size={28} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
+                    <p style={{ fontSize: 12 }}>No products added yet</p>
+                  </div>
+                ) : (
+                  orderItems.map((item, i) => (
+                    <div
+                      key={item.productId}
+                      style={{
+                        display: 'grid', gridTemplateColumns: '1fr 50px 70px 30px',
+                        gap: 8, padding: '10px 12px', alignItems: 'center',
+                        borderBottom: i < orderItems.length - 1 ? `1px solid ${C.border}` : 'none',
+                      }}
+                    >
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: C.text, lineHeight: 1.3, marginBottom: 2 }}>{item.name.slice(0, 28)}...</p>
+                        <p style={{ fontSize: 10, color: C.muted, fontFamily: "'DM Mono', monospace" }}>{item.size} · {item.sku}</p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button onClick={() => updateQty(item.productId, item.qty - 1)} style={{ width: 20, height: 20, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer', color: C.muted, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: C.text, width: 16, textAlign: 'center', fontFamily: "'DM Mono', monospace" }}>{item.qty}</span>
+                        <button onClick={() => updateQty(item.productId, item.qty + 1)} style={{ width: 20, height: 20, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer', color: C.muted, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: "'DM Mono', monospace" }}>৳{(item.price * item.qty).toLocaleString()}</span>
+                      <button onClick={() => removeItem(item.productId)} style={{ width: 24, height: 24, background: 'none', border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer', color: C.muted, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = C.danger; e.currentTarget.style.color = C.danger; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Payment + Memo */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <LabeledField label="Payment Method">
+                <div style={{ position: 'relative' }}>
+                  <select value={payment} onChange={e => setPayment(e.target.value)} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
+                    {PAYMENT_METHODS.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                </div>
+              </LabeledField>
+              <LabeledField label="Memo / Transaction No">
+                <input type="text" placeholder="e.g. 8D3F9" value={memoNo} onChange={e => setMemoNo(e.target.value)}
+                  style={{ ...iS, fontFamily: "'DM Mono', monospace" }}
+                />
+              </LabeledField>
+            </div>
+
+            {/* Pricing Summary */}
+            <div style={{ background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ padding: '12px 16px', borderBottom: `1px solid ${C.border}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: C.muted }}>Sub Total</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.text, fontFamily: "'DM Mono', monospace" }}>৳{subTotal.toLocaleString()}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: C.muted }}>Delivery Charge</span>
+                  <input
+                    type="number"
+                    value={deliveryCharge}
+                    onChange={e => setDeliveryCharge(Number(e.target.value))}
+                    style={{ width: 80, padding: '4px 8px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, textAlign: 'right', fontFamily: "'DM Mono', monospace", outline: 'none' }}
+                  />
+                </div>
+
+                {/* Coupon */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: C.muted }}>Coupon</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      type="text" placeholder="Code" value={couponCode} onChange={e => setCouponCode(e.target.value)}
+                      style={{ width: 90, padding: '4px 8px', background: C.surface, border: `1px solid ${couponApplied ? C.success : C.border}`, borderRadius: 5, fontSize: 11, color: couponApplied ? C.success : C.text, fontFamily: "'DM Mono', monospace", outline: 'none', textTransform: 'uppercase' }}
+                    />
+                    <button
+                      onClick={applyCoupon}
+                      style={{ padding: '4px 10px', background: couponApplied ? `${C.success}20` : `${C.accent}20`, border: `1px solid ${couponApplied ? C.success : C.accent}50`, borderRadius: 5, fontSize: 11, fontWeight: 700, color: couponApplied ? C.success : C.accent, cursor: 'pointer' }}
+                    >
+                      {couponApplied ? <Check size={12} /> : 'Apply'}
+                    </button>
+                  </div>
+                </div>
+
+                {couponApplied && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, color: C.success }}>✓ Coupon Discount (10%)</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.success, fontFamily: "'DM Mono', monospace" }}>−৳{couponDiscount.toLocaleString()}</span>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: C.muted }}>Manual Discount (৳)</span>
+                  <input
+                    type="number"
+                    value={discount}
+                    onChange={e => setDiscount(Number(e.target.value))}
+                    style={{ width: 80, padding: '4px 8px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, textAlign: 'right', fontFamily: "'DM Mono', monospace", outline: 'none' }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: C.muted }}>Paid Amount (৳)</span>
+                  <input
+                    type="number"
+                    value={paidAmount}
+                    onChange={e => setPaidAmount(Number(e.target.value))}
+                    style={{ width: 80, padding: '4px 8px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, textAlign: 'right', fontFamily: "'DM Mono', monospace", outline: 'none' }}
+                  />
+                </div>
+              </div>
+
+              {/* Total */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: `${C.accent}08` }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Total</span>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, fontWeight: 700, color: C.accent }}>
+                  ৳{total.toLocaleString()}
+                </span>
+              </div>
+
+              {/* Due */}
+              {paidAmount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', borderTop: `1px solid ${C.border}` }}>
+                  <span style={{ fontSize: 12, color: total - paidAmount > 0 ? C.danger : C.success }}>
+                    {total - paidAmount > 0 ? 'Due Amount' : 'Change Due'}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: total - paidAmount > 0 ? C.danger : C.success, fontFamily: "'DM Mono', monospace" }}>
+                    ৳{Math.abs(total - paidAmount).toLocaleString()}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Validation warning */}
+            {(!customerName || !customerPhone || !customerAddress) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: `${C.warning}10`, border: `1px solid ${C.warning}30`, borderRadius: 7 }}>
+                <AlertCircle size={13} style={{ color: C.warning, flexShrink: 0 }} />
+                <p style={{ fontSize: 11, color: C.warning }}>Name, Phone, and Address are required to save the order.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Footer */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 28px', borderTop: `1px solid ${C.border}`, background: C.elevated, flexShrink: 0 }}>
+          <button onClick={() => window.print()} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.muted, cursor: 'pointer' }}>
+            <Printer size={14} /> Print Invoice
+          </button>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={onClose} style={{ padding: '9px 20px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.muted, cursor: 'pointer' }}>
+              Cancel
+            </button>
+            <button
+              onClick={handleUpdate}
+              disabled={!customerName || !customerPhone || !customerAddress}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '9px 24px',
+                background: (!customerName || !customerPhone || !customerAddress) ? C.muted : C.accent,
+                border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, color: '#fff',
+                cursor: (!customerName || !customerPhone || !customerAddress) ? 'not-allowed' : 'pointer',
+                boxShadow: (!customerName || !customerPhone || !customerAddress) ? 'none' : `0 4px 16px rgba(201,149,109,0.3)`,
+                transition: 'all 0.2s',
+              }}
+            >
+              <Save size={14} /> Save Changes
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Create Order Modal ───────────────────────────────────────────────────
+function CreateOrderModal({ onClose, onSave }: { onClose: () => void; onSave: (order: Order) => void }) {
+  const [invoiceNo] = useState(genInvoiceNo());
+  const [customerName, setCustomerName] = useState('');
+  const [customerPhone, setCustomerPhone] = useState('');
+  const [customerEmail, setCustomerEmail] = useState('');
+  const [customerAddress, setCustomerAddress] = useState('');
+  const [courier, setCourier] = useState(COURIERS[0]);
+  const [status, setStatus] = useState<OrderStatus>('Processing');
+  const [orderDate, setOrderDate] = useState(todayStr());
+  const [district, setDistrict] = useState('Dhaka');
+  const [thana, setThana] = useState('');
+  const [area, setArea] = useState('');
+  const [payment, setPayment] = useState(PAYMENT_METHODS[0]);
+  const [memoNo, setMemoNo] = useState('');
+  const [customerNote, setCustomerNote] = useState('');
+  const [shopNote, setShopNote] = useState('');
+  const [deliveryCharge, setDeliveryCharge] = useState(120);
+  const [discount, setDiscount] = useState(0);
+  const [paidAmount, setPaidAmount] = useState(0);
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState(false);
+
+  // Product search
+  const [productSearch, setProductSearch] = useState('');
+  const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+
+  const thanas = BD_LOCATIONS[district] || [];
+
+  const filteredProducts = useMemo(() =>
+    productSearch.length > 0
+      ? products.filter(p =>
+          p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+          p.category.toLowerCase().includes(productSearch.toLowerCase())
+        ).slice(0, 8)
+      : [],
+    [productSearch]
+  );
+
+  const addProduct = (p: typeof products[0]) => {
+    const existing = orderItems.find(i => i.productId === p.id);
+    if (existing) {
+      setOrderItems(prev => prev.map(i => i.productId === p.id ? { ...i, qty: i.qty + 1 } : i));
+    } else {
+      setOrderItems(prev => [...prev, {
+        productId: p.id, name: p.name, size: p.size || '—',
+        sku: p.variants[0]?.sku || `BG-${p.id}`, qty: 1, price: p.price,
+      }]);
+    }
+    setProductSearch('');
+    setShowDropdown(false);
+  };
+
+  const removeItem = (id: number) => setOrderItems(prev => prev.filter(i => i.productId !== id));
+  const updateQty = (id: number, qty: number) => {
+    if (qty < 1) { removeItem(id); return; }
+    setOrderItems(prev => prev.map(i => i.productId === id ? { ...i, qty } : i));
+  };
+
+  const subTotal = orderItems.reduce((a, i) => a + i.price * i.qty, 0);
+  const couponDiscount = couponApplied ? Math.round(subTotal * 0.1) : 0;
+  const total = subTotal + deliveryCharge - discount - couponDiscount;
+
+  const applyCoupon = () => {
+    if (couponCode.toUpperCase() === 'GLOWRY10') { setCouponApplied(true); }
+  };
+
+  const handleSave = () => {
+    if (!customerName || !customerPhone || !customerAddress) return;
+    const order: Order = {
+      id: invoiceNo,
+      customer: customerName,
+      phone: customerPhone,
+      email: customerEmail,
+      address: `${customerAddress}${thana ? ', ' + thana : ''}${district ? ', ' + district : ''}`,
+      items: orderItems.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
+      total,
+      shipping: deliveryCharge,
+      payment: payment.split(' ')[0],
+      status,
+      date: orderDate,
+      district, thana, area, courier, customerNote, shopNote,
+    };
+    onSave(order);
+    onClose();
+  };
+
+  const quickNotes = ['Urgent delivery request', 'Handle with care', 'Gift wrap please', 'Call before delivery'];
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 90, background: 'rgba(0,0,0,0.75)' }} />
+      <div
+        style={{
+          position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+          zIndex: 100, width: '96%', maxWidth: 1400, maxHeight: '92vh',
+          background: C.surface, border: `1px solid ${C.border}`,
+          borderRadius: 12, overflow: 'hidden',
+          boxShadow: '0 48px 120px rgba(0,0,0,0.7)',
+          display: 'flex', flexDirection: 'column',
+        }}
+      >
+        {/* ── Header */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '18px 28px', borderBottom: `1px solid ${C.border}`, background: C.elevated, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: `${C.accent}20`, border: `1px solid ${C.accent}40`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Plus size={16} style={{ color: C.accent }} />
+            </div>
+            <div>
+              <h2 style={{ fontSize: 16, fontWeight: 700, color: C.text }}>Create New Order</h2>
+              <p style={{ fontSize: 11, color: C.muted }}>Fill in the details below to create a manual order</p>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ padding: '5px 12px', background: `${C.accent}15`, border: `1px solid ${C.accent}30`, borderRadius: 5, fontSize: 12, fontWeight: 700, color: C.accent, fontFamily: "'DM Mono', monospace" }}>
+              {invoiceNo}
+            </div>
+            <button onClick={onClose} style={{ width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: `1px solid ${C.border}`, borderRadius: 7, cursor: 'pointer', color: C.muted }}>
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Body — 2 column layout */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 440px', overflow: 'hidden', flex: 1 }}>
+          {/* LEFT — Customer & Delivery Info */}
+          <div style={{ overflowY: 'auto', padding: '22px 24px', borderRight: `1px solid ${C.border}`, display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            {/* Store + Invoice */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <LabeledField label="Store Name">
+                <input value="Beauty Glowry" readOnly style={{ ...iS, color: C.muted, cursor: 'not-allowed' }} />
+              </LabeledField>
+              <LabeledField label="Invoice Number">
+                <div style={{ position: 'relative' }}>
+                  <input value={invoiceNo} readOnly style={{ ...iS, fontFamily: "'DM Mono', monospace", color: C.accent, cursor: 'not-allowed' }} />
+                  <Hash size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted }} />
+                </div>
+              </LabeledField>
+            </div>
+
+            {/* Customer Name + Phone + Email */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <LabeledField label="Customer Name" required>
+                <div style={{ position: 'relative' }}>
+                  <User size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                  <input
+                    type="text" placeholder="Full Name" value={customerName}
+                    onChange={e => setCustomerName(e.target.value)}
+                    style={{ ...iS, paddingLeft: 28 }}
+                    onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                    onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                  />
+                </div>
+              </LabeledField>
+              <LabeledField label="Customer Phone" required>
+                <div style={{ position: 'relative' }}>
+                  <Phone size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                  <input
+                    type="tel" placeholder="01XXXXXXXXX" value={customerPhone}
+                    onChange={e => setCustomerPhone(e.target.value)}
+                    style={{ ...iS, paddingLeft: 28 }}
+                    onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                    onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                  />
+                </div>
+              </LabeledField>
+              <LabeledField label="Email / Gmail">
+                <div style={{ position: 'relative' }}>
+                  <Mail size={12} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                  <input
+                    type="email" placeholder="customer@gmail.com" value={customerEmail}
+                    onChange={e => setCustomerEmail(e.target.value)}
+                    style={{ ...iS, paddingLeft: 28 }}
+                    onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                    onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                  />
+                </div>
+              </LabeledField>
+            </div>
+
+            {/* Address */}
+            <LabeledField label="Customer Address" required>
+              <div style={{ position: 'relative' }}>
+                <MapPin size={12} style={{ position: 'absolute', left: 10, top: 12, color: C.muted, pointerEvents: 'none' }} />
+                <textarea
+                  rows={2} placeholder="House No, Road, Village / Area..."
+                  value={customerAddress} onChange={e => setCustomerAddress(e.target.value)}
+                  style={{ ...iS, paddingLeft: 28, resize: 'none' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                  onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                />
+              </div>
+            </LabeledField>
+
+            {/* Courier + Status + Date */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <LabeledField label="Courier">
+                <div style={{ position: 'relative' }}>
+                  <select value={courier} onChange={e => setCourier(e.target.value)} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
+                    {COURIERS.map(c => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                </div>
+              </LabeledField>
+              <LabeledField label="Order Status">
+                <div style={{ position: 'relative' }}>
+                  <select value={status} onChange={e => setStatus(e.target.value as OrderStatus)} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer', color: STATUS_STYLES[status].color }}>
+                    {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                </div>
+              </LabeledField>
+              <LabeledField label="Order Date">
+                <input type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} style={{ ...iS, colorScheme: 'dark' }} />
+              </LabeledField>
+            </div>
+
+            {/* District + Thana + Area */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              <LabeledField label="District">
+                <div style={{ position: 'relative' }}>
+                  <select value={district} onChange={e => { setDistrict(e.target.value); setThana(''); }} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
+                    {Object.keys(BD_LOCATIONS).map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                </div>
+              </LabeledField>
+              <LabeledField label="Thana / Upazila">
+                <div style={{ position: 'relative' }}>
+                  <select value={thana} onChange={e => setThana(e.target.value)} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
+                    <option value="">Select Thana</option>
+                    {thanas.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                  <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                </div>
+              </LabeledField>
+              <LabeledField label="Area / Neighborhood">
+                <input type="text" placeholder="Block C, Section 7..." value={area} onChange={e => setArea(e.target.value)}
+                  style={iS}
+                  onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                  onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                />
+              </LabeledField>
+            </div>
+
+            {/* Notes */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <LabeledField label="Customer Note">
+                <textarea rows={2} placeholder="Note for customer..." value={customerNote} onChange={e => setCustomerNote(e.target.value)}
+                  style={{ ...iS, resize: 'none' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                  onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                />
+              </LabeledField>
+              <LabeledField label="Shop Note">
+                <textarea rows={2} placeholder="Internal note..." value={shopNote} onChange={e => setShopNote(e.target.value)}
+                  style={{ ...iS, resize: 'none' }}
+                  onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                  onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                />
+                {/* Quick Tags */}
+                <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap', marginTop: 7 }}>
+                  {quickNotes.map(t => (
+                    <button key={t} onClick={() => setShopNote(t)} style={{ fontSize: 10, padding: '2px 8px', background: `${C.accent}12`, border: `1px solid ${C.accent}30`, borderRadius: 3, color: C.accent, cursor: 'pointer', transition: 'background 0.15s' }}>
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              </LabeledField>
+            </div>
+          </div>
+
+          {/* RIGHT — Products + Pricing */}
+          <div style={{ overflowY: 'auto', padding: '22px 22px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Product Search */}
+            <div style={{ position: 'relative' }}>
+              <LabeledField label="Add Products">
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <div style={{ flex: 1, position: 'relative' }}>
+                    <Search size={13} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                    <input
+                      type="text"
+                      placeholder="Search product name..."
+                      value={productSearch}
+                      onChange={e => { setProductSearch(e.target.value); setShowDropdown(true); }}
+                      onFocus={() => setShowDropdown(true)}
+                      style={{ ...iS, paddingLeft: 32 }}
+                    />
+                  </div>
+                </div>
+              </LabeledField>
+
+              {/* Dropdown */}
+              {showDropdown && filteredProducts.length > 0 && (
+                <div style={{
+                  position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                  background: C.elevated, border: `1px solid ${C.border}`,
+                  borderRadius: 8, overflow: 'hidden', boxShadow: '0 12px 40px rgba(0,0,0,0.4)',
+                }}>
+                  {filteredProducts.map(p => (
+                    <button
+                      key={p.id}
+                      onClick={() => addProduct(p)}
+                      style={{
+                        width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '10px 14px', background: 'none', border: 'none',
+                        borderBottom: `1px solid ${C.border}`, cursor: 'pointer', textAlign: 'left',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={e => (e.currentTarget.style.background = `${C.accent}10`)}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                    >
+                      <div style={{ width: 34, height: 34, borderRadius: 5, overflow: 'hidden', flexShrink: 0, border: `1px solid ${C.border}` }}>
+                        <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name.slice(0, 36)}...</p>
+                        <p style={{ fontSize: 10, color: C.muted }}>{p.size} · ৳{p.price.toLocaleString()}</p>
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, fontFamily: "'DM Mono', monospace", flexShrink: 0 }}>৳{p.price.toLocaleString()}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Order Items Table */}
+            <div style={{ background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              {/* Table Header */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 50px 70px 30px', gap: 8, padding: '8px 12px', background: 'rgba(255,255,255,0.03)', borderBottom: `1px solid ${C.border}`, flexShrink: 0 }}>
+                {['Product / Size', 'Qty', 'Price', ''].map(h => (
+                  <span key={h} style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>{h}</span>
+                ))}
+              </div>
+
+              <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+                {orderItems.length === 0 ? (
+                  <div style={{ padding: '32px 16px', textAlign: 'center', color: C.muted }}>
+                    <ShoppingCart size={28} style={{ margin: '0 auto 10px', opacity: 0.3 }} />
+                    <p style={{ fontSize: 12 }}>No products added yet</p>
+                    <p style={{ fontSize: 11, marginTop: 4, opacity: 0.7 }}>Search above to add products</p>
+                  </div>
+                ) : (
+                  orderItems.map((item, i) => (
+                    <div
+                      key={item.productId}
+                      style={{
+                        display: 'grid', gridTemplateColumns: '1fr 50px 70px 30px',
+                        gap: 8, padding: '10px 12px', alignItems: 'center',
+                        borderBottom: i < orderItems.length - 1 ? `1px solid ${C.border}` : 'none',
+                      }}
+                    >
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 600, color: C.text, lineHeight: 1.3, marginBottom: 2 }}>{item.name.slice(0, 28)}...</p>
+                        <p style={{ fontSize: 10, color: C.muted, fontFamily: "'DM Mono', monospace" }}>{item.size} · {item.sku}</p>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button onClick={() => updateQty(item.productId, item.qty - 1)} style={{ width: 20, height: 20, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer', color: C.muted, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>−</button>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: C.text, width: 16, textAlign: 'center', fontFamily: "'DM Mono', monospace" }}>{item.qty}</span>
+                        <button onClick={() => updateQty(item.productId, item.qty + 1)} style={{ width: 20, height: 20, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 3, cursor: 'pointer', color: C.muted, fontSize: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>+</button>
+                      </div>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: "'DM Mono', monospace" }}>৳{(item.price * item.qty).toLocaleString()}</span>
+                      <button onClick={() => removeItem(item.productId)} style={{ width: 24, height: 24, background: 'none', border: `1px solid ${C.border}`, borderRadius: 4, cursor: 'pointer', color: C.muted, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s' }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = C.danger; e.currentTarget.style.color = C.danger; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = C.border; e.currentTarget.style.color = C.muted; }}>
+                        <Trash2 size={11} />
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+
+            {/* Payment + Memo */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              <LabeledField label="Payment Method">
+                <div style={{ position: 'relative' }}>
+                  <select value={payment} onChange={e => setPayment(e.target.value)} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
+                    {PAYMENT_METHODS.map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                  <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                </div>
+              </LabeledField>
+              <LabeledField label="Memo / Transaction No">
+                <input type="text" placeholder="e.g. 8D3F9 (bKash ref)" value={memoNo} onChange={e => setMemoNo(e.target.value)}
+                  style={{ ...iS, fontFamily: "'DM Mono', monospace" }}
+                  onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                  onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                />
+              </LabeledField>
+            </div>
+
+            {/* Pricing Summary */}
+            <div style={{ background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 8, overflow: 'hidden' }}>
+              <div style={{ padding: '12px 16px', borderBottom: `1px solid ${C.border}` }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: C.muted }}>Sub Total</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: C.text, fontFamily: "'DM Mono', monospace" }}>৳{subTotal.toLocaleString()}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: C.muted }}>Delivery Charge</span>
+                  <input
+                    type="number"
+                    value={deliveryCharge}
+                    onChange={e => setDeliveryCharge(Number(e.target.value))}
+                    style={{ width: 80, padding: '4px 8px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, textAlign: 'right', fontFamily: "'DM Mono', monospace", outline: 'none' }}
+                    onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                    onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                  />
+                </div>
+
+                {/* Coupon */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: C.muted }}>Coupon</span>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <input
+                      type="text" placeholder="Code" value={couponCode} onChange={e => setCouponCode(e.target.value)}
+                      style={{ width: 90, padding: '4px 8px', background: C.surface, border: `1px solid ${couponApplied ? C.success : C.border}`, borderRadius: 5, fontSize: 11, color: couponApplied ? C.success : C.text, fontFamily: "'DM Mono', monospace", outline: 'none', textTransform: 'uppercase' }}
+                    />
+                    <button
+                      onClick={applyCoupon}
+                      style={{ padding: '4px 10px', background: couponApplied ? `${C.success}20` : `${C.accent}20`, border: `1px solid ${couponApplied ? C.success : C.accent}50`, borderRadius: 5, fontSize: 11, fontWeight: 700, color: couponApplied ? C.success : C.accent, cursor: 'pointer' }}
+                    >
+                      {couponApplied ? <Check size={12} /> : 'Apply'}
+                    </button>
+                  </div>
+                </div>
+
+                {couponApplied && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                    <span style={{ fontSize: 11, color: C.success }}>✓ Coupon Discount (10%)</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: C.success, fontFamily: "'DM Mono', monospace" }}>−৳{couponDiscount.toLocaleString()}</span>
+                  </div>
+                )}
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                  <span style={{ fontSize: 12, color: C.muted }}>Manual Discount (৳)</span>
+                  <input
+                    type="number"
+                    value={discount}
+                    onChange={e => setDiscount(Number(e.target.value))}
+                    style={{ width: 80, padding: '4px 8px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, textAlign: 'right', fontFamily: "'DM Mono', monospace", outline: 'none' }}
+                    onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                    onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: 12, color: C.muted }}>Paid Amount (৳)</span>
+                  <input
+                    type="number"
+                    value={paidAmount}
+                    onChange={e => setPaidAmount(Number(e.target.value))}
+                    style={{ width: 80, padding: '4px 8px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, textAlign: 'right', fontFamily: "'DM Mono', monospace", outline: 'none' }}
+                    onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                    onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                  />
+                </div>
+              </div>
+
+              {/* Total */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', background: `${C.accent}08` }}>
+                <span style={{ fontSize: 14, fontWeight: 700, color: C.text }}>Total</span>
+                <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, fontWeight: 700, color: C.accent }}>
+                  ৳{total.toLocaleString()}
+                </span>
+              </div>
+
+              {/* Due */}
+              {paidAmount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 16px', borderTop: `1px solid ${C.border}` }}>
+                  <span style={{ fontSize: 12, color: total - paidAmount > 0 ? C.danger : C.success }}>
+                    {total - paidAmount > 0 ? 'Due Amount' : 'Change Due'}
+                  </span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: total - paidAmount > 0 ? C.danger : C.success, fontFamily: "'DM Mono', monospace" }}>
+                    ৳{Math.abs(total - paidAmount).toLocaleString()}
+                  </span>
+                </div>
+              )}
+            </div>
+
+            {/* Validation warning */}
+            {(!customerName || !customerPhone || !customerAddress) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: `${C.warning}10`, border: `1px solid ${C.warning}30`, borderRadius: 7 }}>
+                <AlertCircle size={13} style={{ color: C.warning, flexShrink: 0 }} />
+                <p style={{ fontSize: 11, color: C.warning }}>Name, Phone, and Address are required to save the order.</p>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Footer */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 28px', borderTop: `1px solid ${C.border}`, background: C.elevated, flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: C.muted }}>
+            <Package size={13} />
+            {orderItems.length} item{orderItems.length !== 1 ? 's' : ''} · Total ৳{total.toLocaleString()}
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={onClose} style={{ padding: '9px 20px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.muted, cursor: 'pointer' }}>
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!customerName || !customerPhone || !customerAddress}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '9px 24px',
+                background: (!customerName || !customerPhone || !customerAddress) ? C.muted : C.accent,
+                border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, color: '#fff',
+                cursor: (!customerName || !customerPhone || !customerAddress) ? 'not-allowed' : 'pointer',
+                boxShadow: (!customerName || !customerPhone || !customerAddress) ? 'none' : `0 4px 16px rgba(201,149,109,0.3)`,
+                transition: 'all 0.2s',
+              }}
+            >
+              <Save size={14} /> Create Order
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Main Orders Page ─────────────────────────────────────────────────────
+export default function AdminOrders() {
+  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  const [search, setSearch] = useState('');
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
+  const [updating, setUpdating] = useState<string | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [viewOrder, setViewOrder] = useState<Order | null>(null);
+  const [successMsg, setSuccessMsg] = useState('');
+
+  useEffect(() => {
+    fetch('/api/orders')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setOrders(data);
+        }
+      })
+      .catch((err) => console.error('Failed to load orders from live database:', err));
+  }, []);
+
+  const filtered = orders.filter(o => {
+    const matchSearch = o.id.toLowerCase().includes(search.toLowerCase()) ||
+      o.customer.toLowerCase().includes(search.toLowerCase()) ||
+      o.phone.includes(search);
+    const matchStatus = statusFilter === 'All' || o.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  const updateStatus = async (id: string, status: OrderStatus) => {
+    setUpdating(id);
+    try {
+      const res = await fetch(`/api/orders/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+
+      setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update order status');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handleNewOrder = (order: Order) => {
+    setOrders(prev => [order, ...prev]);
+    setSuccessMsg(`Order ${order.id} created successfully!`);
+    setTimeout(() => setSuccessMsg(''), 3500);
+  };
+
+  const handleUpdateOrder = async (updatedOrder: Order) => {
+    try {
+      const res = await fetch(`/api/orders/${updatedOrder.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: updatedOrder.status,
+          payment_method: updatedOrder.payment,
+        }),
+      });
+      if (!res.ok) throw new Error('Failed to update order');
+
+      setOrders((prev) => prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o)));
+      setSuccessMsg(`Order ${updatedOrder.id} updated successfully!`);
+      setTimeout(() => setSuccessMsg(''), 3500);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to update order in database');
+    }
+  };
+
+  const counts = ALL_STATUSES.reduce((acc, s) => {
+    acc[s] = orders.filter(o => o.status === s).length;
+    return acc;
+  }, {} as Record<OrderStatus, number>);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Success toast */}
+      {successMsg && (
+        <div style={{
+          position: 'fixed', top: 24, right: 24, zIndex: 200,
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '12px 20px', background: C.success, borderRadius: 8,
+          boxShadow: `0 8px 32px rgba(76,175,130,0.35)`,
+          animation: 'slideIn 0.3s ease',
+        }}>
+          <Check size={15} style={{ color: '#fff' }} />
+          <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{successMsg}</span>
+        </div>
+      )}
+
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 4 }}>Orders</h1>
+          <p style={{ fontSize: 13, color: C.muted }}>{orders.length} total orders</p>
+        </div>
+        <button
+          onClick={() => setShowCreateModal(true)}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 22px',
+            background: C.accent, border: 'none', borderRadius: 8,
+            fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer',
+            boxShadow: `0 4px 16px rgba(201,149,109,0.3)`,
+            transition: 'all 0.2s',
+          }}
+          onMouseEnter={e => (e.currentTarget.style.boxShadow = `0 8px 28px rgba(201,149,109,0.45)`)}
+          onMouseLeave={e => (e.currentTarget.style.boxShadow = `0 4px 16px rgba(201,149,109,0.3)`)}
+        >
+          <Plus size={15} /> Create Order
+        </button>
+      </div>
+
+      {/* Status Tabs */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {(['All', ...ALL_STATUSES] as const).map(s => (
+          <button
+            key={s}
+            onClick={() => setStatusFilter(s)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px',
+              background: statusFilter === s ? (s === 'All' ? C.accent : STATUS_STYLES[s as OrderStatus]?.color + '20') : C.surface,
+              border: `1px solid ${statusFilter === s ? (s === 'All' ? C.accent : STATUS_STYLES[s as OrderStatus]?.color + '50') : C.border}`,
+              borderRadius: 7, fontSize: 12, fontWeight: 600,
+              color: statusFilter === s ? (s === 'All' ? '#fff' : STATUS_STYLES[s as OrderStatus]?.color) : C.muted,
+              cursor: 'pointer', transition: 'all 0.15s',
+            }}
+          >
+            {s}
+            <span style={{ fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'inherit' }}>
+              {s === 'All' ? orders.length : counts[s as OrderStatus]}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Search */}
+      <div style={{ position: 'relative', maxWidth: 360 }}>
+        <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: C.muted }} />
+        <input
+          type="text" placeholder="Search order ID, customer, phone..."
+          value={search} onChange={e => setSearch(e.target.value)}
+          style={{ width: '100%', padding: '9px 12px 9px 36px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, color: C.text, outline: 'none' }}
+          onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+          onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+        />
+      </div>
+
+      {/* Orders Table */}
+      <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
+        {/* Header row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 100px 110px 100px 130px 80px', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${C.border}`, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>
+          <div>Order ID</div><div>Customer</div><div>Date</div><div>Amount</div><div>Payment</div><div>Status</div><div>Actions</div>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div style={{ padding: '60px 20px', textAlign: 'center', color: C.muted }}>
+            <Filter size={32} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
+            <p style={{ fontSize: 14 }}>No orders found</p>
+          </div>
+        ) : (
+          filtered.map((order, i) => (
+            <React.Fragment key={order.id}>
+              <div
+                style={{
+                  display: 'grid', gridTemplateColumns: '100px 1fr 100px 110px 100px 130px 80px',
+                  gap: 12, padding: '14px 20px', alignItems: 'center',
+                  borderBottom: `1px solid ${C.border}`, transition: 'background 0.15s',
+                  background: 'transparent',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
+                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+              >
+                <span style={{ fontSize: 12, fontWeight: 700, color: C.accent, fontFamily: "'DM Mono', monospace" }}>{order.id}</span>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>{order.customer}</p>
+                  <p style={{ fontSize: 11, color: C.muted }}>{order.phone}{order.courier ? ` · ${order.courier}` : ''}</p>
+                </div>
+                <span style={{ fontSize: 12, color: C.muted }}>{order.date}</span>
+                <div>
+                  <p style={{ fontSize: 13, fontWeight: 700, color: C.text, fontFamily: "'DM Mono', monospace" }}>৳{order.total.toLocaleString()}</p>
+                  {order.shipping > 0 && <p style={{ fontSize: 10, color: C.muted }}>+৳{order.shipping} ship</p>}
+                </div>
+                <span style={{ fontSize: 11, color: C.textSec }}>{order.payment}</span>
+                <div style={{ position: 'relative' }}>
+                  <select
+                    value={order.status}
+                    onChange={e => updateStatus(order.id, e.target.value as OrderStatus)}
+                    disabled={updating === order.id}
+                    style={{ appearance: 'none', width: '100%', padding: '5px 28px 5px 10px', background: STATUS_STYLES[order.status].bg, border: `1px solid ${STATUS_STYLES[order.status].color}40`, borderRadius: 6, fontSize: 11, fontWeight: 700, color: STATUS_STYLES[order.status].color, cursor: 'pointer', outline: 'none' }}
+                  >
+                    {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                  </select>
+                  {updating === order.id
+                    ? <RefreshCw size={11} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: STATUS_STYLES[order.status].color, animation: 'spin 0.6s linear infinite' }} />
+                    : <ChevronDown size={11} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: STATUS_STYLES[order.status].color, pointerEvents: 'none' }} />
+                  }
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => setViewOrder(order)}
+                    style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, cursor: 'pointer', color: C.muted }}
+                  >
+                    <Eye size={13} />
+                  </button>
+                </div>
+              </div>
+            </React.Fragment>
+          ))
+        )}
+      </div>
+
+      <p style={{ fontSize: 12, color: C.muted }}>Showing {filtered.length} of {orders.length} orders</p>
+
+      {/* Create Order Modal */}
+      {showCreateModal && <CreateOrderModal onClose={() => setShowCreateModal(false)} onSave={handleNewOrder} />}
+
+      {/* View Order Modal */}
+      {viewOrder && (
+        <ViewOrderModal
+          order={viewOrder}
+          onClose={() => setViewOrder(null)}
+          onSave={handleUpdateOrder}
+        />
+      )}
+
+      <style>{`
+        @keyframes spin { from { transform: translateY(-50%) rotate(0deg); } to { transform: translateY(-50%) rotate(360deg); } }
+        @keyframes slideIn { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+      `}</style>
+    </div>
+  );
+}

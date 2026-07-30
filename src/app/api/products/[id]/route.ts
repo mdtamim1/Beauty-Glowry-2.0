@@ -1,0 +1,190 @@
+import { NextResponse } from 'next/server';
+import { prisma } from '../../../../lib/prisma';
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    const p = await prisma.product.findFirst({
+      where: {
+        OR: [
+          { id: id },
+          { slug: id },
+        ],
+      },
+      include: {
+        brand: true,
+        category: true,
+        variants: true,
+        images: {
+          orderBy: { position: 'asc' },
+        },
+      },
+    });
+
+    if (!p) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
+    const formattedProduct = {
+      id: isNaN(Number(p.id)) ? p.id : Number(p.id),
+      name: p.name,
+      brand: p.brand_id || 'beauty-glowry',
+      brandInfo: p.brand ? { name: p.brand.name, logo: p.brand.logo } : null,
+      category: p.category?.name || 'Uncategorized',
+      price: Number(p.price),
+      originalPrice: Number(p.discount_price || p.price),
+      discountPrice: p.discount_price ? Number(p.discount_price) : undefined,
+      image: p.images[0]?.url || '',
+      stock: p.stock_qty,
+      rating: 4.8,
+      reviewCount: 12,
+      isBestseller: p.is_featured,
+      isNew: p.is_featured,
+      description: p.description || '',
+      actives: [],
+      skinTypes: p.skin_type_tags,
+      concerns: p.skin_type_tags,
+      inciList: p.ingredients || '',
+      usageSteps: p.how_to_use ? p.how_to_use.split('\n') : [],
+      variants: p.variants.map((v) => ({
+        id: v.id,
+        label: v.size || 'Standard',
+        sku: v.sku,
+        stock: v.stock_qty,
+        price: Number(v.price || p.price),
+      })),
+      productImages: p.images.map((img) => img.url),
+      size: p.variants[0]?.size || '30ml',
+    };
+
+    return NextResponse.json(formattedProduct);
+  } catch (error: any) {
+    console.error('[API Product GET Error]:', error);
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const data = await request.json();
+
+    const p = await prisma.product.findFirst({
+      where: {
+        OR: [
+          { id: id },
+          { slug: id },
+        ],
+      },
+    });
+
+    if (!p) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
+    const slug = data.name ? data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : p.slug;
+
+    let catSlug = p.category_id;
+    if (data.category) {
+      const newCatSlug = data.category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      catSlug = newCatSlug;
+      await prisma.category.upsert({
+        where: { slug: newCatSlug },
+        update: { name: data.category },
+        create: { id: newCatSlug, name: data.category, slug: newCatSlug },
+      });
+    }
+
+    // Update product properties
+    const updatedProduct = await prisma.product.update({
+      where: { id: p.id },
+      data: {
+        name: data.name ?? p.name,
+        slug,
+        brand_id: data.brand ?? p.brand_id,
+        category_id: catSlug,
+        description: data.description ?? p.description,
+        ingredients: data.inciList ?? p.ingredients,
+        how_to_use: data.usageSteps ? (Array.isArray(data.usageSteps) ? data.usageSteps.join('\n') : data.usageSteps) : p.how_to_use,
+        skin_type_tags: data.skinTypes ? (Array.isArray(data.skinTypes) ? data.skinTypes : data.skinTypes.split(',').map((s: string) => s.trim())) : p.skin_type_tags,
+        price: data.price ?? p.price,
+        discount_price: data.originalPrice ?? p.discount_price,
+        stock_qty: data.stock ?? p.stock_qty,
+        is_featured: data.isBestseller ?? data.is_featured,
+      },
+    });
+
+    // Update Product Image (if new main image URL provided)
+    if (data.image) {
+      await prisma.productImage.deleteMany({ where: { product_id: p.id } });
+      await prisma.productImage.create({
+        data: {
+          product_id: p.id,
+          url: data.image,
+          alt_text: data.name || p.name,
+          position: 0,
+        },
+      });
+    }
+
+    // If variants array is provided, recreate them
+    if (data.variants && Array.isArray(data.variants)) {
+      await prisma.productVariant.deleteMany({ where: { product_id: p.id } });
+      for (const v of data.variants) {
+        await prisma.productVariant.create({
+          data: {
+            product_id: p.id,
+            size: v.label || v.size,
+            sku: v.sku || `${slug.slice(0, 3).toUpperCase()}-${(v.label || v.size || 'std').toUpperCase()}`,
+            price: v.price || data.price || p.price,
+            stock_qty: v.stock || data.stock || p.stock_qty,
+            image: data.image || p.sku, // fallback
+          },
+        });
+      }
+    }
+
+    return NextResponse.json({ success: true, product: updatedProduct });
+  } catch (error: any) {
+    console.error('[API Product PUT Error]:', error);
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+
+    const p = await prisma.product.findFirst({
+      where: {
+        OR: [
+          { id: id },
+          { slug: id },
+        ],
+      },
+    });
+
+    if (!p) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    }
+
+    await prisma.product.delete({
+      where: { id: p.id },
+    });
+
+    return NextResponse.json({ success: true, message: 'Product deleted successfully' });
+  } catch (error: any) {
+    console.error('[API Product DELETE Error]:', error);
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  }
+}
