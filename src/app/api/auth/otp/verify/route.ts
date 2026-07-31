@@ -3,11 +3,13 @@ import { prisma } from '../../../../../lib/prisma';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
-// Temporary server-side storage for OTPs
-if (!(global as any).otpStore) {
-  (global as any).otpStore = new Map<string, { code: string; expires: number }>();
-}
-const otpStore = (global as any).otpStore;
+import { redis } from '../../../../../lib/redis';
+import {
+  generateAccessToken,
+  generateRefreshToken,
+  setRefreshTokenCookie,
+  storeRefreshTokenInRedis
+} from '../../../../../lib/auth';
 
 export async function POST(request: Request) {
   try {
@@ -17,23 +19,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Email and verification code are required' }, { status: 400 });
     }
 
-    const record = otpStore.get(email);
+    const savedCode = await redis.get(`otp:${email}`);
 
-    if (!record) {
-      return NextResponse.json({ error: 'No verification request found for this email' }, { status: 400 });
+    if (!savedCode) {
+      return NextResponse.json({ error: 'No verification request found for this email, or the code has expired. Please request a new one.' }, { status: 400 });
     }
 
-    if (Date.now() > record.expires) {
-      otpStore.delete(email);
-      return NextResponse.json({ error: 'Verification code has expired. Please request a new one.' }, { status: 400 });
-    }
-
-    if (record.code !== code) {
+    if (savedCode !== code) {
       return NextResponse.json({ error: 'Invalid verification code. Please check and try again.' }, { status: 400 });
     }
 
     // Success - delete OTP after use
-    otpStore.delete(email);
+    await redis.del(`otp:${email}`);
 
     let user;
 
@@ -84,18 +81,20 @@ export async function POST(request: Request) {
       }
     }
 
-    // 3. Generate JWT Token
-    const tokenSecret = process.env.NEXTAUTH_SECRET || 'beautyglowry-auth-secret-key-123456';
-    const token = jwt.sign(
-      {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-      tokenSecret,
-      { expiresIn: '7d' }
-    );
+    // 3. Generate Access Token & Refresh Token pair
+    const payload = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    };
+
+    const token = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+
+    // Store Refresh Token in Redis and set as cookie
+    await storeRefreshTokenInRedis(user.id, refreshToken);
+    await setRefreshTokenCookie(refreshToken);
 
     // 4. Return user profile and token
     const userProfile = {

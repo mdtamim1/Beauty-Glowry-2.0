@@ -26,7 +26,12 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       token: null,
       login: (user, token) => set({ user, token }),
-      logout: () => set({ user: null, token: null }),
+      logout: () => {
+        set({ user: null, token: null });
+        fetch('/api/auth/logout', { method: 'POST' }).catch((err) =>
+          console.error('Logout error:', err)
+        );
+      },
       updateSkinProfile: (skinType) => {
         const u = get().user;
         if (u) {

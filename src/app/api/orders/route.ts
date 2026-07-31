@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
+import { emailQueue } from '../../../lib/queue';
 
 export async function GET(request: NextRequest) {
   try {
@@ -249,6 +250,13 @@ export async function POST(request: Request) {
       });
 
       return createdOrder;
+    });
+
+    // Dispatch order confirmation email job to BullMQ queue in background
+    await emailQueue.add('send-order-confirmation', {
+      email,
+      orderNumber: order.order_number,
+      total: String(order.total),
     });
 
     return NextResponse.json({ success: true, orderId: order.order_number });

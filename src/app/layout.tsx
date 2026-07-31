@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Cormorant_Garamond, DM_Sans, DM_Mono } from "next/font/google";
 import "./globals.css";
+import WhatsAppButton from "../components/WhatsAppButton";
+import AuthInterceptor from "../components/AuthInterceptor";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -56,6 +58,8 @@ export default function RootLayout({
         style={{ background: "var(--bg-base)", color: "var(--text-primary)", fontFamily: "'DM Sans', system-ui, sans-serif" }}
       >
         {children}
+        <AuthInterceptor />
+        <WhatsAppButton />
       </body>
     </html>
   );

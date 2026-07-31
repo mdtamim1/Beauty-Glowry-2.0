@@ -2,7 +2,7 @@
 
 import React, { useState, createContext, useContext, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, Package, ShoppingCart, Users, Star,
   Megaphone, Settings, Menu, X, Bell, Search,
@@ -54,27 +54,22 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [mobileOpen, setMobileOpen] = useState(false);
   const [session, setSession] = useState<AdminSession | null>(null);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     // Dynamically require and run database seed setup
     const { seedTeamData } = require('./utils');
     seedTeamData();
 
+    if (pathname === '/admin' || pathname === '/admin/') return;
+
     const sessionStr = localStorage.getItem('bg_admin_session');
     if (sessionStr) {
       setSession(JSON.parse(sessionStr));
     } else {
-      // Default to Super Admin for backward compatibility during testing
-      const defaultAdmin: AdminSession = {
-        role: 'admin',
-        email: 'admin@beautyglowry.com',
-        name: 'Super Admin',
-        permissions: ['Dashboard', 'Products', 'Orders', 'Customers', 'Reviews', 'Marketing', 'Settings'],
-      };
-      localStorage.setItem('bg_admin_session', JSON.stringify(defaultAdmin));
-      setSession(defaultAdmin);
+      router.push('/admin');
     }
-  }, []);
+  }, [pathname]);
 
   // Notifications State and Handlers
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -395,6 +390,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
     </div>
   );
+
+  if (pathname === '/admin' || pathname === '/admin/') {
+    return <>{children}</>;
+  }
 
   return (
     <AdminCtx.Provider value={{ sidebarCollapsed: collapsed, setSidebarCollapsed: setCollapsed }}>

@@ -73,9 +73,11 @@ export function getAuthHeaders(): Record<string, string> {
   if (typeof window === 'undefined') return {};
   try {
     const sessionStr = localStorage.getItem('bg_admin_session');
+    const token = localStorage.getItem('bg_admin_token');
     if (!sessionStr) return {};
     const session: AdminSession = JSON.parse(sessionStr);
     return {
+      'Authorization': `Bearer ${token || ''}`,
       'x-moderator-email': session.email || 'admin@beautyglowry.com',
       'x-moderator-name': session.name || 'Super Admin',
     };

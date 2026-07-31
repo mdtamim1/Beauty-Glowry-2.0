@@ -1,8 +1,12 @@
-import { NextResponse } from 'next/server';
-import { prisma } from '../../../../lib/prisma';
+import { verifyAdminOrModerator } from '../../../../lib/auth';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    const admin = await verifyAdminOrModerator(request);
+    if (!admin || admin.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     let moderators = await prisma.moderator.findMany({
       orderBy: { created_at: 'asc' },
     });
@@ -45,7 +49,12 @@ export async function GET() {
       });
     }
 
-    return NextResponse.json(moderators);
+    const sanitized = moderators.map((m) => {
+      const { password, ...rest } = m;
+      return rest;
+    });
+
+    return NextResponse.json(sanitized);
   } catch (error: any) {
     console.error('[API Team Moderators GET Error]:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
@@ -54,6 +63,11 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const admin = await verifyAdminOrModerator(request);
+    if (!admin || admin.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const data = await request.json();
     const { name, email, password, permissions } = data;
 
@@ -88,6 +102,11 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
+    const admin = await verifyAdminOrModerator(request);
+    if (!admin || admin.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const data = await request.json();
     const { id, status, permissions } = data;
 
@@ -113,6 +132,11 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
+    const admin = await verifyAdminOrModerator(request);
+    if (!admin || admin.role !== 'admin') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

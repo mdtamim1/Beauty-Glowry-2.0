@@ -41,6 +41,7 @@ model UserSkinProfile {
 
   user          User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id])
   @@map("user_skin_profiles")
 }
 
@@ -56,6 +57,7 @@ model Address {
   user         User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
   orders       Order[]
 
+  @@index([user_id])
   @@map("addresses")
 }
 
@@ -114,6 +116,9 @@ model Product {
   qnas             ProductQnA[]
   wishlists        Wishlist[]
 
+  @@index([brand_id])
+  @@index([category_id])
+  @@index([is_featured, is_active])
   @@map("products")
 }
 
@@ -131,6 +136,7 @@ model ProductVariant {
   cart_items  CartItem[]
   order_items OrderItem[]
 
+  @@index([product_id])
   @@map("product_variants")
 }
 
@@ -143,6 +149,7 @@ model ProductImage {
   
   product    Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
 
+  @@index([product_id])
   @@map("product_images")
 }
 
@@ -163,6 +170,9 @@ model ProductReview {
   product           Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
   user              User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([product_id])
+  @@index([user_id])
+  @@index([status])
   @@map("product_reviews")
 }
 
@@ -178,6 +188,8 @@ model ProductQnA {
   product     Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
   user        User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([product_id])
+  @@index([user_id])
   @@map("product_qna")
 }
 
@@ -189,6 +201,7 @@ model Wishlist {
   user       User    @relation(fields: [user_id], references: [id], onDelete: Cascade)
   product    Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id, product_id])
   @@map("wishlists")
 }
 
@@ -200,6 +213,7 @@ model Cart {
   user       User?      @relation(fields: [user_id], references: [id], onDelete: Cascade)
   items      CartItem[]
 
+  @@index([user_id])
   @@map("carts")
 }
 
@@ -212,6 +226,8 @@ model CartItem {
   cart               Cart           @relation(fields: [cart_id], references: [id], onDelete: Cascade)
   product_variant    ProductVariant @relation(fields: [product_variant_id], references: [id], onDelete: Cascade)
 
+  @@index([cart_id])
+  @@index([product_variant_id])
   @@map("cart_items")
 }
 
@@ -241,6 +257,10 @@ model Order {
   address        Address     @relation(fields: [address_id], references: [id], onDelete: Restrict)
   items          OrderItem[]
 
+  @@index([user_id])
+  @@index([address_id])
+  @@index([status])
+  @@index([assigned_to])
   @@map("orders")
 }
 
@@ -254,6 +274,8 @@ model OrderItem {
   order              Order          @relation(fields: [order_id], references: [id], onDelete: Cascade)
   product_variant    ProductVariant @relation(fields: [product_variant_id], references: [id], onDelete: Restrict)
 
+  @@index([order_id])
+  @@index([product_variant_id])
   @@map("order_items")
 }
 
@@ -328,6 +350,8 @@ model Notification {
   
   user       User?    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
+  @@index([user_id])
+  @@index([is_read])
   @@map("notifications")
 }
 
@@ -340,6 +364,7 @@ model OrderStatusHistory {
 
   order      Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
 
+  @@index([order_id])
   @@map("order_status_history")
 }
 
@@ -373,5 +398,7 @@ model AuditLog {
   details         String
   timestamp       DateTime @default(now())
 
+  @@index([moderator_email])
+  @@index([timestamp])
   @@map("audit_logs")
 }

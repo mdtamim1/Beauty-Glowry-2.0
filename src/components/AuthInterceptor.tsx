@@ -1,0 +1,85 @@
+'use client';
+
+import { useEffect, useRef } from 'react';
+import { useAuthStore } from '../store/useAuthStore';
+
+export default function AuthInterceptor() {
+  const isRefreshing = useRef(false);
+  const refreshSubscribers = useRef<((token: string) => void)[]>([]);
+
+  const addRefreshSubscriber = (callback: (token: string) => void) => {
+    refreshSubscribers.current.push(callback);
+  };
+
+  const onRefreshed = (token: string) => {
+    refreshSubscribers.current.forEach((cb) => cb(token));
+    refreshSubscribers.current = [];
+  };
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const originalFetch = window.fetch;
+
+    window.fetch = async function (input, init) {
+      let response = await originalFetch(input, init);
+
+      // Intercept 401 Unauthorized errors
+      if (response.status === 401) {
+        const headers = new Headers(init?.headers);
+        const authHeader = headers.get('Authorization');
+        
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          if (!isRefreshing.current) {
+            isRefreshing.current = true;
+
+            try {
+              const refreshResponse = await originalFetch('/api/auth/token/refresh', {
+                method: 'POST',
+              });
+
+              if (refreshResponse.ok) {
+                const data = await refreshResponse.json();
+                const newAccessToken = data.accessToken;
+
+                // Update Zustand store
+                const currentUser = useAuthStore.getState().user;
+                if (currentUser) {
+                  useAuthStore.getState().login(currentUser, newAccessToken);
+                }
+
+                onRefreshed(newAccessToken);
+                isRefreshing.current = false;
+              } else {
+                isRefreshing.current = false;
+                useAuthStore.getState().logout();
+                return response;
+              }
+            } catch (err) {
+              isRefreshing.current = false;
+              useAuthStore.getState().logout();
+              return response;
+            }
+          }
+
+          // Queue the request until token is refreshed
+          return new Promise((resolve) => {
+            addRefreshSubscriber((newToken) => {
+              const updatedHeaders = new Headers(init?.headers);
+              updatedHeaders.set('Authorization', `Bearer ${newToken}`);
+              resolve(originalFetch(input, { ...init, headers: updatedHeaders }));
+            });
+          });
+        }
+      }
+
+      return response;
+    };
+
+    return () => {
+      window.fetch = originalFetch;
+    };
+  }, []);
+
+  return null;
+}

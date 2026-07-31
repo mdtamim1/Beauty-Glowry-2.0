@@ -30,71 +30,42 @@ export default function AdminAuthPage() {
     setLoading(true);
     setError('');
 
-    if (loginType === 'admin') {
-      setTimeout(() => {
-        if (password === ADMIN_PASSWORD) {
-          const session = {
-            role: 'admin',
-            email: 'admin@beautyglowry.com',
-            name: 'Super Admin',
-            permissions: ['Dashboard', 'Products', 'Orders', 'Customers', 'Reviews', 'Marketing', 'Settings']
-          };
-          localStorage.setItem('bg_admin_session', JSON.stringify(session));
-          router.push('/admin/dashboard');
-        } else {
-          setError('Incorrect password. Try "admin123"');
-          setLoading(false);
-        }
-      }, 600);
-    } else {
-      try {
-        const res = await fetch('/api/team/moderators');
-        if (!res.ok) throw new Error('Failed to query moderators database');
-        
-        const moderators = await res.json();
-        const moderator = moderators.find((m: any) => m.email.toLowerCase() === email.trim().toLowerCase());
+    try {
+      const response = await fetch('/api/admin/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password, loginType }),
+      });
 
-        if (!moderator) {
-          setError('Moderator email not found. Contact Super Admin.');
-          setLoading(false);
-          return;
-        }
+      const data = await response.json();
 
-        if (moderator.status === 'Inactive') {
-          setError('This account is deactivated. Contact Super Admin.');
-          setLoading(false);
-          return;
-        }
-
-        if (moderator.password === password) {
-          const session = {
-            role: 'moderator',
-            email: moderator.email,
-            name: moderator.name,
-            permissions: moderator.permissions
-          };
-          localStorage.setItem('bg_admin_session', JSON.stringify(session));
-
-          // Redirect to the first permitted dashboard view
-          const allowedPage = moderator.permissions.includes('Dashboard')
-            ? 'dashboard'
-            : moderator.permissions[0]?.toLowerCase() || '';
-
-          if (allowedPage) {
-            router.push(`/admin/${allowedPage}`);
-          } else {
-            setError('This account has no permissions assigned. Contact Super Admin.');
-            setLoading(false);
-          }
-        } else {
-          setError('Incorrect password.');
-          setLoading(false);
-        }
-      } catch (err: any) {
-        console.error(err);
-        setError('Connection error. Failed to load database.');
+      if (!response.ok) {
+        setError(data.error || 'Login failed.');
         setLoading(false);
+        return;
       }
+
+      localStorage.setItem('bg_admin_session', JSON.stringify(data.session));
+      localStorage.setItem('bg_admin_token', data.token);
+
+      if (data.session.role === 'admin') {
+        router.push('/admin/dashboard');
+      } else {
+        const allowedPage = data.session.permissions.includes('Dashboard')
+          ? 'dashboard'
+          : data.session.permissions[0]?.toLowerCase() || '';
+
+        if (allowedPage) {
+          router.push(`/admin/${allowedPage}`);
+        } else {
+          setError('This account has no permissions assigned. Contact Super Admin.');
+          setLoading(false);
+        }
+      }
+    } catch (err: any) {
+      console.error(err);
+      setError('Connection error. Failed to log in.');
+      setLoading(false);
     }
   };
 

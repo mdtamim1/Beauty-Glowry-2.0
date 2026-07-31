@@ -1,7 +1,21 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: 'standalone',
+  async rewrites() {
+    return [
+      {
+        source: '/api/v1/:path*',
+        destination: '/api/:path*',
+      },
+    ];
+  },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  silent: true,
+  widenClientBounds: true,
+  hideSourceMaps: true,
+  disableLogger: true,
+});
