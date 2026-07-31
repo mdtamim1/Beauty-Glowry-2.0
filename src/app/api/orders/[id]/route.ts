@@ -42,65 +42,85 @@ export async function PUT(
     // Log the status transition if status changed
     if (isStatusChanged) {
       const formatStatus = (s: string) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
-      await prisma.orderStatusHistory.create({
-        data: {
-          order_id: order.id,
-          status: formatStatus(newStatus),
-          note: data.statusNote || `Advanced status from ${formatStatus(currentStatus)} to ${formatStatus(newStatus)}`,
-        },
-      });
+      try {
+        await prisma.orderStatusHistory.create({
+          data: {
+            order_id: order.id,
+            status: formatStatus(newStatus),
+            note: data.statusNote || `Advanced status from ${formatStatus(currentStatus)} to ${formatStatus(newStatus)}`,
+          },
+        });
+      } catch (err) {
+        console.error('Failed to log order status history (migration might be missing):', err);
+      }
 
       // Stock adjustment logic
       const isOldStockRestored = currentStatus === 'cancelled' || currentStatus === 'returned';
       const isNewStockRestored = newStatus === 'cancelled' || newStatus === 'returned';
 
       if (isOldStockRestored !== isNewStockRestored) {
-        // Fetch order items to adjust stocks
-        const orderItems = await prisma.orderItem.findMany({
-          where: { order_id: order.id },
-          include: {
-            product_variant: true,
-          },
-        });
+        try {
+          // Fetch order items to adjust stocks
+          const orderItems = await prisma.orderItem.findMany({
+            where: { order_id: order.id },
+            include: {
+              product_variant: true,
+            },
+          });
 
-        for (const item of orderItems) {
-          const changeValue = item.quantity;
-          if (isNewStockRestored) {
-            // Increment stock (restore cancelled/returned items)
-            await prisma.productVariant.update({
-              where: { id: item.product_variant_id },
-              data: { stock_qty: { increment: changeValue } },
-            });
-            await prisma.product.update({
-              where: { id: item.product_variant.product_id },
-              data: { stock_qty: { increment: changeValue } },
-            });
-          } else {
-            // Decrement stock (re-commit order items)
-            await prisma.productVariant.update({
-              where: { id: item.product_variant_id },
-              data: { stock_qty: { decrement: changeValue } },
-            });
-            await prisma.product.update({
-              where: { id: item.product_variant.product_id },
-              data: { stock_qty: { decrement: changeValue } },
-            });
+          for (const item of orderItems) {
+            const changeValue = item.quantity;
+            if (isNewStockRestored) {
+              // Increment stock (restore cancelled/returned items)
+              if (item.product_variant_id) {
+                await prisma.productVariant.update({
+                  where: { id: item.product_variant_id },
+                  data: { stock_qty: { increment: changeValue } },
+                }).catch(e => console.warn('Failed to increment variant stock:', e));
+              }
+              if (item.product_variant?.product_id) {
+                await prisma.product.update({
+                  where: { id: item.product_variant.product_id },
+                  data: { stock_qty: { increment: changeValue } },
+                }).catch(e => console.warn('Failed to increment product stock:', e));
+              }
+            } else {
+              // Decrement stock (re-commit order items)
+              if (item.product_variant_id) {
+                await prisma.productVariant.update({
+                  where: { id: item.product_variant_id },
+                  data: { stock_qty: { decrement: changeValue } },
+                }).catch(e => console.warn('Failed to decrement variant stock:', e));
+              }
+              if (item.product_variant?.product_id) {
+                await prisma.product.update({
+                  where: { id: item.product_variant.product_id },
+                  data: { stock_qty: { decrement: changeValue } },
+                }).catch(e => console.warn('Failed to decrement product stock:', e));
+              }
+            }
           }
+        } catch (err) {
+          console.error('Failed to adjust stock quantities:', err);
         }
       }
     }
 
     // Log admin audit action
-    if (isStatusChanged) {
-      await logAdminAction(
-        'UPDATE_ORDER_STATUS',
-        `Changed status of order #${updatedOrder.order_number} to "${newStatus.toUpperCase()}"`
-      );
-    } else {
-      await logAdminAction(
-        'UPDATE_ORDER',
-        `Modified details for order #${updatedOrder.order_number}`
-      );
+    try {
+      if (isStatusChanged) {
+        await logAdminAction(
+          'UPDATE_ORDER_STATUS',
+          `Changed status of order #${updatedOrder.order_number} to "${newStatus.toUpperCase()}"`
+        );
+      } else {
+        await logAdminAction(
+          'UPDATE_ORDER',
+          `Modified details for order #${updatedOrder.order_number}`
+        );
+      }
+    } catch (err) {
+      console.error('Failed to log admin action (migration might be missing):', err);
     }
 
     return NextResponse.json({ success: true, order: updatedOrder });
