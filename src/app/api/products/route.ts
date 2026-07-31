@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
+import { logAdminAction } from '../../../lib/audit';
 
 export async function GET(request: Request) {
   try {
@@ -8,9 +9,14 @@ export async function GET(request: Request) {
     const isBestseller = searchParams.get('isBestseller') === 'true';
     const isNew = searchParams.get('isNew') === 'true';
     const concern = searchParams.get('concern');
+    const includeInactive = searchParams.get('includeInactive') === 'true';
 
     // Build Prisma query filters
-    const where: any = { is_active: true };
+    const where: any = {};
+    
+    if (!includeInactive) {
+      where.is_active = true;
+    }
 
     if (category && category !== 'All') {
       where.category = {
@@ -68,6 +74,7 @@ export async function GET(request: Request) {
         reviewCount: reviewCount,
         isBestseller: p.is_featured,
         isNew: p.is_featured,
+        isActive: p.is_active,
         description: p.description || '',
         actives: [],
         skinTypes: p.skin_type_tags,
@@ -131,18 +138,39 @@ export async function POST(request: Request) {
         sku: data.sku || `${slug.slice(0, 3).toUpperCase()}-STD`,
         stock_qty: data.stock || 0,
         is_featured: data.isBestseller || data.isNew || false,
+        is_active: data.isActive !== false,
       },
     });
 
-    // Create Main Image in ProductImage
-    await prisma.productImage.create({
-      data: {
+    // Create Main Image and Gallery Images in ProductImage
+    const imagesToCreate = [];
+    if (data.image) {
+      imagesToCreate.push({
         product_id: newProduct.id,
         url: data.image,
         alt_text: data.name,
         position: 0,
-      },
-    });
+      });
+    }
+
+    if (data.productImages && Array.isArray(data.productImages)) {
+      data.productImages.forEach((imgUrl: string, idx: number) => {
+        if (imgUrl && imgUrl !== data.image) {
+          imagesToCreate.push({
+            product_id: newProduct.id,
+            url: imgUrl,
+            alt_text: `${data.name} Gallery ${idx}`,
+            position: idx + 1,
+          });
+        }
+      });
+    }
+
+    if (imagesToCreate.length > 0) {
+      await prisma.productImage.createMany({
+        data: imagesToCreate,
+      });
+    }
 
     // Create variants if provided
     if (data.variants && Array.isArray(data.variants)) {
@@ -171,6 +199,11 @@ export async function POST(request: Request) {
         },
       });
     }
+
+    await logAdminAction(
+      'CREATE_PRODUCT',
+      `Product "${newProduct.name}" (SKU: ${newProduct.sku}) was successfully created.`
+    );
 
     return NextResponse.json({ success: true, product: newProduct });
   } catch (error: any) {

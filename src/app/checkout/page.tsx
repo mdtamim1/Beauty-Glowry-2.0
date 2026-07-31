@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { ArrowLeft, ArrowRight, Check, Shield, Lock, MapPin, Phone, User, Mail } from 'lucide-react';
@@ -56,6 +56,17 @@ function CheckoutContent() {
     }
   };
 
+  const [storeConfig, setStoreConfig] = useState<any>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/store-config')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data) setStoreConfig(data);
+      })
+      .catch((err) => console.error('Failed to load store config in checkout:', err));
+  }, []);
+
   const [form, setForm] = useState({
     name: '',
     phone: '',
@@ -71,7 +82,46 @@ function CheckoutContent() {
     const price = item.variant?.price ?? item.product.price;
     return acc + price * item.quantity;
   }, 0);
-  const shipping = subtotal >= 1500 ? 0 : 120;
+
+  const getShippingFee = () => {
+    if (!storeConfig) {
+      return 120; // Fallback default shipping fee
+    }
+
+    const defaultFee = Number(storeConfig.defaultShippingFee || 120);
+
+    // If district is set, try matching zones
+    if (form.district && Array.isArray(storeConfig.zones)) {
+      const selectedDistrict = form.district.toLowerCase();
+      
+      const matchedZone = storeConfig.zones.find((z: any) => {
+        if (!z.districts) return false;
+        const districtList = z.districts.toLowerCase().split(',').map((d: any) => d.trim());
+        return districtList.includes(selectedDistrict) || z.districts.toLowerCase().includes(selectedDistrict);
+      });
+
+      if (matchedZone) {
+        return Number(matchedZone.fee);
+      }
+    }
+
+    // Default zone matching by Division name (e.g. if division is Dhaka, use zone 1, else zone 2)
+    if (form.division && Array.isArray(storeConfig.zones)) {
+      const divisionName = form.division.toLowerCase();
+      const matchedZone = storeConfig.zones.find((z: any) => 
+        z.name.toLowerCase().includes(divisionName) || 
+        (divisionName === 'dhaka' && z.name.toLowerCase().includes('dhaka'))
+      );
+
+      if (matchedZone) {
+        return Number(matchedZone.fee);
+      }
+    }
+
+    return defaultFee;
+  };
+
+  const shipping = getShippingFee();
   const total = Math.max(0, subtotal + shipping - couponDiscount);
 
   const update = (field: string, val: string) => setForm((prev) => ({ ...prev, [field]: val }));

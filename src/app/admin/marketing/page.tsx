@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Tag, Zap, Image as ImageIcon, ToggleLeft, ToggleRight,
   Plus, Trash2, Edit2, Check, X, Clock, Save, ChevronDown
 } from 'lucide-react';
+import { getAuthHeaders } from '../utils';
 
 const C = {
   surface: '#1A1A17', elevated: '#222220', border: 'rgba(255,255,255,0.07)',
@@ -18,7 +19,7 @@ interface Coupon {
 }
 
 interface HeroSlide {
-  id: number; title: string; subtitle: string; cta: string; image: string; isActive: boolean;
+  id: number | string; title: string; subtitle: string; cta: string; image: string; isActive: boolean;
 }
 
 interface Section {
@@ -68,9 +69,39 @@ function TabBtn({ active, icon, label, onClick }: { active: boolean; icon: React
 
 export default function AdminMarketing() {
   const [tab, setTab] = useState<ActiveTab>('coupons');
-  const [coupons, setCoupons] = useState<Coupon[]>(INITIAL_COUPONS);
-  const [slides, setSlides] = useState<HeroSlide[]>(INITIAL_SLIDES);
-  const [sections, setSections] = useState<Section[]>(INITIAL_SECTIONS);
+  const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [slides, setSlides] = useState<HeroSlide[]>([]);
+  const [sections, setSections] = useState<Section[]>([]);
+
+  // Load data from database on mount
+  useEffect(() => {
+    fetch('/api/coupons')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setCoupons(data);
+        }
+      })
+      .catch((err) => console.error('Failed to load coupons from database:', err));
+
+    fetch('/api/admin/banners')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setSlides(data);
+        }
+      })
+      .catch((err) => console.error('Failed to load banners from database:', err));
+
+    fetch('/api/admin/homepage-sections')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setSections(data);
+        }
+      })
+      .catch((err) => console.error('Failed to load sections from database:', err));
+  }, []);
 
   // Flash Sale State
   const [flashActive, setFlashActive] = useState(false);
@@ -84,37 +115,188 @@ export default function AdminMarketing() {
 
   // Hero Slide Modal
   const [showSlideModal, setShowSlideModal] = useState(false);
-  const [slideForm, setSlideForm] = useState<HeroSlide>({ id: 0, title: '', subtitle: '', cta: 'Shop Now', image: '', isActive: true });
-  const [editSlideId, setEditSlideId] = useState<number | null>(null);
+  const [slideForm, setSlideForm] = useState<HeroSlide>({ id: '', title: '', subtitle: '', cta: 'Shop Now', image: '', isActive: true });
+  const [editSlideId, setEditSlideId] = useState<string | number | null>(null);
 
   // Coupon handlers
-  const addCoupon = () => {
+  const addCoupon = async () => {
     if (!couponForm.code) return;
-    setCoupons((prev) => [...prev, { ...couponForm, code: couponForm.code.toUpperCase() }]);
-    setShowCouponModal(false);
-    setCouponForm({ code: '', type: 'percentage', value: 10, minOrder: 500, isActive: true, usedCount: 0 });
+    try {
+      const res = await fetch('/api/coupons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code: couponForm.code,
+          type: couponForm.type,
+          value: couponForm.value,
+          minOrder: couponForm.minOrder,
+          isActive: couponForm.isActive,
+          expires: couponForm.expires,
+        }),
+      });
+
+      if (res.ok) {
+        const newCoupon = await res.json();
+        setCoupons((prev) => [...prev, newCoupon]);
+        setShowCouponModal(false);
+        setCouponForm({ code: '', type: 'percentage', value: 10, minOrder: 500, isActive: true, usedCount: 0 });
+      } else {
+        const errData = await res.json();
+        alert(errData.error || 'Failed to create coupon.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Connection error.');
+    }
   };
-  const toggleCoupon = (code: string) => setCoupons((prev) => prev.map((c) => c.code === code ? { ...c, isActive: !c.isActive } : c));
-  const deleteCoupon = (code: string) => setCoupons((prev) => prev.filter((c) => c.code !== code));
+
+  const toggleCoupon = async (code: string) => {
+    const coupon = coupons.find((c) => c.code === code);
+    if (!coupon) return;
+    const nextActiveState = !coupon.isActive;
+
+    try {
+      const res = await fetch(`/api/coupons/${code}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          isActive: nextActiveState,
+          expires: coupon.expires,
+        }),
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setCoupons((prev) => prev.map((c) => (c.code === code ? updated : c)));
+      } else {
+        alert('Failed to update coupon status.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Connection error.');
+    }
+  };
+
+  const deleteCoupon = async (code: string) => {
+    if (!confirm(`Are you sure you want to delete coupon ${code}?`)) return;
+    try {
+      const res = await fetch(`/api/coupons/${code}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        setCoupons((prev) => prev.filter((c) => c.code !== code));
+      } else {
+        alert('Failed to delete coupon.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Connection error.');
+    }
+  };
 
   // Slide handlers
-  const saveSlide = () => {
+  const saveSlide = async () => {
     if (!slideForm.title || !slideForm.image) return;
-    if (editSlideId) {
-      setSlides((prev) => prev.map((s) => s.id === editSlideId ? { ...slideForm, id: editSlideId } : s));
-    } else {
-      setSlides((prev) => [...prev, { ...slideForm, id: Date.now() }]);
+    try {
+      let res;
+      if (editSlideId) {
+        res = await fetch('/api/admin/banners', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ ...slideForm, id: editSlideId }),
+        });
+      } else {
+        res = await fetch('/api/admin/banners', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify(slideForm),
+        });
+      }
+
+      if (res.ok) {
+        const saved = await res.json();
+        if (editSlideId) {
+          setSlides((prev) => prev.map((s) => s.id === editSlideId ? saved : s));
+        } else {
+          setSlides((prev) => [...prev, saved]);
+        }
+        setShowSlideModal(false);
+        setEditSlideId(null);
+        setSlideForm({ id: '', title: '', subtitle: '', cta: 'Shop Now', image: '', isActive: true });
+      } else {
+        alert('Failed to save slide.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Connection error.');
     }
-    setShowSlideModal(false);
-    setEditSlideId(null);
-    setSlideForm({ id: 0, title: '', subtitle: '', cta: 'Shop Now', image: '', isActive: true });
   };
-  const deleteSlide = (id: number) => setSlides((prev) => prev.filter((s) => s.id !== id));
-  const toggleSlide = (id: number) => setSlides((prev) => prev.map((s) => s.id === id ? { ...s, isActive: !s.isActive } : s));
+
+  const deleteSlide = async (id: number | string) => {
+    if (!confirm('Are you sure you want to delete this banner slide?')) return;
+    try {
+      const res = await fetch(`/api/admin/banners?id=${id}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (res.ok) {
+        setSlides((prev) => prev.filter((s) => s.id !== id));
+      } else {
+        alert('Failed to delete banner.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Connection error.');
+    }
+  };
+
+  const toggleSlide = async (id: number | string) => {
+    const slide = slides.find((s) => s.id === id);
+    if (!slide) return;
+    const nextActiveState = !slide.isActive;
+
+    try {
+      const res = await fetch('/api/admin/banners', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ id, isActive: nextActiveState }),
+      });
+      if (res.ok) {
+        setSlides((prev) => prev.map((s) => s.id === id ? { ...s, isActive: nextActiveState } : s));
+      } else {
+        alert('Failed to update banner status.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Connection error.');
+    }
+  };
+
   const editSlide = (slide: HeroSlide) => { setSlideForm(slide); setEditSlideId(slide.id); setShowSlideModal(true); };
 
   // Section toggle
-  const toggleSection = (key: string) => setSections((prev) => prev.map((s) => s.key === key ? { ...s, isVisible: !s.isVisible } : s));
+  const toggleSection = async (key: string) => {
+    const section = sections.find((s) => s.key === key);
+    if (!section) return;
+    const nextVisibleState = !section.isVisible;
+
+    try {
+      const res = await fetch('/api/admin/homepage-sections', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ key, isVisible: nextVisibleState }),
+      });
+      if (res.ok) {
+        setSections((prev) => prev.map((s) => s.key === key ? { ...s, isVisible: nextVisibleState } : s));
+      } else {
+        alert('Failed to update section visibility.');
+      }
+    } catch (e) {
+      console.error(e);
+      alert('Connection error.');
+    }
+  };
 
   const inputStyle = {
     width: '100%', padding: '10px 12px', background: C.elevated, border: `1px solid ${C.border}`,

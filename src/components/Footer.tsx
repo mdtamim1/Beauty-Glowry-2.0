@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Leaf } from 'lucide-react';
 
@@ -27,6 +28,25 @@ const footerLinks = {
 const payments = ['bKash', 'Nagad', 'SSLCommerz', 'Visa/MC', 'COD'];
 
 export default function Footer() {
+  const [config, setConfig] = useState({
+    storeName: 'Beauty Glowry',
+    storeTagline: 'Precision-formulated active skincare engineered for clinical efficacy.',
+    storePhone: '',
+    storeEmail: 'hello@beautyglowry.com',
+    storeAddress: 'Dhaka, Bangladesh'
+  });
+
+  useEffect(() => {
+    fetch('/api/admin/store-config')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data) {
+          setConfig((prev) => ({ ...prev, ...data }));
+        }
+      })
+      .catch((err) => console.error('Failed to load store config in Footer:', err));
+  }, []);
+
   return (
     <footer
       style={{
@@ -53,20 +73,26 @@ export default function Footer() {
                 color: 'var(--bg-base)',
               }}
             >
-              Beauty Glowry
+              {config.storeName}
             </div>
             <p
               style={{
                 fontSize: 13,
                 lineHeight: 1.8,
                 color: 'rgba(250,247,242,0.6)',
-                marginBottom: 24,
+                marginBottom: 16,
                 maxWidth: 280,
               }}
             >
-              Precision-formulated active skincare engineered for clinical efficacy.
-              Trusted by over 10,000 customers across Bangladesh.
+              {config.storeTagline}
             </p>
+            
+            {/* Dynamic Contact details */}
+            <div style={{ fontSize: 12, color: 'rgba(250,247,242,0.45)', display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 24 }}>
+              {config.storePhone && <div>📞 {config.storePhone}</div>}
+              {config.storeEmail && <div>✉️ {config.storeEmail}</div>}
+              {config.storeAddress && <div>📍 {config.storeAddress}</div>}
+            </div>
 
             {/* Social */}
             <div style={{ display: 'flex', gap: 12 }}>
@@ -158,7 +184,7 @@ export default function Footer() {
           <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <Leaf size={13} style={{ color: '#8B9D77' }} />
             <span style={{ fontSize: 11, color: 'rgba(250,247,242,0.4)', letterSpacing: '0.04em' }}>
-              © 2024 Beauty Glowry. All Rights Reserved.
+              © {new Date().getFullYear()} {config.storeName}. All Rights Reserved.
             </span>
           </div>
 

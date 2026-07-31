@@ -38,6 +38,17 @@ const CONCERN_ICONS: Record<string, string> = {
 
 export default function HomePage() {
   const [dbProducts, setDbProducts] = useState<any[]>([]);
+  const [banners, setBanners] = useState<any[]>([]);
+  const [activeSlide, setActiveSlide] = useState(0);
+  const [sectionVisibility, setSectionVisibility] = useState<Record<string, boolean>>({
+    hero_slider: true,
+    categories: true,
+    countdown: true,
+    bestsellers: true,
+    quiz_cta: true,
+    new_arrivals: true,
+    testimonials: true,
+  });
 
   useEffect(() => {
     fetch('/api/products')
@@ -48,7 +59,40 @@ export default function HomePage() {
         }
       })
       .catch((err) => console.error('Failed to fetch live products:', err));
+
+    fetch('/api/admin/banners')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const active = data.filter((b) => b.isActive !== false);
+          if (active.length > 0) setBanners(active);
+        }
+      })
+      .catch((err) => console.error('Failed to load active banners:', err));
+
+    fetch('/api/admin/homepage-sections')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          const map: Record<string, boolean> = {};
+          data.forEach((s) => {
+            map[s.key] = s.isVisible;
+          });
+          setSectionVisibility((prev) => ({ ...prev, ...map }));
+        }
+      })
+      .catch((err) => console.error('Failed to load homepage sections:', err));
   }, []);
+
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveSlide((prev) => (prev + 1) % banners.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [banners]);
+
+  const currentBanner = banners.length > 0 ? banners[activeSlide] : null;
 
   const displayProducts = dbProducts.length > 0 ? dbProducts : products;
   const bestsellers = displayProducts.filter((p) => p.isBestseller).slice(0, 4);
@@ -59,288 +103,327 @@ export default function HomePage() {
       <Navbar />
 
       {/* ═══ HERO ═══════════════════════════════════════════════════════════════ */}
-      <section className="hero-section">
-        {/* Background Image */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage: `url(${HERO_IMAGES[0]})`,
-            backgroundSize: 'cover',
-            backgroundPosition: 'center 30%',
-            filter: 'brightness(0.35)',
-            transform: 'scale(1.02)',
-            transition: 'transform 8s ease',
-          }}
-        />
+      {sectionVisibility.hero_slider !== false && (
+        <section className="hero-section" style={{ position: 'relative', overflow: 'hidden' }}>
+          {/* Background Image */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              backgroundImage: `url(${currentBanner ? currentBanner.image : HERO_IMAGES[0]})`,
+              backgroundSize: 'cover',
+              backgroundPosition: 'center 30%',
+              filter: 'brightness(0.35)',
+              transform: 'scale(1.02)',
+              transition: 'background-image 0.8s ease-in-out',
+            }}
+          />
 
-        {/* Gradient overlay */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(135deg, rgba(26,26,24,0.75) 0%, rgba(26,26,24,0.3) 60%, transparent 100%)',
-          }}
-        />
+          {/* Gradient overlay */}
+          <div
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(135deg, rgba(26,26,24,0.75) 0%, rgba(26,26,24,0.3) 60%, transparent 100%)',
+            }}
+          />
 
-        {/* Content */}
-        <div className="container-lg hero-content-wrap">
-          <div className="hero-content">
-            <div
-              className="animate-fade-up hero-eyebrow"
-            >
-              <span className="hero-dot" />
-              <span className="hero-eyebrow-text">
-                Clinical Skincare — Bangladesh
-              </span>
-            </div>
-
-            <h1
-              className="animate-fade-up font-editorial hero-title"
-              style={{ animationDelay: '0.1s' }}
-            >
-              Science Meets
-              <em style={{ display: 'block', fontStyle: 'italic', color: 'var(--accent, #C9956D)' }}>
-                Luxury Skin
-              </em>
-            </h1>
-
-            <p
-              className="animate-fade-up hero-desc"
-              style={{ animationDelay: '0.2s' }}
-            >
-              Dermatologist-formulated active treatments with clinically-proven concentrations.
-              Engineered for measurable results.
-            </p>
-
-            <div
-              className="animate-fade-up hero-cta-row"
-              style={{ animationDelay: '0.3s' }}
-            >
-              <Link href="/products" className="btn-accent">
-                Shop All Formulations <ArrowRight size={15} />
-              </Link>
-              <Link
-                href="/quiz"
-                className="hero-quiz-btn"
+          {/* Content */}
+          <div className="container-lg hero-content-wrap">
+            <div className="hero-content">
+              <div
+                className="animate-fade-up hero-eyebrow"
               >
-                Skin Quiz
-              </Link>
-            </div>
+                <span className="hero-dot" />
+                <span className="hero-eyebrow-text">
+                  {currentBanner ? 'Special Promotion' : 'Clinical Skincare — Bangladesh'}
+                </span>
+              </div>
 
-            {/* Stats Row */}
-            <div
-              className="animate-fade-up hero-stats"
-              style={{ animationDelay: '0.4s' }}
-            >
-              {BRAND_STATS.map((stat) => (
-                <div key={stat.label} className="hero-stat-item">
-                  <div className="hero-stat-value">
-                    {stat.value}
-                  </div>
-                  <div className="hero-stat-label">
-                    {stat.label}
-                  </div>
+              {currentBanner ? (
+                <h1
+                  className="animate-fade-up font-editorial hero-title"
+                  style={{ animationDelay: '0.1s' }}
+                >
+                  {currentBanner.title}
+                </h1>
+              ) : (
+                <h1
+                  className="animate-fade-up font-editorial hero-title"
+                  style={{ animationDelay: '0.1s' }}
+                >
+                  Science Meets
+                  <em style={{ display: 'block', fontStyle: 'italic', color: 'var(--accent, #C9956D)' }}>
+                    Luxury Skin
+                  </em>
+                </h1>
+              )}
+
+              <p
+                className="animate-fade-up hero-desc"
+                style={{ animationDelay: '0.2s' }}
+              >
+                {currentBanner ? currentBanner.subtitle : 'Dermatologist-formulated active treatments with clinically-proven concentrations. Engineered for measurable results.'}
+              </p>
+
+              <div
+                className="animate-fade-up hero-cta-row"
+                style={{ animationDelay: '0.3s' }}
+              >
+                <Link href="/products" className="btn-accent">
+                  {currentBanner ? currentBanner.cta : 'Shop All Formulations'} <ArrowRight size={15} />
+                </Link>
+                <Link
+                  href="/quiz"
+                  className="hero-quiz-btn"
+                >
+                  Skin Quiz
+                </Link>
+              </div>
+
+              {/* Carousel Indicators */}
+              {banners.length > 1 && (
+                <div style={{
+                  position: 'absolute', bottom: 30, right: 30, zIndex: 10,
+                  display: 'flex', gap: 8, background: 'rgba(0,0,0,0.3)', padding: '8px 14px',
+                  borderRadius: 20, backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.08)'
+                }}>
+                  {banners.map((_, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setActiveSlide(idx)}
+                      style={{
+                        width: 8, height: 8, borderRadius: '50%', border: 'none',
+                        background: activeSlide === idx ? 'var(--accent, #C9956D)' : 'rgba(255,255,255,0.35)',
+                        cursor: 'pointer', transition: 'all 0.25s', padding: 0
+                      }}
+                    />
+                  ))}
                 </div>
-              ))}
+              )}
+
+              {/* Stats Row */}
+              <div
+                className="animate-fade-up hero-stats"
+                style={{ animationDelay: '0.4s' }}
+              >
+                {BRAND_STATS.map((stat) => (
+                  <div key={stat.label} className="hero-stat-item">
+                    <div className="hero-stat-value">
+                      {stat.value}
+                    </div>
+                    <div className="hero-stat-label">
+                      {stat.label}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Scroll Indicator — hidden on mobile */}
-        <div className="hero-scroll-indicator">
-          <div style={{ width: 1, height: 56, background: 'rgba(250,247,242,0.2)' }} />
-          Scroll
-        </div>
-      </section>
+          {/* Scroll Indicator — hidden on mobile */}
+          <div className="hero-scroll-indicator">
+            <div style={{ width: 1, height: 56, background: 'rgba(250,247,242,0.2)' }} />
+            Scroll
+          </div>
+        </section>
+      )}
 
       {/* ═══ TRUST BAR ══════════════════════════════════════════════════════════ */}
-      <section style={{ borderTop: '1px solid var(--border-default)', borderBottom: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
-        <div className="container-lg">
-          <div className="trust-grid">
-            {TRUST_ICONS.map((item, i) => (
-              <div
-                key={item.label}
-                className="trust-item"
-              >
-                <div style={{ color: 'var(--accent)', flexShrink: 0 }}>{item.icon}</div>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{item.label}</p>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.desc}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ SKIN CONCERNS ══════════════════════════════════════════════════════ */}
-      <section className="section-md" style={{ background: 'var(--bg-base)' }}>
-        <div className="container-lg">
-          <div className="section-header">
-            <div>
-              <p className="section-eyebrow" style={{ color: 'var(--accent)' }}>Targeted Solutions</p>
-              <h2
-                className="font-editorial section-heading"
-                style={{
-                  fontFamily: "'Cormorant Garamond', Georgia, serif",
-                  fontWeight: 400,
-                  color: 'var(--text-primary)',
-                  lineHeight: 1.1,
-                }}
-              >
-                What's Your
-                <br />
-                <em style={{ fontStyle: 'italic' }}>Skin Concern?</em>
-              </h2>
-            </div>
-            <Link
-              href="/products"
-              style={{
-                fontSize: 13,
-                fontWeight: 600,
-                color: 'var(--text-secondary)',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-                flexShrink: 0,
-              }}
-              className="link-underline"
-            >
-              All Products <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          <div className="concern-grid">
-            {skinConcerns.map((concern) => (
-              <Link
-                key={concern.id}
-                href={`/products?concern=${encodeURIComponent(concern.name)}`}
-                className="concern-item"
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--accent)';
-                  e.currentTarget.style.transform = 'translateX(4px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'var(--border-default)';
-                  e.currentTarget.style.transform = 'translateX(0)';
-                }}
-              >
-                <span className="concern-icon">
-                  {CONCERN_ICONS[concern.id] || '✦'}
-                </span>
-                <div>
-                  <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{concern.name}</p>
-                  <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Shop targeted formulations</p>
-                </div>
-                <ChevronRight size={16} style={{ color: 'var(--text-muted)', marginLeft: 'auto' }} />
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ BESTSELLERS ════════════════════════════════════════════════════════ */}
-      <section className="section-lg" style={{ background: 'var(--bg-elevated)' }}>
-        <div className="container-lg">
-          <div className="section-header" style={{ marginBottom: 48 }}>
-            <div>
-              <p className="section-eyebrow" style={{ color: 'var(--accent)' }}>Most Loved</p>
-              <h2
-                className="font-editorial section-heading"
-                style={{
-                  fontFamily: "'Cormorant Garamond', Georgia, serif",
-                  fontWeight: 400,
-                  color: 'var(--text-primary)',
-                  lineHeight: 1.1,
-                }}
-              >
-                Bestselling
-                <br />
-                <em style={{ fontStyle: 'italic' }}>Formulations</em>
-              </h2>
-            </div>
-            <Link href="/products" className="btn-outline section-header-link">
-              View All <ArrowRight size={14} />
-            </Link>
-          </div>
-
-          <div className="bestsellers-grid">
-            {bestsellers.map((product) => (
-              <ProductCard key={product.id} product={product} />
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ═══ BRAND STORY BANNER ═════════════════════════════════════════════════ */}
-      <section style={{ position: 'relative', overflow: 'hidden', background: 'var(--text-primary)', padding: '80px 0' }}>
-        <div className="container-lg">
-          <div className="brand-story-grid">
-            <div>
-              <p
-                style={{
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: '0.14em',
-                  textTransform: 'uppercase',
-                  color: 'var(--accent)',
-                  marginBottom: 16,
-                }}
-              >
-                Our Philosophy
-              </p>
-              <h2
-                className="font-editorial brand-story-heading"
-                style={{
-                  fontFamily: "'Cormorant Garamond', Georgia, serif",
-                  fontWeight: 400,
-                  color: 'var(--bg-base)',
-                  lineHeight: 1.1,
-                  marginBottom: 24,
-                }}
-              >
-                Formulated with
-                <em style={{ display: 'block', fontStyle: 'italic', color: 'var(--accent)' }}>
-                  Precision & Purpose
-                </em>
-              </h2>
-              <p style={{ fontSize: 15, lineHeight: 1.8, color: 'rgba(250,247,242,0.6)', marginBottom: 36 }}>
-                Every formula begins with peer-reviewed research and ends with your skin's transformation.
-                We believe in full transparency — every active ingredient declared, every percentage proven.
-              </p>
-              <Link href="/quiz" className="btn-accent">
-                Take the Skin Quiz <ArrowRight size={14} />
-              </Link>
-            </div>
-
-            <div className="brand-story-images">
-              {[
-                'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?q=80&w=800&auto=format&fit=crop',
-                'https://images.unsplash.com/photo-1608248597309-45da1707ad33?q=80&w=800&auto=format&fit=crop',
-                'https://images.unsplash.com/photo-1612817288484-6f916006741a?q=80&w=800&auto=format&fit=crop',
-                'https://images.unsplash.com/photo-1617897903246-719242758050?q=80&w=800&auto=format&fit=crop',
-              ].map((img, i) => (
+      {sectionVisibility.countdown !== false && (
+        <section style={{ borderTop: '1px solid var(--border-default)', borderBottom: '1px solid var(--border-default)', background: 'var(--bg-surface)' }}>
+          <div className="container-lg">
+            <div className="trust-grid">
+              {TRUST_ICONS.map((item, i) => (
                 <div
-                  key={i}
-                  style={{
-                    borderRadius: 4,
-                    overflow: 'hidden',
-                    aspectRatio: '1',
-                    transform: i % 2 === 0 ? 'translateY(-12px)' : 'translateY(12px)',
-                  }}
+                  key={item.label}
+                  className="trust-item"
                 >
-                  <img src={img} alt="Brand story" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  <div style={{ color: 'var(--accent)', flexShrink: 0 }}>{item.icon}</div>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{item.label}</p>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.desc}</p>
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
+
+      {/* ═══ SKIN CONCERNS ══════════════════════════════════════════════════════ */}
+      {sectionVisibility.categories !== false && (
+        <section className="section-md" style={{ background: 'var(--bg-base)' }}>
+          <div className="container-lg">
+            <div className="section-header">
+              <div>
+                <p className="section-eyebrow" style={{ color: 'var(--accent)' }}>Targeted Solutions</p>
+                <h2
+                  className="font-editorial section-heading"
+                  style={{
+                    fontFamily: "'Cormorant Garamond', Georgia, serif",
+                    fontWeight: 400,
+                    color: 'var(--text-primary)',
+                    lineHeight: 1.1,
+                  }}
+                >
+                  What's Your
+                  <br />
+                  <em style={{ fontStyle: 'italic' }}>Skin Concern?</em>
+                </h2>
+              </div>
+              <Link
+                href="/products"
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: 'var(--text-secondary)',
+                  textDecoration: 'none',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  flexShrink: 0,
+                }}
+                className="link-underline"
+              >
+                All Products <ArrowRight size={14} />
+              </Link>
+            </div>
+
+            <div className="concern-grid">
+              {skinConcerns.map((concern) => (
+                <Link
+                  key={concern.id}
+                  href={`/products?concern=${encodeURIComponent(concern.name)}`}
+                  className="concern-item"
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--accent)';
+                    e.currentTarget.style.transform = 'translateX(4px)';
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.borderColor = 'var(--border-default)';
+                    e.currentTarget.style.transform = 'translateX(0)';
+                  }}
+                >
+                  <span className="concern-icon">
+                    {CONCERN_ICONS[concern.id] || '✦'}
+                  </span>
+                  <div>
+                    <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{concern.name}</p>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>Shop targeted formulations</p>
+                  </div>
+                  <ChevronRight size={16} style={{ color: 'var(--text-muted)', marginLeft: 'auto' }} />
+                </Link>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ═══ BESTSELLERS ════════════════════════════════════════════════════════ */}
+      {sectionVisibility.bestsellers !== false && (
+        <section className="section-lg" style={{ background: 'var(--bg-elevated)' }}>
+          <div className="container-lg">
+            <div className="section-header" style={{ marginBottom: 48 }}>
+              <div>
+                <p className="section-eyebrow" style={{ color: 'var(--accent)' }}>Most Loved</p>
+                <h2
+                  className="font-editorial section-heading"
+                  style={{
+                    fontFamily: "'Cormorant Garamond', Georgia, serif",
+                    fontWeight: 400,
+                    color: 'var(--text-primary)',
+                    lineHeight: 1.1,
+                  }}
+                >
+                  Bestselling
+                  <br />
+                  <em style={{ fontStyle: 'italic' }}>Formulations</em>
+                </h2>
+              </div>
+              <Link href="/products" className="btn-outline section-header-link">
+                View All <ArrowRight size={14} />
+              </Link>
+            </div>
+
+            <div className="bestsellers-grid">
+              {bestsellers.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* ═══ BRAND STORY BANNER ═════════════════════════════════════════════════ */}
+      {sectionVisibility.brand_story !== false && (
+        <section style={{ position: 'relative', overflow: 'hidden', background: 'var(--text-primary)', padding: '80px 0' }}>
+          <div className="container-lg">
+            <div className="brand-story-grid">
+              <div>
+                <p
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 700,
+                    letterSpacing: '0.14em',
+                    textTransform: 'uppercase',
+                    color: 'var(--accent)',
+                    marginBottom: 16,
+                  }}
+                >
+                  Our Philosophy
+                </p>
+                <h2
+                  className="font-editorial brand-story-heading"
+                  style={{
+                    fontFamily: "'Cormorant Garamond', Georgia, serif",
+                    fontWeight: 400,
+                    color: 'var(--bg-base)',
+                    lineHeight: 1.1,
+                    marginBottom: 24,
+                  }}
+                >
+                  Formulated with
+                  <em style={{ display: 'block', fontStyle: 'italic', color: 'var(--accent)' }}>
+                    Precision & Purpose
+                  </em>
+                </h2>
+                <p style={{ fontSize: 15, lineHeight: 1.8, color: 'rgba(250,247,242,0.6)', marginBottom: 36 }}>
+                  Every formula begins with peer-reviewed research and ends with your skin's transformation.
+                  We believe in full transparency — every active ingredient declared, every percentage proven.
+                </p>
+                <Link href="/quiz" className="btn-accent">
+                  Take the Skin Quiz <ArrowRight size={14} />
+                </Link>
+              </div>
+
+              <div className="brand-story-images">
+                {[
+                  'https://images.unsplash.com/photo-1620916566398-39f1143ab7be?q=80&w=800&auto=format&fit=crop',
+                  'https://images.unsplash.com/photo-1608248597309-45da1707ad33?q=80&w=800&auto=format&fit=crop',
+                  'https://images.unsplash.com/photo-1612817288484-6f916006741a?q=80&w=800&auto=format&fit=crop',
+                  'https://images.unsplash.com/photo-1617897903246-719242758050?q=80&w=800&auto=format&fit=crop',
+                ].map((img, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      borderRadius: 4,
+                      overflow: 'hidden',
+                      aspectRatio: '1',
+                      transform: i % 2 === 0 ? 'translateY(-12px)' : 'translateY(12px)',
+                    }}
+                  >
+                    <img src={img} alt="Brand story" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ═══ NEW ARRIVALS ════════════════════════════════════════════════════════ */}
-      {newArrivals.length > 0 && (
+      {sectionVisibility.new_arrivals !== false && newArrivals.length > 0 && (
         <section className="section-lg" style={{ background: 'var(--bg-base)' }}>
           <div className="container-lg">
             <div style={{ textAlign: 'center', marginBottom: 52 }}>
@@ -377,135 +460,139 @@ export default function HomePage() {
       )}
 
       {/* ═══ TESTIMONIALS ════════════════════════════════════════════════════════ */}
-      <section className="section-md" style={{ background: 'var(--bg-surface)', borderTop: '1px solid var(--border-default)' }}>
-        <div className="container-md">
-          <div style={{ textAlign: 'center', marginBottom: 48 }}>
-            <h2
-              className="font-editorial section-heading"
-              style={{
-                fontFamily: "'Cormorant Garamond', Georgia, serif",
-                fontWeight: 400,
-                color: 'var(--text-primary)',
-              }}
-            >
-              What Our Customers Say
-            </h2>
-          </div>
-
-          <div className="testimonials-grid">
-            {[
-              {
-                name: 'Nusrat Rahman',
-                skin: 'Oily, Acne-Prone',
-                review: "The Niacinamide 10% serum completely transformed my skin. My pores have tightened and the stubborn blemishes are finally fading after just 3 weeks.",
-                rating: 5,
-                product: 'Niacinamide 10% Serum',
-              },
-              {
-                name: 'Farida Akter',
-                skin: 'Combination',
-                review: "I was skeptical about clinical skincare at first, but Beauty Glowry's Vitamin C emulsion proved me wrong. My skin tone is visibly more even now.",
-                rating: 5,
-                product: 'Vitamin C 15% Emulsion',
-              },
-              {
-                name: 'Shahadat Hossain',
-                skin: 'Dry, Sensitive',
-                review: "The Ceramide cream is a lifesaver. My dry patches disappeared within a week and my skin barrier feels so much stronger. Will repurchase always.",
-                rating: 5,
-                product: 'Ceramide Barrier Cream',
-              },
-            ].map((t, i) => (
-              <div
-                key={i}
+      {sectionVisibility.testimonials !== false && (
+        <section className="section-md" style={{ background: 'var(--bg-surface)', borderTop: '1px solid var(--border-default)' }}>
+          <div className="container-md">
+            <div style={{ textAlign: 'center', marginBottom: 48 }}>
+              <h2
+                className="font-editorial section-heading"
                 style={{
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-default)',
-                  borderRadius: 4,
-                  padding: 28,
+                  fontFamily: "'Cormorant Garamond', Georgia, serif",
+                  fontWeight: 400,
+                  color: 'var(--text-primary)',
                 }}
               >
-                <div style={{ display: 'flex', gap: 3, marginBottom: 16 }}>
-                  {Array.from({ length: t.rating }).map((_, si) => (
-                    <Star key={si} size={13} style={{ fill: '#C9956D', color: '#C9956D' }} />
-                  ))}
-                </div>
-                <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)', marginBottom: 20, fontStyle: 'italic' }}>
-                  "{t.review}"
-                </p>
-                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{t.name}</p>
-                    <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t.skin} skin</p>
+                What Our Customers Say
+              </h2>
+            </div>
+
+            <div className="testimonials-grid">
+              {[
+                {
+                  name: 'Nusrat Rahman',
+                  skin: 'Oily, Acne-Prone',
+                  review: "The Niacinamide 10% serum completely transformed my skin. My pores have tightened and the stubborn blemishes are finally fading after just 3 weeks.",
+                  rating: 5,
+                  product: 'Niacinamide 10% Serum',
+                },
+                {
+                  name: 'Farida Akter',
+                  skin: 'Combination',
+                  review: "I was skeptical about clinical skincare at first, but Beauty Glowry's Vitamin C emulsion proved me wrong. My skin tone is visibly more even now.",
+                  rating: 5,
+                  product: 'Vitamin C 15% Emulsion',
+                },
+                {
+                  name: 'Shahadat Hossain',
+                  skin: 'Dry, Sensitive',
+                  review: "The Ceramide cream is a lifesaver. My dry patches disappeared within a week and my skin barrier feels so much stronger. Will repurchase always.",
+                  rating: 5,
+                  product: 'Ceramide Barrier Cream',
+                },
+              ].map((t, i) => (
+                <div
+                  key={i}
+                  style={{
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 4,
+                    padding: 28,
+                  }}
+                >
+                  <div style={{ display: 'flex', gap: 3, marginBottom: 16 }}>
+                    {Array.from({ length: t.rating }).map((_, si) => (
+                      <Star key={si} size={13} style={{ fill: '#C9956D', color: '#C9956D' }} />
+                    ))}
                   </div>
-                  <span className="badge-active">{t.product.split(' ').slice(0, 2).join(' ')}</span>
+                  <p style={{ fontSize: 14, lineHeight: 1.7, color: 'var(--text-secondary)', marginBottom: 20, fontStyle: 'italic' }}>
+                    "{t.review}"
+                  </p>
+                  <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{t.name}</p>
+                      <p style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t.skin} skin</p>
+                    </div>
+                    <span className="badge-active">{t.product.split(' ').slice(0, 2).join(' ')}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ═══ SKIN QUIZ CTA ═══════════════════════════════════════════════════════ */}
-      <section
-        style={{
-          position: 'relative',
-          overflow: 'hidden',
-          padding: '100px 0',
-          background: 'var(--bg-elevated)',
-          textAlign: 'center',
-        }}
-      >
-        <div
+      {sectionVisibility.quiz_cta !== false && (
+        <section
           style={{
-            position: 'absolute',
-            top: '50%',
-            left: '50%',
-            transform: 'translate(-50%, -50%)',
-            width: '120%',
-            height: '120%',
-            backgroundImage: 'radial-gradient(ellipse at center, rgba(201,149,109,0.08) 0%, transparent 70%)',
-            pointerEvents: 'none',
+            position: 'relative',
+            overflow: 'hidden',
+            padding: '100px 0',
+            background: 'var(--bg-elevated)',
+            textAlign: 'center',
           }}
-        />
-        <div className="container-md" style={{ position: 'relative' }}>
-          <p
+        >
+          <div
             style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-              color: 'var(--sage)',
-              marginBottom: 16,
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              width: '120%',
+              height: '120%',
+              backgroundImage: 'radial-gradient(ellipse at center, rgba(201,149,109,0.08) 0%, transparent 70%)',
+              pointerEvents: 'none',
             }}
-          >
-            Personalized Skincare
-          </p>
-          <h2
-            className="font-editorial"
-            style={{
-              fontFamily: "'Cormorant Garamond', Georgia, serif",
-              fontSize: 'clamp(36px, 5vw, 60px)',
-              fontWeight: 400,
-              color: 'var(--text-primary)',
-              lineHeight: 1.1,
-              marginBottom: 20,
-            }}
-          >
-            Not Sure Which
-            <em style={{ display: 'block', fontStyle: 'italic', color: 'var(--accent)' }}>
-              Formula is Right for You?
-            </em>
-          </h2>
-          <p style={{ fontSize: 16, color: 'var(--text-secondary)', marginBottom: 40, maxWidth: 480, margin: '0 auto 40px' }}>
-            Take our 5-step clinical skin assessment and receive a personalized routine
-            tailored to your exact skin profile.
-          </p>
-          <Link href="/quiz" className="btn-primary" style={{ fontSize: 14, padding: '16px 40px' }}>
-            Start Your Skin Quiz <ArrowRight size={16} />
-          </Link>
-        </div>
-      </section>
+          />
+          <div className="container-md" style={{ position: 'relative' }}>
+            <p
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: '0.14em',
+                textTransform: 'uppercase',
+                color: 'var(--sage)',
+                marginBottom: 16,
+              }}
+            >
+              Personalized Skincare
+            </p>
+            <h2
+              className="font-editorial"
+              style={{
+                fontFamily: "'Cormorant Garamond', Georgia, serif",
+                fontSize: 'clamp(36px, 5vw, 60px)',
+                fontWeight: 400,
+                color: 'var(--text-primary)',
+                lineHeight: 1.1,
+                marginBottom: 20,
+              }}
+            >
+              Not Sure Which
+              <em style={{ display: 'block', fontStyle: 'italic', color: 'var(--accent)' }}>
+                Formula is Right for You?
+              </em>
+            </h2>
+            <p style={{ fontSize: 16, color: 'var(--text-secondary)', marginBottom: 40, maxWidth: 480, margin: '0 auto 40px' }}>
+              Take our 5-step clinical skin assessment and receive a personalized routine
+              tailored to your exact skin profile.
+            </p>
+            <Link href="/quiz" className="btn-primary" style={{ fontSize: 14, padding: '16px 40px' }}>
+              Start Your Skin Quiz <ArrowRight size={16} />
+            </Link>
+          </div>
+        </section>
+      )}
 
       <Footer />
 

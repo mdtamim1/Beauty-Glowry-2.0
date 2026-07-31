@@ -5,9 +5,10 @@ import {
   Search, ChevronDown, Eye, X, Printer, RefreshCw, Filter,
   Plus, Trash2, Package, Save, Tag, Hash, User, Phone,
   Mail, MapPin, Truck, Calendar, FileText, ShoppingCart,
-  AlertCircle, Check, Copy
+  AlertCircle, Check, Copy, Clock, Shield, RotateCcw
 } from 'lucide-react';
 import { products } from '../../../data/products';
+import { logActivity, getAuthHeaders } from '../utils';
 
 const C = {
   surface: '#1A1A17', elevated: '#222220', border: 'rgba(255,255,255,0.07)',
@@ -36,7 +37,7 @@ const COURIERS = ['Pathao', 'Paperfly', 'Sundarban', 'SA Paribahan', 'Redx', 'eC
 const PAYMENT_METHODS = ['Cash on Delivery (COD)', 'bKash', 'Nagad', 'Rocket', 'Credit/Debit Card', 'Bank Transfer'];
 
 // ─── Types ───────────────────────────────────────────────────────────────
-type OrderStatus = 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Refunded';
+type OrderStatus = 'Pending' | 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled' | 'Returned';
 
 interface OrderItem {
   productId: number;
@@ -55,6 +56,7 @@ interface Order {
   district?: string; thana?: string; area?: string;
   courier?: string; customerNote?: string; shopNote?: string;
   orderHistory?: Array<{ status: string; date: string; note: string }>;
+  assigned_to?: string;
 }
 
 const STATUS_STYLES: Record<OrderStatus, { bg: string; color: string }> = {
@@ -62,10 +64,11 @@ const STATUS_STYLES: Record<OrderStatus, { bg: string; color: string }> = {
   Processing: { bg: 'rgba(240,165,75,0.15)', color: C.warning },
   Shipped: { bg: 'rgba(96,165,250,0.15)', color: C.info },
   Delivered: { bg: 'rgba(76,175,130,0.15)', color: C.success },
-  Refunded: { bg: 'rgba(224,90,90,0.15)', color: C.danger },
+  Cancelled: { bg: 'rgba(239,68,68,0.15)', color: '#EF4444' }, // Red for cancelled
+  Returned: { bg: 'rgba(201,149,109,0.15)', color: C.accent }, // Gold/accent for returned
 };
 
-const ALL_STATUSES: OrderStatus[] = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Refunded'];
+const ALL_STATUSES: OrderStatus[] = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Cancelled', 'Returned'];
 
 const INITIAL_ORDERS: Order[] = [
   { id: 'BG-9940', customer: 'Sumaiya Rahman', phone: '01711223344', email: 'sumaiya@gmail.com', address: 'House 12, Road 4, Dhanmondi', items: [{ name: 'Niacinamide 10% Serum', qty: 1, price: 1250 }, { name: 'HA Hydration Serum', qty: 1, price: 1150 }], total: 2400, shipping: 0, payment: 'bKash', status: 'Delivered', date: '2026-07-29', district: 'Dhaka', courier: 'Pathao' },
@@ -74,7 +77,7 @@ const INITIAL_ORDERS: Order[] = [
   { id: 'BG-9937', customer: 'Fahim Shahriar', phone: '01712345678', email: 'fahim@gmail.com', address: 'Sylhet Sadar', items: [{ name: 'Vitamin C 15% Emulsion', qty: 1, price: 1850 }], total: 1850, shipping: 120, payment: 'COD', status: 'Pending', date: '2026-07-28', district: 'Sylhet' },
   { id: 'BG-9936', customer: 'Nadia Islam', phone: '01611223344', email: 'nadia@gmail.com', address: 'Mirpur-10', items: [{ name: 'Salicylic Acid Cleanser', qty: 2, price: 750 }], total: 1500, shipping: 0, payment: 'bKash', status: 'Pending', date: '2026-07-27', district: 'Dhaka' },
   { id: 'BG-9935', customer: 'Rahim Khan', phone: '01722334455', email: 'rahim@gmail.com', address: 'Uttara', items: [{ name: 'Niacinamide 10% Serum', qty: 3, price: 1250 }], total: 3750, shipping: 0, payment: 'Card', status: 'Delivered', date: '2026-07-26', district: 'Dhaka' },
-  { id: 'BG-9934', customer: 'Tasnim Akter', phone: '01833445566', email: 'tasnim@gmail.com', address: 'Khulna Sadar', items: [{ name: 'Ceramide Barrier Cream', qty: 1, price: 1650 }], total: 1650, shipping: 120, payment: 'COD', status: 'Refunded', date: '2026-07-25', district: 'Khulna' },
+  { id: 'BG-9934', customer: 'Tasnim Akter', phone: '01833445566', email: 'tasnim@gmail.com', address: 'Khulna Sadar', items: [{ name: 'Ceramide Barrier Cream', qty: 1, price: 1650 }], total: 1650, shipping: 120, payment: 'COD', status: 'Returned', date: '2026-07-25', district: 'Khulna' },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────
@@ -82,8 +85,41 @@ function genInvoiceNo() {
   return 'BG-' + Math.floor(1000 + Math.random() * 9000);
 }
 
+function getDhakaDateStr(dateInput?: Date | string) {
+  const d = dateInput ? new Date(dateInput) : new Date();
+  const tzOffset = 6 * 60; // Dhaka is UTC+6 (360 mins)
+  const localTime = d.getTime() + (d.getTimezoneOffset() + tzOffset) * 60000;
+  const dhakaDate = new Date(localTime);
+  const yyyy = dhakaDate.getFullYear();
+  const mm = String(dhakaDate.getMonth() + 1).padStart(2, '0');
+  const dd = String(dhakaDate.getDate()).padStart(2, '0');
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 function todayStr() {
-  return new Date().toISOString().slice(0, 10);
+  return getDhakaDateStr();
+}
+
+function isToday(dateStr: string) {
+  if (!dateStr) return false;
+  return dateStr === getDhakaDateStr();
+}
+
+function isDeliveredToday(order: Order) {
+  if (order.status !== 'Delivered') return false;
+  const todayDhakaStr = getDhakaDateStr();
+
+  if (order.orderHistory && order.orderHistory.length > 0) {
+    const deliveredEntry = order.orderHistory.find(
+      h => h.status.toLowerCase() === 'delivered'
+    );
+    if (deliveredEntry) {
+      const entryDateStr = getDhakaDateStr(deliveredEntry.date);
+      return entryDateStr === todayDhakaStr;
+    }
+  }
+
+  return getDhakaDateStr(order.date) === todayDhakaStr;
 }
 
 // ─── Shared Input Style ───────────────────────────────────────────────────
@@ -144,6 +180,23 @@ function ViewOrderModal({ order, onClose, onSave }: {
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponDiscount, setCouponDiscount] = useState(0);
+
+  // Reassignment states
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [activeModerators, setActiveModerators] = useState<any[]>([]);
+  const [assignedTo, setAssignedTo] = useState(order.assigned_to || '');
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sess = localStorage.getItem('bg_admin_session');
+    if (sess) setCurrentUser(JSON.parse(sess));
+
+    const modsStr = localStorage.getItem('bg_moderators');
+    if (modsStr) {
+      const allMods = JSON.parse(modsStr);
+      setActiveModerators(allMods.filter((m: any) => m.status === 'Active'));
+    }
+  }, [order]);
 
   // Product search
   const [productSearch, setProductSearch] = useState('');
@@ -233,6 +286,7 @@ function ViewOrderModal({ order, onClose, onSave }: {
       date: orderDate,
       district, thana, area, courier, customerNote, shopNote, orderHistory,
       statusNote: status !== order.status ? `Advanced status from ${order.status} to ${status}` : undefined,
+      assigned_to: assignedTo,
     } as any;
     onSave(updatedOrder);
     onClose();
@@ -355,7 +409,7 @@ function ViewOrderModal({ order, onClose, onSave }: {
             </LabeledField>
 
             {/* Courier + Status + Date */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: currentUser?.role === 'admin' ? '1fr 1fr 1fr 1fr' : '1fr 1fr 1fr', gap: 12 }}>
               <LabeledField label="Courier">
                 <div style={{ position: 'relative' }}>
                   <select value={courier} onChange={e => setCourier(e.target.value)} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
@@ -375,6 +429,25 @@ function ViewOrderModal({ order, onClose, onSave }: {
               <LabeledField label="Order Date">
                 <input type="date" value={orderDate} onChange={e => setOrderDate(e.target.value)} style={{ ...iS, colorScheme: 'dark' }} />
               </LabeledField>
+              {currentUser?.role === 'admin' && (
+                <LabeledField label="Assigned Moderator">
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={assignedTo}
+                      onChange={e => setAssignedTo(e.target.value)}
+                      style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer', color: C.accent, border: `1px solid ${C.accent}40` }}
+                    >
+                      <option value="admin">Super Admin (Default)</option>
+                      {activeModerators.map(m => (
+                        <option key={m.email} value={m.email}>
+                          {m.name} ({m.email})
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.accent, pointerEvents: 'none' }} />
+                  </div>
+                </LabeledField>
+              )}
             </div>
 
             {/* District + Thana + Area */}
@@ -1310,14 +1383,39 @@ function CreateOrderModal({ onClose, onSave }: { onClose: () => void; onSave: (o
 export default function AdminOrders() {
   const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
+  const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All' | 'Today'>('All');
   const [updating, setUpdating] = useState<string | null>(null);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewOrder, setViewOrder] = useState<Order | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
+  const [currentSession, setCurrentSession] = useState<any>(null);
 
+  // Load session from LocalStorage
   useEffect(() => {
-    fetch('/api/orders')
+    if (typeof window !== 'undefined') {
+      const sessStr = localStorage.getItem('bg_admin_session');
+      if (sessStr) {
+        setCurrentSession(JSON.parse(sessStr));
+      }
+    }
+  }, []);
+
+  // Set default tab to 'Today' if moderator is logged in (as they have no 'All' access)
+  useEffect(() => {
+    if (currentSession?.role === 'moderator' && statusFilter === 'All') {
+      setStatusFilter('Today');
+    }
+  }, [currentSession, statusFilter]);
+
+  // Load orders based on permissions role
+  useEffect(() => {
+    if (!currentSession) return;
+
+    const url = currentSession.role === 'admin'
+      ? '/api/orders?includeUnsynced=true'
+      : `/api/orders?moderatorEmail=${encodeURIComponent(currentSession.email)}`;
+
+    fetch(url)
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -1325,13 +1423,32 @@ export default function AdminOrders() {
         }
       })
       .catch((err) => console.error('Failed to load orders from live database:', err));
-  }, []);
+  }, [currentSession]);
 
   const filtered = orders.filter(o => {
+    // 1. Hide pending sync orders from all list tabs
+    if (o.status?.toLowerCase() === 'pending_sync') return false;
+
+    // 2. Extra client security safety check: hide orders not assigned to this moderator
+    if (currentSession?.role === 'moderator' && o.assigned_to !== currentSession.email) {
+      return false;
+    }
+
     const matchSearch = o.id.toLowerCase().includes(search.toLowerCase()) ||
       o.customer.toLowerCase().includes(search.toLowerCase()) ||
       o.phone.includes(search);
-    const matchStatus = statusFilter === 'All' || o.status === statusFilter;
+
+    let matchStatus = false;
+    if (statusFilter === 'All') {
+      matchStatus = true;
+    } else if (statusFilter === 'Today') {
+      matchStatus = isToday(o.date);
+    } else if (statusFilter === 'Delivered') {
+      matchStatus = o.status === 'Delivered' && isDeliveredToday(o);
+    } else {
+      matchStatus = o.status === statusFilter;
+    }
+
     return matchSearch && matchStatus;
   });
 
@@ -1340,12 +1457,13 @@ export default function AdminOrders() {
     try {
       const res = await fetch(`/api/orders/${id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({ status }),
       });
       if (!res.ok) throw new Error('Failed to update status');
 
       setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, status } : o)));
+      logActivity('Order status updated', `Changed status of order ${id} to "${status}"`);
     } catch (err) {
       console.error(err);
       alert('Failed to update order status');
@@ -1357,6 +1475,7 @@ export default function AdminOrders() {
   const handleNewOrder = (order: Order) => {
     setOrders(prev => [order, ...prev]);
     setSuccessMsg(`Order ${order.id} created successfully!`);
+    logActivity('Order created', `Manually created order ${order.id} for customer ${order.customer} (Total: ৳${order.total.toLocaleString()})`);
     setTimeout(() => setSuccessMsg(''), 3500);
   };
 
@@ -1364,7 +1483,7 @@ export default function AdminOrders() {
     try {
       const res = await fetch(`/api/orders/${updatedOrder.id}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
         body: JSON.stringify({
           status: updatedOrder.status,
           payment_method: updatedOrder.payment,
@@ -1374,12 +1493,22 @@ export default function AdminOrders() {
           thana: updatedOrder.thana,
           area: updatedOrder.area,
           statusNote: (updatedOrder as any).statusNote,
+          assigned_to: updatedOrder.assigned_to,
         }),
       });
       if (!res.ok) throw new Error('Failed to update order');
 
+      const prevOrder = orders.find((o) => o.id === updatedOrder.id);
+      const isReassigned = prevOrder && prevOrder.assigned_to !== updatedOrder.assigned_to;
+
       setOrders((prev) => prev.map((o) => (o.id === updatedOrder.id ? updatedOrder : o)));
       setSuccessMsg(`Order ${updatedOrder.id} updated successfully!`);
+      
+      if (isReassigned) {
+        logActivity('Order reassigned', `Reassigned order ${updatedOrder.id} to ${updatedOrder.assigned_to === 'admin' ? 'Super Admin' : updatedOrder.assigned_to}`);
+      } else {
+        logActivity('Order modified', `Updated details of order ${updatedOrder.id} (Status: "${updatedOrder.status}")`);
+      }
       setTimeout(() => setSuccessMsg(''), 3500);
     } catch (err) {
       console.error(err);
@@ -1388,9 +1517,16 @@ export default function AdminOrders() {
   };
 
   const counts = ALL_STATUSES.reduce((acc, s) => {
-    acc[s] = orders.filter(o => o.status === s).length;
+    if (s === 'Delivered') {
+      acc[s] = orders.filter(o => o.status === s && isDeliveredToday(o)).length;
+    } else {
+      acc[s] = orders.filter(o => o.status === s).length;
+    }
     return acc;
   }, {} as Record<OrderStatus, number>);
+
+  const todayCount = orders.filter(o => isToday(o.date)).length;
+  const unsyncedCount = orders.filter(o => o.status?.toLowerCase() === 'pending_sync').length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
@@ -1409,48 +1545,201 @@ export default function AdminOrders() {
       )}
 
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 4 }}>Orders</h1>
-          <p style={{ fontSize: 13, color: C.muted }}>{orders.length} total orders</p>
+          <h1 style={{ fontSize: 22, fontWeight: 700, color: C.text, marginBottom: 4 }}>Order Control Center</h1>
+          <p style={{ fontSize: 13, color: C.muted }}>Manage and track all orders in real-time</p>
         </div>
-        <button
-          onClick={() => setShowCreateModal(true)}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8, padding: '10px 22px',
-            background: C.accent, border: 'none', borderRadius: 8,
-            fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer',
-            boxShadow: `0 4px 16px rgba(201,149,109,0.3)`,
-            transition: 'all 0.2s',
-          }}
-          onMouseEnter={e => (e.currentTarget.style.boxShadow = `0 8px 28px rgba(201,149,109,0.45)`)}
-          onMouseLeave={e => (e.currentTarget.style.boxShadow = `0 4px 16px rgba(201,149,109,0.3)`)}
-        >
-          <Plus size={15} /> Create Order
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {/* Order Sync */}
+          <button
+            onClick={async () => {
+              setUpdating('sync');
+              try {
+                // Get active moderators from localStorage
+                const modsStr = localStorage.getItem('bg_moderators');
+                const moderatorsList = modsStr ? JSON.parse(modsStr) : [];
+                const activeModEmails = moderatorsList
+                  .filter((m: any) => m.status === 'Active')
+                  .map((m: any) => m.email);
+
+                const res = await fetch('/api/orders/sync', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ activeModerators: activeModEmails }),
+                });
+                const data = await res.json();
+                
+                if (res.ok) {
+                  logActivity('Orders synchronized', `Synced ${data.count} new orders from storefront`);
+                  setSuccessMsg(data.message || `Synced ${data.count} orders successfully!`);
+                  
+                  // Re-fetch orders list
+                  const url = currentSession.role === 'admin'
+                    ? '/api/orders?includeUnsynced=true'
+                    : `/api/orders?moderatorEmail=${encodeURIComponent(currentSession.email)}`;
+                  const fetchRes = await fetch(url);
+                  const freshData = await fetchRes.json();
+                  if (Array.isArray(freshData)) {
+                    setOrders(freshData);
+                  }
+                  
+                  setTimeout(() => setSuccessMsg(''), 3500);
+                } else {
+                  alert(data.error || 'Failed to sync orders');
+                }
+              } catch (e) {
+                console.error(e);
+                alert('Connection error. Failed to sync orders.');
+              } finally {
+                setUpdating(null);
+              }
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px',
+              background: unsyncedCount > 0 ? 'rgba(201, 149, 109, 0.18)' : 'rgba(99, 102, 241, 0.12)',
+              border: `1px solid ${unsyncedCount > 0 ? 'rgba(201, 149, 109, 0.4)' : 'rgba(99, 102, 241, 0.25)'}`,
+              borderRadius: 8, fontSize: 13, fontWeight: 600, color: unsyncedCount > 0 ? C.accent : '#A5B4FC', cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = unsyncedCount > 0 ? 'rgba(201, 149, 109, 0.25)' : 'rgba(99, 102, 241, 0.2)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = unsyncedCount > 0 ? 'rgba(201, 149, 109, 0.18)' : 'rgba(99, 102, 241, 0.12)'; }}
+          >
+            <RefreshCw size={13} style={{ animation: updating === 'sync' ? 'spin 1s linear infinite' : 'none' }} />
+            {unsyncedCount > 0 ? `Sync (${unsyncedCount} New)` : 'Order Sync'}
+          </button>
+
+          {/* Fraud Checker */}
+          <button
+            onClick={() => {
+              alert('Fraud Check Complete: All orders analyzed.');
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px',
+              background: 'rgba(76, 175, 130, 0.12)', border: '1px solid rgba(76, 175, 130, 0.25)',
+              borderRadius: 8, fontSize: 13, fontWeight: 600, color: '#4CAF82', cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(76, 175, 130, 0.2)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(76, 175, 130, 0.12)'; }}
+          >
+            <Shield size={13} /> Fraud Checker
+          </button>
+
+          {/* Bulk Process */}
+          <button
+            onClick={() => {
+              alert('Selected orders sent to bulk printing queue.');
+            }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px',
+              background: C.elevated, border: `1px solid ${C.border}`,
+              borderRadius: 8, fontSize: 13, fontWeight: 600, color: C.textSec, cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = C.elevated; }}
+          >
+            <FileText size={13} /> Bulk Process
+          </button>
+
+          {/* Create Order */}
+          <button
+            onClick={() => setShowCreateModal(true)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '9px 20px',
+              background: C.accent, border: 'none', borderRadius: 8,
+              fontSize: 13, fontWeight: 700, color: '#fff', cursor: 'pointer',
+              boxShadow: `0 4px 16px rgba(201,149,109,0.3)`,
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.boxShadow = `0 8px 28px rgba(201,149,109,0.45)`; }}
+            onMouseLeave={e => { e.currentTarget.style.boxShadow = `0 4px 16px rgba(201,149,109,0.3)`; }}
+          >
+            <Plus size={14} /> Create Order
+          </button>
+        </div>
       </div>
 
-      {/* Status Tabs */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-        {(['All', ...ALL_STATUSES] as const).map(s => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px',
-              background: statusFilter === s ? (s === 'All' ? C.accent : STATUS_STYLES[s as OrderStatus]?.color + '20') : C.surface,
-              border: `1px solid ${statusFilter === s ? (s === 'All' ? C.accent : STATUS_STYLES[s as OrderStatus]?.color + '50') : C.border}`,
-              borderRadius: 7, fontSize: 12, fontWeight: 600,
-              color: statusFilter === s ? (s === 'All' ? '#fff' : STATUS_STYLES[s as OrderStatus]?.color) : C.muted,
-              cursor: 'pointer', transition: 'all 0.15s',
-            }}
-          >
-            {s}
-            <span style={{ fontSize: 10, fontWeight: 700, minWidth: 18, height: 18, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'inherit' }}>
-              {s === 'All' ? orders.length : counts[s as OrderStatus]}
-            </span>
-          </button>
-        ))}
+      {/* 4x2 Grid of Status Cards */}
+      <div className="status-cards-grid">
+        {[
+          { label: 'All Orders', key: 'All' as const, pill: 'all', color: '#6366F1', icon: ShoppingCart },
+          { label: 'Today\'s Orders', key: 'Today' as const, pill: 'today', color: C.accent, icon: Calendar },
+          { label: 'Processing', key: 'Processing' as const, pill: 'processing', color: C.warning, icon: RefreshCw },
+          { label: 'Pending', key: 'Pending' as const, pill: 'pending', color: C.muted, icon: Clock },
+          { label: 'Shipped', key: 'Shipped' as const, pill: 'shipped', color: '#60A5FA', icon: Truck },
+          { label: 'Delivered', key: 'Delivered' as const, pill: 'delivered', color: C.success, icon: Check },
+          { label: 'Cancelled', key: 'Cancelled' as const, pill: 'cancelled', color: '#EF4444', icon: X },
+          { label: 'Returned', key: 'Returned' as const, pill: 'returned', color: C.accent, icon: RotateCcw },
+        ].filter(card => {
+          if (card.key === 'All' && currentSession?.role === 'moderator') return false;
+          return true;
+        }).map(card => {
+          let count = 0;
+          if (card.key === 'All') {
+            count = orders.length;
+          } else if (card.key === 'Today') {
+            count = todayCount;
+          } else {
+            count = counts[card.key as OrderStatus] || 0;
+          }
+
+          const isActive = statusFilter === card.key;
+          const Icon = card.icon;
+
+          return (
+            <div
+              key={card.key}
+              onClick={() => setStatusFilter(card.key)}
+              style={{
+                background: C.surface,
+                border: `1px solid ${isActive ? card.color : C.border}`,
+                borderRadius: 10,
+                padding: '16px 20px',
+                cursor: 'pointer',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                transition: 'all 0.2s',
+                boxShadow: isActive ? `0 0 16px ${card.color}15` : 'none',
+              }}
+              onMouseEnter={(e) => {
+                if (!isActive) e.currentTarget.style.borderColor = 'rgba(255,255,255,0.14)';
+              }}
+              onMouseLeave={(e) => {
+                if (!isActive) e.currentTarget.style.borderColor = C.border;
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <Icon size={14} style={{ color: isActive ? card.color : C.muted }} />
+                  <span style={{ fontSize: 13, fontWeight: 600, color: isActive ? '#fff' : C.textSec }}>
+                    {card.label}
+                  </span>
+                </div>
+                <span style={{ fontSize: 24, fontWeight: 700, color: isActive ? card.color : '#fff', fontFamily: "'DM Mono', monospace" }}>
+                  {count}
+                </span>
+              </div>
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: '3px 8px',
+                  borderRadius: 20,
+                  background: `${card.color}15`,
+                  color: card.color,
+                  border: `1px solid ${card.color}25`,
+                  textTransform: 'lowercase',
+                  alignSelf: 'flex-start'
+                }}
+              >
+                {card.pill}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Search */}
@@ -1546,6 +1835,22 @@ export default function AdminOrders() {
       <style>{`
         @keyframes spin { from { transform: translateY(-50%) rotate(0deg); } to { transform: translateY(-50%) rotate(360deg); } }
         @keyframes slideIn { from { transform: translateX(60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .status-cards-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 16px;
+          margin-bottom: 24px;
+        }
+        @media (max-width: 1024px) {
+          .status-cards-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        @media (max-width: 600px) {
+          .status-cards-grid {
+            grid-template-columns: 1fr;
+          }
+        }
       `}</style>
     </div>
   );

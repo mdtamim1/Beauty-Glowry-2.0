@@ -1,13 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import {
   TrendingUp, TrendingDown, ShoppingCart, Package,
   Users, DollarSign, ArrowRight, Clock, CheckCircle,
-  AlertCircle, Truck, RefreshCw, Star, Eye
+  AlertCircle, Truck, RefreshCw, Star
 } from 'lucide-react';
-import { products } from '../../../data/products';
 
 const C = {
   bg: '#0F0F0D',
@@ -23,27 +22,17 @@ const C = {
   danger: '#E05A5A',
 };
 
-const MOCK_ORDERS = [
-  { id: 'BG-9938', customer: 'Sumaiya Rahman', product: 'Niacinamide 10% Serum', amount: 1250, status: 'Delivered', date: '29 Jul' },
-  { id: 'BG-9937', customer: 'Imtiaz Ahmed', product: 'Ceramide Barrier Cream (×2)', amount: 3300, status: 'Shipped', date: '29 Jul' },
-  { id: 'BG-9936', customer: 'Afrin Jahan', product: 'Centella Essence', amount: 950, status: 'Pending', date: '28 Jul' },
-  { id: 'BG-9935', customer: 'Fahim Shahriar', product: 'Vitamin C Emulsion', amount: 1850, status: 'Processing', date: '28 Jul' },
-  { id: 'BG-9934', customer: 'Nadia Islam', product: 'HA Hydration Serum', amount: 1150, status: 'Pending', date: '27 Jul' },
-];
-
-const REVENUE_BARS = [42, 68, 55, 80, 60, 92, 75]; // last 7 days
-const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-
 const STATUS_COLOR: Record<string, string> = {
   Delivered: C.success,
   Shipped: '#60A5FA',
   Processing: C.warning,
   Pending: C.muted,
-  Refunded: C.danger,
+  Cancelled: C.danger,
+  Returned: C.accent,
 };
 
-function KpiCard({ label, value, sub, icon: Icon, trend, color }: {
-  label: string; value: string; sub: string; icon: any; trend?: 'up' | 'down'; color: string;
+function KpiCard({ label, value, sub, icon: Icon, trend, color, trendValue }: {
+  label: string; value: string; sub: string; icon: any; trend?: 'up' | 'down'; color: string; trendValue?: string;
 }) {
   return (
     <div
@@ -87,12 +76,12 @@ function KpiCard({ label, value, sub, icon: Icon, trend, color }: {
             }}
           >
             {trend === 'up' ? <TrendingUp size={12} /> : <TrendingDown size={12} />}
-            {trend === 'up' ? '+12%' : '-3%'}
+            {trendValue || '0%'}
           </div>
         )}
       </div>
       <div>
-        <p style={{ fontFamily: "'DM Mono', monospace", fontSize: 26, fontWeight: 600, color: C.text, lineHeight: 1, marginBottom: 6 }}>
+        <p style={{ fontFamily: "'DM Mono', monospace", fontSize: 24, fontWeight: 600, color: C.text, lineHeight: 1, marginBottom: 6 }}>
           {value}
         </p>
         <p style={{ fontSize: 12, fontWeight: 600, color: C.textSec, marginBottom: 2 }}>{label}</p>
@@ -103,8 +92,81 @@ function KpiCard({ label, value, sub, icon: Icon, trend, color }: {
 }
 
 export default function AdminDashboard() {
-  const maxRevenue = Math.max(...REVENUE_BARS);
-  const lowStockProducts = products.filter((p) => p.stock <= 20);
+  const [stats, setStats] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchStats = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/admin/dashboard/stats');
+      if (res.ok) {
+        const data = await res.json();
+        setStats(data);
+      }
+    } catch (e) {
+      console.error('Failed to load stats from database:', e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const getMonthName = () => {
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    return `${months[new Date().getMonth()]} ${new Date().getFullYear()}`;
+  };
+
+  if (loading && !stats) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: 10 }}>
+        {/* Header Skeleton */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div style={{ width: 150, height: 24, background: C.border, borderRadius: 4, marginBottom: 8 }} />
+            <div style={{ width: 260, height: 14, background: C.border, borderRadius: 4 }} />
+          </div>
+          <div style={{ width: 100, height: 32, background: C.border, borderRadius: 4 }} />
+        </div>
+        
+        {/* KPI Skeleton */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} style={{ height: 130, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10 }} />
+          ))}
+        </div>
+
+        {/* Chart Skeleton */}
+        <div style={{ height: 260, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10 }} />
+      </div>
+    );
+  }
+
+  // Fallbacks in case stats are not loaded or incomplete
+  const revenueToday = stats?.revenue?.today || 0;
+  const revenueYesterday = stats?.revenue?.yesterday || 0;
+  const weeklyTrend = stats?.revenue?.weeklyTrendPercentage || 0;
+  const dailyChartData = stats?.revenue?.dailyRevenueChart || [0, 0, 0, 0, 0, 0, 0];
+  const dailyChartLabels = stats?.revenue?.daysLabelChart || ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  const maxRevenue = Math.max(...dailyChartData) || 1;
+
+  const totalOrders = stats?.orders?.total || 0;
+  const pendingOrders = stats?.orders?.pending || 0;
+  const recentOrders = stats?.orders?.recent || [];
+
+  const activeProducts = stats?.products?.active || 0;
+  const lowStockCount = stats?.products?.lowStockCount || 0;
+  const lowStockList = stats?.products?.lowStockList || [];
+  const topProducts = stats?.products?.topList || [];
+
+  const totalCustomers = stats?.customers?.total || 0;
+  const newCustomers = stats?.customers?.newThisWeek || 0;
+
+  const dailyTrendValue = revenueYesterday > 0
+    ? `${Math.round(((revenueToday - revenueYesterday) / revenueYesterday) * 100)}%`
+    : '0%';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
@@ -128,9 +190,10 @@ export default function AdminDashboard() {
               color: C.muted,
             }}
           >
-            <Clock size={13} /> July 2024
+            <Clock size={13} /> {getMonthName()}
           </div>
           <button
+            onClick={fetchStats}
             style={{
               padding: '7px 14px',
               background: C.accent,
@@ -145,17 +208,49 @@ export default function AdminDashboard() {
               gap: 6,
             }}
           >
-            <RefreshCw size={12} /> Refresh
+            <RefreshCw size={12} style={{ animation: loading ? 'spin 1s linear infinite' : 'none' }} /> Refresh
           </button>
         </div>
       </div>
 
       {/* KPI Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
-        <KpiCard label="Revenue Today" value="৳18,450" sub="vs ৳16,200 yesterday" icon={DollarSign} trend="up" color={C.accent} />
-        <KpiCard label="Total Orders" value="47" sub="5 pending action" icon={ShoppingCart} trend="up" color="#60A5FA" />
-        <KpiCard label="Active Products" value={`${products.length}`} sub={`${lowStockProducts.length} low in stock`} icon={Package} trend="up" color={C.success} />
-        <KpiCard label="Customers" value="1,284" sub="+8 this week" icon={Users} trend="up" color={C.warning} />
+        <KpiCard
+          label="Revenue Today"
+          value={`৳${revenueToday.toLocaleString()}`}
+          sub={`vs ৳${revenueYesterday.toLocaleString()} yesterday`}
+          icon={DollarSign}
+          trend={revenueToday >= revenueYesterday ? 'up' : 'down'}
+          trendValue={dailyTrendValue}
+          color={C.accent}
+        />
+        <KpiCard
+          label="Total Orders"
+          value={`${totalOrders}`}
+          sub={`${pendingOrders} pending action`}
+          icon={ShoppingCart}
+          trend={totalOrders > 0 ? 'up' : undefined}
+          trendValue="+5%"
+          color="#60A5FA"
+        />
+        <KpiCard
+          label="Active Products"
+          value={`${activeProducts}`}
+          sub={`${lowStockCount} low in stock`}
+          icon={Package}
+          trend={lowStockCount === 0 ? 'up' : 'down'}
+          trendValue={lowStockCount === 0 ? '0%' : `-${lowStockCount}`}
+          color={C.success}
+        />
+        <KpiCard
+          label="Customers"
+          value={`${totalCustomers.toLocaleString()}`}
+          sub={`+${newCustomers} this week`}
+          icon={Users}
+          trend={newCustomers > 0 ? 'up' : undefined}
+          trendValue={`+${newCustomers}`}
+          color={C.warning}
+        />
       </div>
 
       {/* Revenue Chart + Quick Stats */}
@@ -165,34 +260,34 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
             <div>
               <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text, marginBottom: 2 }}>Revenue (Last 7 Days)</h3>
-              <p style={{ fontSize: 12, color: C.muted }}>Total: ৳1,24,850</p>
+              <p style={{ fontSize: 12, color: C.muted }}>Total: ৳${(stats?.revenue?.thisWeekTotal || 0).toLocaleString()}</p>
             </div>
             <span
               style={{
                 fontSize: 11,
                 fontWeight: 600,
-                color: C.success,
-                background: `${C.success}18`,
-                border: `1px solid ${C.success}30`,
+                color: weeklyTrend >= 0 ? C.success : C.danger,
+                background: weeklyTrend >= 0 ? `${C.success}18` : `${C.danger}18`,
+                border: `1px solid ${weeklyTrend >= 0 ? C.success : C.danger}30`,
                 padding: '4px 10px',
                 borderRadius: 20,
               }}
             >
-              ↑ 14% vs last week
+              {weeklyTrend >= 0 ? `↑ ${weeklyTrend}% vs last week` : `↓ ${Math.abs(weeklyTrend)}% vs last week`}
             </span>
           </div>
           {/* Chart bars */}
           <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, height: 140 }}>
-            {REVENUE_BARS.map((val, i) => (
+            {dailyChartData.map((val: number, i: number) => (
               <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, height: '100%', justifyContent: 'flex-end' }}>
-                <span style={{ fontSize: 10, color: C.muted, fontFamily: "'DM Mono', monospace" }}>
-                  {Math.round(val * 1.5)}k
+                <span style={{ fontSize: 9, color: C.muted, fontFamily: "'DM Mono', monospace" }}>
+                  ৳{val >= 1000 ? `${(val / 1000).toFixed(1)}k` : val}
                 </span>
                 <div
                   style={{
                     width: '100%',
                     height: `${(val / maxRevenue) * 100}%`,
-                    background: i === REVENUE_BARS.length - 1
+                    background: i === dailyChartData.length - 1
                       ? `linear-gradient(180deg, ${C.accent}, #A07050)`
                       : `rgba(201,149,109,0.25)`,
                     borderRadius: '4px 4px 0 0',
@@ -201,11 +296,12 @@ export default function AdminDashboard() {
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.background = `linear-gradient(180deg, ${C.accent}, #A07050)`)}
                   onMouseLeave={(e) => {
-                    if (i !== REVENUE_BARS.length - 1)
+                    if (i !== dailyChartData.length - 1) {
                       e.currentTarget.style.background = 'rgba(201,149,109,0.25)';
+                    }
                   }}
                 />
-                <span style={{ fontSize: 10, color: C.muted }}>{DAYS[i]}</span>
+                <span style={{ fontSize: 10, color: C.muted }}>{dailyChartLabels[i]}</span>
               </div>
             ))}
           </div>
@@ -217,10 +313,10 @@ export default function AdminDashboard() {
           <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 20, flex: 1 }}>
             <h3 style={{ fontSize: 13, fontWeight: 700, color: C.text, marginBottom: 14 }}>Order Status</h3>
             {[
-              { label: 'Pending', count: 8, color: C.muted, icon: Clock },
-              { label: 'Processing', count: 5, color: C.warning, icon: RefreshCw },
-              { label: 'Shipped', count: 12, color: '#60A5FA', icon: Truck },
-              { label: 'Delivered', count: 22, color: C.success, icon: CheckCircle },
+              { label: 'Pending', count: pendingOrders, color: C.muted, icon: Clock },
+              { label: 'Processing', count: stats?.orders?.processing || 0, color: C.warning, icon: RefreshCw },
+              { label: 'Shipped', count: stats?.orders?.shipped || 0, color: '#60A5FA', icon: Truck },
+              { label: 'Delivered', count: stats?.orders?.delivered || 0, color: C.success, icon: CheckCircle },
             ].map((item) => (
               <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
                 <item.icon size={13} style={{ color: item.color }} />
@@ -229,29 +325,31 @@ export default function AdminDashboard() {
                   {item.count}
                 </span>
                 <div style={{ width: 60, height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 99 }}>
-                  <div style={{ width: `${(item.count / 47) * 100}%`, height: '100%', background: item.color, borderRadius: 99 }} />
+                  <div style={{ width: `${totalOrders > 0 ? (item.count / totalOrders) * 100 : 0}%`, height: '100%', background: item.color, borderRadius: 99 }} />
                 </div>
               </div>
             ))}
           </div>
 
           {/* Low Stock Alert */}
-          <div style={{ background: `rgba(240,165,75,0.06)`, border: `1px solid rgba(240,165,75,0.2)`, borderRadius: 10, padding: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <AlertCircle size={14} style={{ color: C.warning }} />
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: C.warning }}>Low Stock Alert</h3>
-            </div>
-            {lowStockProducts.slice(0, 3).map((p) => (
-              <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-                <span style={{ fontSize: 11, color: C.textSec, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {p.name.slice(0, 28)}...
-                </span>
-                <span style={{ fontSize: 11, fontWeight: 700, color: p.stock <= 10 ? C.danger : C.warning, fontFamily: "'DM Mono', monospace" }}>
-                  {p.stock} left
-                </span>
+          {lowStockList.length > 0 && (
+            <div style={{ background: `rgba(240,165,75,0.06)`, border: `1px solid rgba(240,165,75,0.2)`, borderRadius: 10, padding: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <AlertCircle size={14} style={{ color: C.warning }} />
+                <h3 style={{ fontSize: 13, fontWeight: 700, color: C.warning }}>Low Stock Alert</h3>
               </div>
-            ))}
-          </div>
+              {lowStockList.slice(0, 3).map((p: any) => (
+                <div key={p.id} style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                  <span style={{ fontSize: 11, color: C.textSec, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {p.name}
+                  </span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: p.stock <= 10 ? C.danger : C.warning, fontFamily: "'DM Mono', monospace" }}>
+                    {p.stock} left
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -266,56 +364,60 @@ export default function AdminDashboard() {
             </Link>
           </div>
           <div>
-            {MOCK_ORDERS.map((order, i) => (
-              <div
-                key={order.id}
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: '80px 1fr auto auto',
-                  alignItems: 'center',
-                  gap: 16,
-                  padding: '14px 22px',
-                  borderBottom: i < MOCK_ORDERS.length - 1 ? `1px solid ${C.border}` : 'none',
-                  transition: 'background 0.15s',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-              >
-                <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, fontFamily: "'DM Mono', monospace" }}>{order.id}</span>
-                <div>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 2 }}>{order.customer}</p>
-                  <p style={{ fontSize: 11, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{order.product}</p>
-                </div>
-                <span
+            {recentOrders.length > 0 ? (
+              recentOrders.map((order: any, i: number) => (
+                <div
+                  key={order.id}
                   style={{
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: STATUS_COLOR[order.status],
-                    background: `${STATUS_COLOR[order.status]}18`,
-                    padding: '3px 8px',
-                    borderRadius: 4,
-                    border: `1px solid ${STATUS_COLOR[order.status]}30`,
-                    whiteSpace: 'nowrap',
+                    display: 'grid',
+                    gridTemplateColumns: '80px 1fr auto auto',
+                    alignItems: 'center',
+                    gap: 16,
+                    padding: '14px 22px',
+                    borderBottom: i < recentOrders.length - 1 ? `1px solid ${C.border}` : 'none',
+                    transition: 'background 0.15s',
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(255,255,255,0.02)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
                 >
-                  {order.status}
-                </span>
-                <span style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: "'DM Mono', monospace" }}>৳{order.amount.toLocaleString()}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: C.accent, fontFamily: "'DM Mono', monospace" }}>{order.id}</span>
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 2 }}>{order.customer}</p>
+                    <p style={{ fontSize: 11, color: C.muted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 200 }}>{order.product}</p>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: STATUS_COLOR[order.status] || C.muted,
+                      background: `${STATUS_COLOR[order.status] || C.muted}18`,
+                      padding: '3px 8px',
+                      borderRadius: 4,
+                      border: `1px solid ${STATUS_COLOR[order.status] || C.muted}30`,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    {order.status}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: C.text, fontFamily: "'DM Mono', monospace" }}>৳{order.amount.toLocaleString()}</span>
+                </div>
+              ))
+            ) : (
+              <div style={{ padding: '24px 22px', textAlign: 'center', color: C.muted, fontSize: 12 }}>
+                No recent orders found in database.
               </div>
-            ))}
+            )}
           </div>
         </div>
 
         {/* Top Products */}
         <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
           <div style={{ padding: '18px 22px', borderBottom: `1px solid ${C.border}` }}>
-            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Top Products</h3>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: C.text }}>Top Rated Products</h3>
           </div>
           <div style={{ padding: '8px 0' }}>
-            {products
-              .sort((a, b) => b.reviewCount - a.reviewCount)
-              .slice(0, 5)
-              .map((p, i) => (
+            {topProducts.length > 0 ? (
+              topProducts.map((p: any, i: number) => (
                 <div
                   key={p.id}
                   style={{
@@ -323,7 +425,7 @@ export default function AdminDashboard() {
                     alignItems: 'center',
                     gap: 12,
                     padding: '12px 20px',
-                    borderBottom: i < 4 ? `1px solid ${C.border}` : 'none',
+                    borderBottom: i < topProducts.length - 1 ? `1px solid ${C.border}` : 'none',
                   }}
                 >
                   <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 11, color: C.muted, width: 16 }}>
@@ -334,7 +436,7 @@ export default function AdminDashboard() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <p style={{ fontSize: 12, fontWeight: 600, color: C.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {p.name.split(' ').slice(0, 3).join(' ')}
+                      {p.name}
                     </p>
                     <p style={{ fontSize: 11, color: C.muted }}>
                       <Star size={10} style={{ display: 'inline', verticalAlign: 'middle', color: C.accent }} /> {p.rating} · {p.reviewCount} reviews
@@ -344,7 +446,12 @@ export default function AdminDashboard() {
                     ৳{p.price.toLocaleString()}
                   </span>
                 </div>
-              ))}
+              ))
+            ) : (
+              <div style={{ padding: '24px 22px', textAlign: 'center', color: C.muted, fontSize: 12 }}>
+                No products found in database.
+              </div>
+            )}
           </div>
         </div>
       </div>

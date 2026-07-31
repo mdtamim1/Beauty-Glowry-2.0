@@ -7,6 +7,7 @@ import {
   Flame, Sparkles, Leaf, Heart, Target, Eye,
 } from 'lucide-react';
 import { products as initialProducts, Product, categories, brands } from '../../../data/products';
+import { logActivity, getAuthHeaders } from '../utils';
 
 const C = {
   bg: '#0F0F0D', surface: '#1A1A17', elevated: '#222220',
@@ -72,10 +73,10 @@ const SKIN_CONCERN_TAGS = [
 const EMPTY_FORM = {
   name: '', brand: 'beauty-glowry', category: categories[0], price: 1000, originalPrice: 1200,
   stock: 20, rating: 4.5, reviewCount: 0,
-  isBestseller: false, isNew: false, isFeatured: false,
+  isBestseller: false, isNew: false, isFeatured: false, isActive: true,
   description: '', image: '',
   skinTypes: 'All Skin Types', concerns: '',
-  inciList: '', usageSteps: '', actives: '', variants: '', productImages: '',
+  inciList: '', usageSteps: '', actives: '', variants: '', hasVariants: false, productImages: '',
   size: '30ml', weight: '32g', shelfLife: '24 months', madeIn: 'Bangladesh',
 };
 
@@ -205,6 +206,71 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit }: {
   const update = (key: keyof FormData, val: any) => setForm({ ...form, [key]: val });
   const [activeTab, setActiveTab] = useState<'basic' | 'sections' | 'advanced'>('basic');
 
+  // ─── Size Variants Helper Logic ──────────────────────────────────────────
+  const currentVariants = form.variants
+    ? form.variants.split(',').filter(Boolean).map((v) => {
+        const [label, price, stock, sku] = v.split(':');
+        return {
+          label: label || '',
+          price: Number(price) || 0,
+          stock: Number(stock) || 0,
+          sku: sku || '',
+        };
+      })
+    : [];
+
+  const [newVarLabel, setNewVarLabel] = useState('');
+  const [newVarPrice, setNewVarPrice] = useState<number | ''>('');
+  const [newVarStock, setNewVarStock] = useState<number | ''>('');
+  const [newVarSku, setNewVarSku] = useState('');
+
+  const addVariant = () => {
+    if (!newVarLabel) return;
+    const vPrice = Number(newVarPrice) || form.price;
+    const vStock = Number(newVarStock) || form.stock;
+    const vSku = newVarSku.trim();
+
+    const newVarStr = `${newVarLabel}:${vPrice}:${vStock}:${vSku}`;
+    const nextVariants = form.variants
+      ? [...form.variants.split(',').filter(Boolean), newVarStr].join(',')
+      : newVarStr;
+
+    update('variants', nextVariants);
+
+    setNewVarLabel('');
+    setNewVarPrice('');
+    setNewVarStock('');
+    setNewVarSku('');
+  };
+
+  const removeVariant = (index: number) => {
+    const list = form.variants.split(',').filter(Boolean);
+    list.splice(index, 1);
+    update('variants', list.join(','));
+  };
+
+  // ─── Gallery Images Helper Logic ─────────────────────────────────────────
+  const galleryImages = form.productImages
+    ? form.productImages.split(',').map((s) => s.trim()).filter(Boolean)
+    : [];
+
+  const updateImage = (index: number, val: string) => {
+    const list = [...galleryImages];
+    list[index] = val;
+    update('productImages', list.join(','));
+  };
+
+  const addImageField = () => {
+    const list = [...galleryImages, ''];
+    update('productImages', list.join(','));
+  };
+
+  const removeImageField = (index: number) => {
+    const list = [...galleryImages];
+    list.splice(index, 1);
+    update('productImages', list.join(','));
+  };
+
   const tabs = [
     { key: 'basic', label: '📝 Basic Info' },
     { key: 'sections', label: '🗂️ Section Placement' },
@@ -323,11 +389,442 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit }: {
                 <Input label="Original Price (৳)" type="number" value={form.originalPrice} onChange={(v: number) => update('originalPrice', v)} hint="Before discount" />
                 <Input label="Stock Qty" type="number" value={form.stock} onChange={(v: number) => update('stock', v)} />
                 <Input label="Rating" type="number" value={form.rating} onChange={(v: number) => update('rating', v)} placeholder="4.5" hint="0 – 5" />
-                <div style={{ gridColumn: '1/-1' }}>
-                  <Input label="Main Image URL" value={form.image} onChange={(v: string) => update('image', v)} placeholder="https://images.unsplash.com/..." required />
+                
+                {/* Active Status Toggle */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 6 }}>
+                    Active Status
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => update('isActive', !form.isActive)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      background: form.isActive ? 'rgba(76,175,130,0.12)' : 'rgba(224,90,90,0.12)',
+                      border: `1.5px solid ${form.isActive ? C.success : C.danger}`,
+                      borderRadius: 7,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: form.isActive ? C.success : C.danger,
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {form.isActive ? '🟢 Active (Visible in Store)' : '🔴 Inactive (Hidden from Store)'}
+                  </button>
                 </div>
+                <div style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>
+                    Main Image URL
+                  </label>
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <input
+                        type="text"
+                        value={form.image}
+                        onChange={(e) => update('image', e.target.value)}
+                        placeholder="https://images.unsplash.com/..."
+                        style={{
+                          width: '100%', padding: '10px 12px', background: C.elevated,
+                          border: `1px solid ${C.border}`, borderRadius: 7,
+                          fontSize: 13, color: C.text, fontFamily: "'DM Sans', sans-serif", outline: 'none'
+                        }}
+                      />
+                    </div>
+                    <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                      <button
+                        type="button"
+                        style={{
+                          padding: '10px 16px', background: C.elevated, border: `1px solid ${C.border}`,
+                          borderRadius: 7, fontSize: 12, fontWeight: 600, color: C.textSec, cursor: 'pointer'
+                        }}
+                      >
+                        Upload File
+                      </button>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          const fd = new FormData();
+                          fd.append('file', file);
+                          try {
+                            const res = await fetch('/api/admin/upload', {
+                              method: 'POST',
+                              body: fd
+                            });
+                            if (res.ok) {
+                              const out = await res.json();
+                              update('image', out.url);
+                            } else {
+                              alert('Upload failed');
+                            }
+                          } catch (err) {
+                            console.error(err);
+                          }
+                        }}
+                        style={{
+                          position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%'
+                        }}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Gallery Images Builder Section */}
+                <div style={{
+                  gridColumn: '1/-1',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                  marginTop: 6,
+                  marginBottom: 6,
+                }}>
+                  <label style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>
+                    Product Gallery Images
+                  </label>
+                  
+                  {/* Scrollable Viewport */}
+                  <div style={{
+                    maxHeight: 180,
+                    overflowY: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 8,
+                    padding: '8px 8px 8px 0',
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 8,
+                    background: 'rgba(0,0,0,0.15)',
+                    boxSizing: 'border-box',
+                  }}>
+                    {galleryImages.length === 0 ? (
+                      <div style={{ padding: '20px 12px', textAlign: 'center', color: C.muted, fontSize: 12 }}>
+                        No gallery images added yet. Click "+ Add Gallery Image" below.
+                      </div>
+                    ) : (
+                      galleryImages.map((url, index) => (
+                        <div key={index} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '0 8px' }}>
+                          <span style={{ fontSize: 11, color: C.muted, minWidth: 20, textAlign: 'center' }}>
+                            #{index + 1}
+                          </span>
+                          <input
+                            type="text"
+                            placeholder="https://images.unsplash.com/..."
+                            value={url}
+                            onChange={(e) => updateImage(index, e.target.value)}
+                            style={{
+                              flex: 1,
+                              padding: '8px 12px',
+                              background: C.elevated,
+                              border: `1px solid ${C.border}`,
+                              borderRadius: 6,
+                              fontSize: 13,
+                              color: C.text,
+                              outline: 'none',
+                              boxSizing: 'border-box',
+                            }}
+                            onFocus={(e) => (e.currentTarget.style.borderColor = C.accent)}
+                            onBlur={(e) => (e.currentTarget.style.borderColor = C.border)}
+                          />
+
+                          {/* File upload trigger */}
+                          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                            <button
+                              type="button"
+                              style={{
+                                padding: '8px 12px', background: C.elevated, border: `1px solid ${C.border}`,
+                                borderRadius: 6, fontSize: 11, fontWeight: 600, color: C.textSec, cursor: 'pointer'
+                              }}
+                            >
+                              Upload
+                            </button>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0];
+                                if (!file) return;
+                                const fd = new FormData();
+                                fd.append('file', file);
+                                try {
+                                  const res = await fetch('/api/admin/upload', {
+                                    method: 'POST',
+                                    body: fd
+                                  });
+                                  if (res.ok) {
+                                    const out = await res.json();
+                                    updateImage(index, out.url);
+                                  } else {
+                                    alert('Upload failed');
+                                  }
+                                } catch (err) {
+                                  console.error(err);
+                                }
+                              }}
+                              style={{
+                                position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer', width: '100%'
+                              }}
+                            />
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => removeImageField(index)}
+                            style={{
+                              background: 'none',
+                              border: 'none',
+                              color: C.danger,
+                              cursor: 'pointer',
+                              padding: 6,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              borderRadius: 4,
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(224,90,90,0.12)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Add Image Button */}
+                  <button
+                    type="button"
+                    onClick={addImageField}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 6,
+                      padding: '6px 14px',
+                      background: 'rgba(255,255,255,0.04)',
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: C.textSec,
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                      alignSelf: 'flex-start',
+                    }}
+                    onMouseEnter={(e) => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.07)';
+                      e.currentTarget.style.borderColor = C.accent;
+                      e.currentTarget.style.color = C.accent;
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = 'rgba(255,255,255,0.04)';
+                      e.currentTarget.style.borderColor = C.border;
+                      e.currentTarget.style.color = C.textSec;
+                    }}
+                  >
+                    <Plus size={12} /> Add Gallery Image
+                  </button>
+                </div>
+
                 <div style={{ gridColumn: '1/-1' }}>
                   <Input label="Description" type="textarea" value={form.description} onChange={(v: string) => update('description', v)} placeholder="Clinical description of this formulation..." required />
+                </div>
+
+                {/* Size-wise Pricing (Variants) Section */}
+                <div style={{
+                  gridColumn: '1/-1',
+                  marginTop: 8,
+                  padding: '20px 24px',
+                  background: 'rgba(255,255,255,0.015)',
+                  border: `1px solid ${form.hasVariants ? C.accent + '35' : C.border}`,
+                  borderRadius: 10,
+                  transition: 'all 0.2s',
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <div>
+                      <h3 style={{ fontSize: 13, fontWeight: 700, color: form.hasVariants ? C.accent : C.muted, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Size-wise Pricing & Variants
+                      </h3>
+                      <p style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>
+                        Enable this to add specific pricing and stock levels for different sizes, weights, or dimensions.
+                      </p>
+                    </div>
+                    {/* Enable/Disable Toggle */}
+                    <button
+                      type="button"
+                      onClick={() => update('hasVariants', !form.hasVariants)}
+                      style={{
+                        padding: '6px 14px',
+                        background: form.hasVariants ? 'rgba(76,175,130,0.15)' : 'rgba(255,255,255,0.04)',
+                        border: `1.5px solid ${form.hasVariants ? '#4CAF82' : C.border}`,
+                        borderRadius: 8,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: form.hasVariants ? '#8BC34A' : C.muted,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 6,
+                      }}
+                    >
+                      <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: form.hasVariants ? '#4CAF82' : C.muted }}></span>
+                      {form.hasVariants ? 'ENABLED' : 'DISABLED'}
+                    </button>
+                  </div>
+
+                  {/* Form & Table Content wrapper with opacity and disable state */}
+                  <div style={{
+                    opacity: form.hasVariants ? 1 : 0.35,
+                    pointerEvents: form.hasVariants ? 'auto' : 'none',
+                    transition: 'all 0.2s',
+                  }}>
+                    {/* Variant List Table */}
+                    {currentVariants.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+                        <div style={{
+                          display: 'grid',
+                          gridTemplateColumns: '150px 100px 100px 1fr auto',
+                          gap: 12,
+                          padding: '8px 12px',
+                          background: C.bg,
+                          borderRadius: 6,
+                          fontSize: 10,
+                          fontWeight: 700,
+                          color: C.muted,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.05em',
+                        }}>
+                          <div>Size / Weight / Inch</div>
+                          <div>Price (৳)</div>
+                          <div>Stock Qty</div>
+                          <div>SKU (optional)</div>
+                          <div style={{ textAlign: 'right', minWidth: 50 }}>Actions</div>
+                        </div>
+
+                        {currentVariants.map((v, i) => (
+                          <div key={i} style={{
+                            display: 'grid',
+                            gridTemplateColumns: '150px 100px 100px 1fr auto',
+                            gap: 12,
+                            padding: '10px 12px',
+                            borderBottom: `1px solid ${C.border}`,
+                            fontSize: 13,
+                            color: C.text,
+                            alignItems: 'center',
+                          }}>
+                            <div style={{ fontWeight: 600 }}>{v.label}</div>
+                            <div style={{ fontFamily: "'DM Mono', monospace", color: C.accent }}>৳{v.price.toLocaleString()}</div>
+                            <div style={{ fontFamily: "'DM Mono', monospace" }}>{v.stock}</div>
+                            <div style={{ fontFamily: "'DM Mono', monospace", color: C.muted, fontSize: 11 }}>{v.sku || 'Auto-generated'}</div>
+                            <div style={{ display: 'flex', justifyContent: 'flex-end', minWidth: 50 }}>
+                              <button
+                                type="button"
+                                onClick={() => removeVariant(i)}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: C.danger,
+                                  cursor: 'pointer',
+                                  padding: 4,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  borderRadius: 4,
+                                }}
+                                onMouseEnter={e => e.currentTarget.style.background = `${C.danger}15`}
+                                onMouseLeave={e => e.currentTarget.style.background = 'none'}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div style={{ padding: '20px 12px', textAlign: 'center', color: C.muted, fontSize: 12, border: `1px dashed ${C.border}`, borderRadius: 8, marginBottom: 16 }}>
+                        No variants added yet. Configure size/value parameters below.
+                      </div>
+                    )}
+
+                    {/* Add Variant Form Row */}
+                    <div style={{
+                      display: 'grid',
+                      gridTemplateColumns: '150px 100px 100px 1fr auto',
+                      gap: 12,
+                      alignItems: 'flex-end',
+                      background: C.elevated,
+                      padding: '12px 14px',
+                      borderRadius: 8,
+                      border: `1px solid ${C.border}`,
+                    }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 9, fontWeight: 700, color: C.muted, marginBottom: 6, textTransform: 'uppercase' }}>Size / Weight / Inch</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 50ml, 100g, 12 inch"
+                          value={newVarLabel}
+                          onChange={e => setNewVarLabel(e.target.value)}
+                          style={{ width: '100%', padding: '6px 8px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, outline: 'none' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 9, fontWeight: 700, color: C.muted, marginBottom: 6, textTransform: 'uppercase' }}>Price (৳)</label>
+                        <input
+                          type="number"
+                          placeholder={`e.g. ${form.price || 1000}`}
+                          value={newVarPrice}
+                          onChange={e => setNewVarPrice(e.target.value === '' ? '' : Number(e.target.value))}
+                          style={{ width: '100%', padding: '6px 8px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, outline: 'none' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 9, fontWeight: 700, color: C.muted, marginBottom: 6, textTransform: 'uppercase' }}>Stock</label>
+                        <input
+                          type="number"
+                          placeholder={`e.g. ${form.stock || 20}`}
+                          value={newVarStock}
+                          onChange={e => setNewVarStock(e.target.value === '' ? '' : Number(e.target.value))}
+                          style={{ width: '100%', padding: '6px 8px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, outline: 'none' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: 9, fontWeight: 700, color: C.muted, marginBottom: 6, textTransform: 'uppercase' }}>SKU (Optional)</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. BG-SERUM-50"
+                          value={newVarSku}
+                          onChange={e => setNewVarSku(e.target.value)}
+                          style={{ width: '100%', padding: '6px 8px', background: C.bg, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, outline: 'none' }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={addVariant}
+                        disabled={!newVarLabel}
+                        style={{
+                          padding: '7px 14px',
+                          background: newVarLabel ? C.accent : C.elevated,
+                          border: 'none',
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: newVarLabel ? '#fff' : C.muted,
+                          cursor: newVarLabel ? 'pointer' : 'not-allowed',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: 4,
+                          height: 28,
+                          alignSelf: 'center',
+                          boxShadow: newVarLabel ? '0 2px 8px rgba(201,149,109,0.2)' : 'none',
+                        }}
+                      >
+                        <Plus size={12} /> Add Size
+                      </button>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -478,9 +975,7 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit }: {
           {activeTab === 'advanced' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <div style={{ gridColumn: '1/-1' }}>
-                  <Input label="Product Images (comma-separated URLs)" type="textarea" value={form.productImages} onChange={(v: string) => update('productImages', v)} placeholder="url1, url2, url3" hint="Gallery images" />
-                </div>
+
                 <div style={{ gridColumn: '1/-1' }}>
                   <Input
                     label="Active Ingredients"
@@ -566,7 +1061,7 @@ export default function AdminProducts() {
   const [deleteConfirm, setDeleteConfirm] = useState<string | number | null>(null);
 
   useEffect(() => {
-    fetch('/api/products')
+    fetch('/api/products?includeInactive=true')
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
@@ -590,11 +1085,13 @@ export default function AdminProducts() {
       stock: p.stock, rating: p.rating, reviewCount: p.reviewCount,
       isBestseller: p.isBestseller, isNew: p.isNew,
       isFeatured: (p as any).isFeatured ?? false,
+      isActive: (p as any).isActive !== false,
       description: p.description,
       image: p.image, skinTypes: p.skinTypes.join(', '), concerns: p.concerns.join(', '),
       inciList: p.inciList, usageSteps: p.usageSteps.join('\n'),
       actives: p.actives.map((a) => `${a.name}:${a.concentration}:${a.unit}`).join(','),
-      variants: p.variants.map((v) => `${v.label}:${v.price}`).join(','),
+      variants: p.variants.map((v) => `${v.label || 'Standard'}:${v.price}:${v.stock || p.stock || 0}:${v.sku || ''}`).join(','),
+      hasVariants: p.variants && p.variants.length > 0,
       productImages: p.productImages.join(', '),
       size: p.size || '30ml', weight: p.weight || '', shelfLife: p.shelfLife || '', madeIn: p.madeIn || '',
     });
@@ -607,13 +1104,24 @@ export default function AdminProducts() {
       const [name, concentration, unit] = a.split(':');
       return { name: name?.trim() || '', concentration: Number(concentration) || 0, unit: unit?.trim() || '%' };
     });
+    const parseVariants = form.hasVariants ? form.variants.split(',').filter(Boolean).map((v) => {
+      const [label, price, stock, sku] = v.split(':');
+      return {
+        label: label?.trim() || 'Standard',
+        price: Number(price) || form.price,
+        stock: Number(stock) || form.stock,
+        sku: sku?.trim() || undefined
+      };
+    }) : undefined;
     const productPayload = {
       name: form.name, brand: form.brand || 'beauty-glowry', category: form.category, price: form.price,
       originalPrice: form.originalPrice, discountPrice: form.price,
       image: form.image, stock: form.stock, rating: form.rating,
       reviewCount: form.reviewCount, isBestseller: form.isBestseller, isNew: form.isNew,
+      isActive: form.isActive,
       description: form.description,
       actives: parseActives,
+      variants: parseVariants,
       skinTypes: form.skinTypes.split(',').map((s) => s.trim()).filter(Boolean),
       concerns: form.concerns.split(',').map((s) => s.trim()).filter(Boolean),
       inciList: form.inciList,
@@ -633,21 +1141,28 @@ export default function AdminProducts() {
       if (editTarget) {
         res = await fetch(`/api/products/${editTarget.id}`, {
           method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify(productPayload)
         });
       } else {
         res = await fetch('/api/products', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
           body: JSON.stringify(productPayload)
         });
       }
 
       if (!res.ok) throw new Error('Failed to save product');
 
+      // Log the product modification or creation
+      if (editTarget) {
+        logActivity('Product updated', `Modified product details for "${form.name}" (ID: ${editTarget.id})`);
+      } else {
+        logActivity('Product created', `Added new product "${form.name}" to inventory`);
+      }
+
       // Re-fetch products from DB
-      const fetchRes = await fetch('/api/products');
+      const fetchRes = await fetch('/api/products?includeInactive=true');
       const latestProducts = await fetchRes.json();
       if (Array.isArray(latestProducts)) {
         setItems(latestProducts);
@@ -662,11 +1177,13 @@ export default function AdminProducts() {
   const handleDelete = async (id: number | string) => {
     try {
       const res = await fetch(`/api/products/${id}`, {
-        method: 'DELETE'
+        method: 'DELETE',
+        headers: getAuthHeaders(),
       });
       if (!res.ok) throw new Error('Failed to delete product');
 
       setItems((prev) => prev.filter((p) => p.id !== id));
+      logActivity('Product deleted', `Removed product ID ${id} from database`);
       setDeleteConfirm(null);
       setSelected((prev) => prev.filter((s) => s !== id));
     } catch (err) {
@@ -676,8 +1193,8 @@ export default function AdminProducts() {
   };
 
   const handleBulkDelete = () => {
-    // Standard filter for UI bulk delete
     setItems((prev) => prev.filter((p) => !selected.includes(p.id)));
+    logActivity('Bulk products deleted', `Removed ${selected.length} products in bulk operation`);
     setSelected([]);
   };
 
@@ -798,10 +1315,11 @@ export default function AdminProducts() {
               </div>
               {/* Section tags */}
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                {!(p as any).isActive && <span style={{ fontSize: 8, padding: '2px 6px', background: `${C.danger}20`, color: C.danger, borderRadius: 3, fontWeight: 700, whiteSpace: 'nowrap' }}>🔴 INACTIVE</span>}
                 {p.isBestseller && <span style={{ fontSize: 8, padding: '2px 6px', background: `${C.accent}20`, color: C.accent, borderRadius: 3, fontWeight: 700, whiteSpace: 'nowrap' }}>🔥 BEST</span>}
                 {p.isNew && <span style={{ fontSize: 8, padding: '2px 6px', background: `${C.success}20`, color: C.success, borderRadius: 3, fontWeight: 700, whiteSpace: 'nowrap' }}>✨ NEW</span>}
                 {(p as any).isFeatured && <span style={{ fontSize: 8, padding: '2px 6px', background: `${C.warning}20`, color: C.warning, borderRadius: 3, fontWeight: 700, whiteSpace: 'nowrap' }}>⭐ FEAT</span>}
-                {!p.isBestseller && !p.isNew && !(p as any).isFeatured && (
+                {(p as any).isActive && !p.isBestseller && !p.isNew && !(p as any).isFeatured && (
                   <span style={{ fontSize: 8, padding: '2px 6px', background: 'rgba(255,255,255,0.05)', color: C.muted, borderRadius: 3 }}>Standard</span>
                 )}
               </div>

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Plus, Minus, ShoppingBag, ArrowRight, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useCartStore } from '../store/useCartStore';
@@ -12,13 +12,29 @@ interface CartDrawerProps {
 
 export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   const { cart, removeFromCart, updateQty, clearCart } = useCartStore();
+  const [storeConfig, setStoreConfig] = useState<any>(null);
+
   const subtotal = cart.reduce((acc, item) => {
     const price = item.variant?.price ?? item.product.price;
     return acc + price * item.quantity;
   }, 0);
 
+  const threshold = storeConfig ? Number(storeConfig.freeShippingThreshold || 1500) : 1500;
+  const isFreeShipping = subtotal >= threshold;
+  const amountNeeded = Math.max(0, threshold - subtotal);
+  const percentage = Math.min(100, (subtotal / threshold) * 100);
+
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
+    
+    // Fetch dynamic free shipping threshold settings
+    fetch('/api/admin/store-config')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data) setStoreConfig(data);
+      })
+      .catch((err) => console.error('Failed to load store config in CartDrawer:', err));
+
     return () => { document.body.style.overflow = ''; };
   }, [isOpen]);
 
@@ -103,6 +119,34 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
 
         {/* Items */}
         <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px' }}>
+          {cart.length > 0 && (
+            <div style={{
+              background: 'rgba(201,149,109,0.05)',
+              border: '1px solid rgba(201,149,109,0.12)',
+              borderRadius: 6,
+              padding: '14px 16px',
+              marginBottom: 20,
+              boxSizing: 'border-box',
+            }}>
+              {isFreeShipping ? (
+                <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--sage-dark)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  🎉 Congratulations! You've unlocked <strong>Free Shipping</strong>
+                </p>
+              ) : (
+                <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>
+                  Add <strong>৳{amountNeeded.toLocaleString()}</strong> more to your cart to get <strong>Free Shipping</strong>
+                </p>
+              )}
+              <div style={{ width: '100%', height: 6, background: 'rgba(255,255,255,0.06)', borderRadius: 3, overflow: 'hidden' }}>
+                <div style={{
+                  width: `${percentage}%`, height: '100%',
+                  background: isFreeShipping ? 'var(--sage)' : 'var(--accent)',
+                  borderRadius: 3, transition: 'width 0.4s ease'
+                }} />
+              </div>
+            </div>
+          )}
+
           {cart.length === 0 ? (
             <div
               style={{

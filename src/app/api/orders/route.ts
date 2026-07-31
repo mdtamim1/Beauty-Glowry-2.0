@@ -1,9 +1,24 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const { searchParams } = new URL(request.url);
+    const includeUnsynced = searchParams.get('includeUnsynced') === 'true';
+    const moderatorEmail = searchParams.get('moderatorEmail');
+
+    const whereClause: any = {};
+    
+    if (!includeUnsynced) {
+      whereClause.status = { not: 'pending_sync' };
+    }
+    
+    if (moderatorEmail) {
+      whereClause.assigned_to = moderatorEmail;
+    }
+
     const dbOrders = await prisma.order.findMany({
+      where: whereClause,
       include: {
         address: {
           include: {
@@ -65,6 +80,7 @@ export async function GET() {
           note: h.note || '',
         })),
         district: o.address?.city || '',
+        assigned_to: o.assigned_to || '',
       };
     });
 
@@ -153,7 +169,7 @@ export async function POST(request: Request) {
         data: {
           user_id: user.id,
           order_number: orderNumber,
-          status: 'pending',
+          status: 'pending_sync',
           subtotal: subtotal,
           discount: discount,
           shipping_fee: shipping,
@@ -169,8 +185,8 @@ export async function POST(request: Request) {
       await tx.orderStatusHistory.create({
         data: {
           order_id: createdOrder.id,
-          status: 'Pending',
-          note: 'Order placed via storefront',
+          status: 'Pending_sync',
+          note: 'Order placed via storefront, pending console synchronization',
         },
       });
 
@@ -200,7 +216,37 @@ export async function POST(request: Request) {
             price_at_purchase: item.variant?.price || item.product.price,
           },
         });
+
+        // Decrement variant stock in database
+        await tx.productVariant.update({
+          where: { id: variantId },
+          data: {
+            stock_qty: {
+              decrement: item.quantity,
+            },
+          },
+        });
+
+        // Decrement main product global stock in database
+        await tx.product.update({
+          where: { id: String(item.product.id) },
+          data: {
+            stock_qty: {
+              decrement: item.quantity,
+            },
+          },
+        });
       }
+
+      // Create an Admin notification alert for the new order
+      await tx.notification.create({
+        data: {
+          user_id: null,
+          title: 'New Order Placed',
+          message: `Order #${orderNumber} for ৳${total} has been received and is pending sync.`,
+          is_read: false,
+        },
+      });
 
       return createdOrder;
     });

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
+import { logAdminAction } from '../../../../lib/audit';
 
 export async function GET(
   request: Request,
@@ -62,6 +63,7 @@ export async function GET(
       reviewCount: reviewCount,
       isBestseller: p.is_featured,
       isNew: p.is_featured,
+      isActive: p.is_active,
       description: p.description || '',
       actives: [],
       skinTypes: p.skin_type_tags,
@@ -116,6 +118,9 @@ export async function PUT(
           { slug: id },
         ],
       },
+      include: {
+        images: true,
+      },
     });
 
     if (!p) {
@@ -151,20 +156,44 @@ export async function PUT(
         discount_price: data.originalPrice ?? p.discount_price,
         stock_qty: data.stock ?? p.stock_qty,
         is_featured: data.isBestseller ?? data.is_featured,
+        is_active: data.isActive !== undefined ? data.isActive : p.is_active,
       },
     });
 
-    // Update Product Image (if new main image URL provided)
-    if (data.image) {
+    // Update Product Images (Main and Gallery)
+    if (data.image || data.productImages) {
       await prisma.productImage.deleteMany({ where: { product_id: p.id } });
-      await prisma.productImage.create({
-        data: {
+      
+      const imagesToCreate = [];
+      const mainImg = data.image || p.images[0]?.url;
+      if (mainImg) {
+        imagesToCreate.push({
           product_id: p.id,
-          url: data.image,
+          url: mainImg,
           alt_text: data.name || p.name,
           position: 0,
-        },
-      });
+        });
+      }
+
+      const galleryImgs = data.productImages || [];
+      if (Array.isArray(galleryImgs)) {
+        galleryImgs.forEach((imgUrl: string, idx: number) => {
+          if (imgUrl && imgUrl !== mainImg) {
+            imagesToCreate.push({
+              product_id: p.id,
+              url: imgUrl,
+              alt_text: `${data.name || p.name} Gallery ${idx}`,
+              position: idx + 1,
+            });
+          }
+        });
+      }
+
+      if (imagesToCreate.length > 0) {
+        await prisma.productImage.createMany({
+          data: imagesToCreate,
+        });
+      }
     }
 
     // If variants array is provided, recreate them
@@ -183,6 +212,11 @@ export async function PUT(
         });
       }
     }
+
+    await logAdminAction(
+      'UPDATE_PRODUCT',
+      `Product "${updatedProduct.name}" was modified.`
+    );
 
     return NextResponse.json({ success: true, product: updatedProduct });
   } catch (error: any) {
@@ -214,6 +248,11 @@ export async function DELETE(
     await prisma.product.delete({
       where: { id: p.id },
     });
+
+    await logAdminAction(
+      'DELETE_PRODUCT',
+      `Product "${p.name}" (SKU: ${p.sku}) was deleted.`
+    );
 
     return NextResponse.json({ success: true, message: 'Product deleted successfully' });
   } catch (error: any) {

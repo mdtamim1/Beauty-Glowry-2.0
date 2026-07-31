@@ -45,6 +45,7 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [megaOpen, setMegaOpen] = useState<string | null>(null);
+  const [storeName, setStoreName] = useState('Beauty Glowry');
 
   const cart = useCartStore((s) => s.cart);
   const user = useAuthStore((s) => s.user);
@@ -55,6 +56,17 @@ export default function Navbar() {
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 30);
     window.addEventListener('scroll', handleScroll, { passive: true });
+    
+    // Fetch dynamic store name
+    fetch('/api/admin/store-config')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.storeName) {
+          setStoreName(data.storeName);
+        }
+      })
+      .catch((err) => console.error('Failed to load store config in Navbar:', err));
+
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
@@ -222,7 +234,7 @@ export default function Navbar() {
               flex: '0 0 auto',
             }}
           >
-            Beauty Glowry
+            {storeName}
           </Link>
 
           {/* Right: Icons */}
@@ -379,7 +391,7 @@ export default function Navbar() {
                   color: 'var(--text-primary)',
                 }}
               >
-                Beauty Glowry
+                {storeName}
               </span>
               <button
                 onClick={() => setMobileOpen(false)}

@@ -156,6 +156,8 @@ model ProductReview {
   images            String[]
   verified_purchase Boolean  @default(false)
   helpful_count     Int      @default(0)
+  status            String   @default("Pending")
+  reply             String?
   created_at        DateTime @default(now())
   
   product           Product  @relation(fields: [product_id], references: [id], onDelete: Cascade)
@@ -232,6 +234,7 @@ model Order {
   courier        String?     @default("")
   thana          String?     @default("")
   area           String?     @default("")
+  assigned_to    String?     @default("")
   status_history OrderStatusHistory[]
   
   user           User?       @relation(fields: [user_id], references: [id], onDelete: SetNull)
@@ -317,13 +320,13 @@ model AdminUser {
 
 model Notification {
   id         String   @id @default(uuid())
-  user_id    String
+  user_id    String?
   title      String
   message    String
   is_read    Boolean  @default(false)
   created_at DateTime @default(now())
   
-  user       User     @relation(fields: [user_id], references: [id], onDelete: Cascade)
+  user       User?    @relation(fields: [user_id], references: [id], onDelete: Cascade)
 
   @@map("notifications")
 }
@@ -338,4 +341,37 @@ model OrderStatusHistory {
   order      Order    @relation(fields: [order_id], references: [id], onDelete: Cascade)
 
   @@map("order_status_history")
+}
+
+model Moderator {
+  id           String   @id @default(uuid())
+  name         String
+  email        String   @unique
+  password     String
+  status       String   @default("Active") // "Active" | "Inactive"
+  permissions  String[]
+  created_at   DateTime @default(now())
+
+  @@map("moderators")
+}
+
+model Invitation {
+  id           String   @id @default(uuid())
+  email        String   @unique
+  token        String
+  permissions  String[]
+  created_at   DateTime @default(now())
+
+  @@map("invitations")
+}
+
+model AuditLog {
+  id              String   @id @default(uuid())
+  moderator_email String
+  moderator_name  String
+  action          String
+  details         String
+  timestamp       DateTime @default(now())
+
+  @@map("audit_logs")
 }

@@ -17,24 +17,85 @@ const C = {
 };
 
 export default function AdminAuthPage() {
+  const [loginType, setLoginType] = useState<'admin' | 'moderator'>('admin');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
-    setTimeout(() => {
-      if (password === ADMIN_PASSWORD) {
-        router.push('/admin/dashboard');
-      } else {
-        setError('Incorrect password. Try "admin123"');
+
+    if (loginType === 'admin') {
+      setTimeout(() => {
+        if (password === ADMIN_PASSWORD) {
+          const session = {
+            role: 'admin',
+            email: 'admin@beautyglowry.com',
+            name: 'Super Admin',
+            permissions: ['Dashboard', 'Products', 'Orders', 'Customers', 'Reviews', 'Marketing', 'Settings']
+          };
+          localStorage.setItem('bg_admin_session', JSON.stringify(session));
+          router.push('/admin/dashboard');
+        } else {
+          setError('Incorrect password. Try "admin123"');
+          setLoading(false);
+        }
+      }, 600);
+    } else {
+      try {
+        const res = await fetch('/api/team/moderators');
+        if (!res.ok) throw new Error('Failed to query moderators database');
+        
+        const moderators = await res.json();
+        const moderator = moderators.find((m: any) => m.email.toLowerCase() === email.trim().toLowerCase());
+
+        if (!moderator) {
+          setError('Moderator email not found. Contact Super Admin.');
+          setLoading(false);
+          return;
+        }
+
+        if (moderator.status === 'Inactive') {
+          setError('This account is deactivated. Contact Super Admin.');
+          setLoading(false);
+          return;
+        }
+
+        if (moderator.password === password) {
+          const session = {
+            role: 'moderator',
+            email: moderator.email,
+            name: moderator.name,
+            permissions: moderator.permissions
+          };
+          localStorage.setItem('bg_admin_session', JSON.stringify(session));
+
+          // Redirect to the first permitted dashboard view
+          const allowedPage = moderator.permissions.includes('Dashboard')
+            ? 'dashboard'
+            : moderator.permissions[0]?.toLowerCase() || '';
+
+          if (allowedPage) {
+            router.push(`/admin/${allowedPage}`);
+          } else {
+            setError('This account has no permissions assigned. Contact Super Admin.');
+            setLoading(false);
+          }
+        } else {
+          setError('Incorrect password.');
+          setLoading(false);
+        }
+      } catch (err: any) {
+        console.error(err);
+        setError('Connection error. Failed to load database.');
         setLoading(false);
       }
-    }, 600);
+    }
   };
 
   return (
@@ -73,16 +134,16 @@ export default function AdminAuthPage() {
             background: C.surface,
             border: `1px solid ${C.border}`,
             borderRadius: 12,
-            padding: '48px 40px',
+            padding: '40px 36px',
             boxShadow: '0 40px 100px rgba(0,0,0,0.5)',
           }}
         >
           {/* Logo */}
-          <div style={{ textAlign: 'center', marginBottom: 40 }}>
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <div
               style={{
-                width: 56,
-                height: 56,
+                width: 52,
+                height: 52,
                 borderRadius: 14,
                 background: `linear-gradient(135deg, ${C.accent}, #A07050)`,
                 display: 'flex',
@@ -92,12 +153,12 @@ export default function AdminAuthPage() {
                 boxShadow: `0 12px 32px rgba(201,149,109,0.3)`,
               }}
             >
-              <Leaf size={24} color="#fff" />
+              <Leaf size={22} color="#fff" />
             </div>
             <h1
               style={{
                 fontFamily: "'DM Sans', sans-serif",
-                fontSize: 20,
+                fontSize: 18,
                 fontWeight: 700,
                 color: C.text,
                 letterSpacing: '0.06em',
@@ -107,27 +168,97 @@ export default function AdminAuthPage() {
             >
               Beauty Glowry
             </h1>
-            <p style={{ fontSize: 13, color: C.muted }}>Admin Console · Secure Access</p>
+            <p style={{ fontSize: 12, color: C.muted }}>Console Secure Entrance Portal</p>
           </div>
 
-          {/* Divider */}
-          <div style={{ height: 1, background: C.border, marginBottom: 32 }} />
+          {/* Tab Selector */}
+          <div style={{ display: 'flex', gap: 8, marginBottom: 28, background: 'rgba(255,255,255,0.02)', padding: 4, borderRadius: 8, border: `1px solid ${C.border}` }}>
+            <button
+              type="button"
+              onClick={() => { setLoginType('admin'); setError(''); }}
+              style={{
+                flex: 1, padding: '8px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                background: loginType === 'admin' ? `${C.accent}18` : 'transparent',
+                color: loginType === 'admin' ? C.accent : C.muted,
+                border: `1px solid ${loginType === 'admin' ? `${C.accent}40` : 'transparent'}`,
+                transition: 'all 0.15s ease',
+                fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
+              👑 Super Admin
+            </button>
+            <button
+              type="button"
+              onClick={() => { setLoginType('moderator'); setError(''); }}
+              style={{
+                flex: 1, padding: '8px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                background: loginType === 'moderator' ? `${C.accent}18` : 'transparent',
+                color: loginType === 'moderator' ? C.accent : C.muted,
+                border: `1px solid ${loginType === 'moderator' ? `${C.accent}40` : 'transparent'}`,
+                transition: 'all 0.15s ease',
+                fontFamily: "'DM Sans', sans-serif",
+              }}
+            >
+              👤 Moderator
+            </button>
+          </div>
 
           {/* Form */}
           <form onSubmit={handleLogin}>
-            <div style={{ marginBottom: 20 }}>
+            {/* Show email only for moderator */}
+            {loginType === 'moderator' && (
+              <div style={{ marginBottom: 18 }}>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: 10,
+                    fontWeight: 700,
+                    letterSpacing: '0.1em',
+                    textTransform: 'uppercase',
+                    color: C.muted,
+                    marginBottom: 8,
+                  }}
+                >
+                  Moderator Email
+                </label>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@beautyglowry.com"
+                  autoFocus={loginType === 'moderator'}
+                  style={{
+                    width: '100%',
+                    padding: '11px 16px',
+                    background: C.elevated,
+                    border: `1px solid ${error ? '#E05A5A' : C.border}`,
+                    borderRadius: 8,
+                    fontSize: 13,
+                    color: C.text,
+                    fontFamily: "'DM Sans', sans-serif",
+                    outline: 'none',
+                    transition: 'border-color 0.2s',
+                  }}
+                  onFocus={(e) => (e.currentTarget.style.borderColor = C.accent)}
+                  onBlur={(e) => (e.currentTarget.style.borderColor = error ? '#E05A5A' : C.border)}
+                />
+              </div>
+            )}
+
+            <div style={{ marginBottom: 24 }}>
               <label
                 style={{
                   display: 'block',
-                  fontSize: 11,
+                  fontSize: 10,
                   fontWeight: 700,
                   letterSpacing: '0.1em',
                   textTransform: 'uppercase',
                   color: C.muted,
-                  marginBottom: 10,
+                  marginBottom: 8,
                 }}
               >
-                Admin Password
+                Password
               </label>
               <div style={{ position: 'relative' }}>
                 <Lock
@@ -139,15 +270,15 @@ export default function AdminAuthPage() {
                   required
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter password..."
-                  autoFocus
+                  placeholder="••••••••"
+                  autoFocus={loginType === 'admin'}
                   style={{
                     width: '100%',
-                    padding: '12px 44px 12px 40px',
+                    padding: '11px 44px 11px 40px',
                     background: C.elevated,
                     border: `1px solid ${error ? '#E05A5A' : C.border}`,
                     borderRadius: 8,
-                    fontSize: 14,
+                    fontSize: 13,
                     color: C.text,
                     fontFamily: "'DM Mono', monospace",
                     outline: 'none',
@@ -175,7 +306,7 @@ export default function AdminAuthPage() {
                 </button>
               </div>
               {error && (
-                <p style={{ fontSize: 12, color: '#E05A5A', marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <p style={{ fontSize: 11, color: '#E05A5A', marginTop: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                   <Shield size={12} /> {error}
                 </p>
               )}
@@ -183,10 +314,10 @@ export default function AdminAuthPage() {
 
             <button
               type="submit"
-              disabled={loading || !password}
+              disabled={loading || !password || (loginType === 'moderator' && !email)}
               style={{
                 width: '100%',
-                padding: '13px',
+                padding: '12px',
                 background: loading ? C.muted : `linear-gradient(135deg, ${C.accent}, #B5814A)`,
                 border: 'none',
                 borderRadius: 8,
@@ -195,7 +326,7 @@ export default function AdminAuthPage() {
                 letterSpacing: '0.08em',
                 textTransform: 'uppercase',
                 color: '#fff',
-                cursor: loading || !password ? 'not-allowed' : 'pointer',
+                cursor: loading ? 'not-allowed' : 'pointer',
                 transition: 'all 0.2s ease',
                 boxShadow: loading ? 'none' : `0 8px 24px rgba(201,149,109,0.3)`,
               }}
@@ -209,24 +340,32 @@ export default function AdminAuthPage() {
             style={{
               marginTop: 24,
               padding: '12px 16px',
-              background: 'rgba(201,149,109,0.06)',
-              border: `1px solid rgba(201,149,109,0.15)`,
+              background: 'rgba(201,149,109,0.04)',
+              border: `1px solid rgba(201,149,109,0.1)`,
               borderRadius: 8,
               display: 'flex',
-              alignItems: 'center',
-              gap: 8,
+              flexDirection: 'column',
+              gap: 6,
             }}
           >
-            <Shield size={13} style={{ color: C.accent, flexShrink: 0 }} />
-            <p style={{ fontSize: 11, color: C.muted, lineHeight: 1.5 }}>
-              Demo password: <span style={{ color: C.accent, fontFamily: "'DM Mono', monospace", fontWeight: 600 }}>admin123</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Shield size={13} style={{ color: C.accent, flexShrink: 0 }} />
+              <p style={{ fontSize: 11, color: C.muted }}>
+                Demo Credentials:
+              </p>
+            </div>
+            <p style={{ fontSize: 10, color: C.muted, margin: 0, paddingLeft: 21 }}>
+              👑 Super Admin: <span style={{ color: C.accent, fontFamily: "'DM Mono', monospace" }}>admin123</span>
+            </p>
+            <p style={{ fontSize: 10, color: C.muted, margin: 0, paddingLeft: 21 }}>
+              👤 Moderator: <span style={{ color: C.accent, fontFamily: "'DM Mono', monospace" }}>sarah@beautyglowry.com</span> / <span style={{ color: C.accent, fontFamily: "'DM Mono', monospace" }}>moderator123</span>
             </p>
           </div>
         </div>
 
         {/* Footer note */}
         <p style={{ textAlign: 'center', fontSize: 11, color: C.muted, marginTop: 20 }}>
-          Beauty Glowry Admin © 2024 · All access logged
+          Beauty Glowry Admin © 2024 · Secure Role Based Access
         </p>
       </div>
 

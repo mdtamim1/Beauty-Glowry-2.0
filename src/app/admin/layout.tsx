@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, createContext, useContext } from 'react';
+import React, { useState, createContext, useContext, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
@@ -8,6 +8,7 @@ import {
   Megaphone, Settings, Menu, X, Bell, Search,
   ChevronRight, LogOut, Leaf, ExternalLink
 } from 'lucide-react';
+import { AdminSession } from './utils';
 
 // ─── Admin Context ───────────────────────────────────────────────
 interface AdminContextType {
@@ -39,6 +40,7 @@ const C = {
   border: 'rgba(255,255,255,0.07)',
   borderHover: 'rgba(255,255,255,0.14)',
   text: '#F0EBE3',
+  textSec: '#B0A8A0',
   muted: '#7A7470',
   accent: '#C9956D',
   accentDim: 'rgba(201,149,109,0.12)',
@@ -50,10 +52,96 @@ const C = {
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [session, setSession] = useState<AdminSession | null>(null);
   const pathname = usePathname();
 
-  // Active nav item
+  useEffect(() => {
+    // Dynamically require and run database seed setup
+    const { seedTeamData } = require('./utils');
+    seedTeamData();
+
+    const sessionStr = localStorage.getItem('bg_admin_session');
+    if (sessionStr) {
+      setSession(JSON.parse(sessionStr));
+    } else {
+      // Default to Super Admin for backward compatibility during testing
+      const defaultAdmin: AdminSession = {
+        role: 'admin',
+        email: 'admin@beautyglowry.com',
+        name: 'Super Admin',
+        permissions: ['Dashboard', 'Products', 'Orders', 'Customers', 'Reviews', 'Marketing', 'Settings'],
+      };
+      localStorage.setItem('bg_admin_session', JSON.stringify(defaultAdmin));
+      setSession(defaultAdmin);
+    }
+  }, []);
+
+  // Notifications State and Handlers
+  const [notifications, setNotifications] = useState<any[]>([]);
+  const [showNotifDropdown, setShowNotifDropdown] = useState(false);
+
+  const loadNotifications = async () => {
+    try {
+      const res = await fetch('/api/admin/notifications');
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setNotifications(data);
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load admin notifications:', e);
+    }
+  };
+
+  useEffect(() => {
+    loadNotifications();
+    const interval = setInterval(loadNotifications, 10000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const markAsRead = async (id: string) => {
+    try {
+      const res = await fetch('/api/admin/notifications', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      if (res.ok) {
+        setNotifications((prev) =>
+          prev.map((n) => (n.id === id ? { ...n, is_read: true } : n))
+        );
+      }
+    } catch (e) {
+      console.error('Error marking notification as read:', e);
+    }
+  };
+
+  const clearAllNotifications = async () => {
+    try {
+      const res = await fetch('/api/admin/notifications?clearAll=true', {
+        method: 'DELETE',
+      });
+      if (res.ok) {
+        setNotifications([]);
+      }
+    } catch (e) {
+      console.error('Error clearing notifications:', e);
+    }
+  };
+
+  // Active nav item check
   const isActive = (href: string) => pathname === href || pathname.startsWith(href + '/');
+
+  // Filter navigation items by user permissions
+  const filteredNavItems = NAV_ITEMS.filter((item) => {
+    if (!session) return true;
+    return session.permissions.includes(item.label);
+  });
+
+  // Access control check for direct URL access
+  const currentNavItem = NAV_ITEMS.find((n) => isActive(n.href));
+  const hasAccess = !session || !currentNavItem || session.permissions.includes(currentNavItem.label);
 
   const SidebarContent = () => (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
@@ -87,7 +175,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <p style={{ fontSize: 13, fontWeight: 700, color: C.text, letterSpacing: '0.05em', lineHeight: 1.2 }}>
               BEAUTY GLOWRY
             </p>
-            <p style={{ fontSize: 10, color: C.muted, letterSpacing: '0.08em', marginTop: 1 }}>Admin Console</p>
+            <p style={{ fontSize: 10, color: C.muted, letterSpacing: '0.08em', marginTop: 1 }}>
+              {session?.role === 'admin' ? 'Admin Console' : 'Moderator Portal'}
+            </p>
           </div>
         )}
       </div>
@@ -108,7 +198,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         >
           Navigation
         </p>
-        {NAV_ITEMS.map((item) => {
+        {filteredNavItems.map((item) => {
           const active = isActive(item.href);
           return (
             <Link
@@ -186,6 +276,11 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </Link>
         <Link
           href="/admin"
+          onClick={() => {
+            if (typeof window !== 'undefined') {
+              localStorage.removeItem('bg_admin_session');
+            }
+          }}
           title={collapsed ? 'Logout' : undefined}
           style={{
             display: 'flex',
@@ -203,6 +298,100 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <LogOut size={16} style={{ color: '#E05A5A' }} />
           {!collapsed && <span style={{ fontSize: 12, color: '#E05A5A' }}>Logout</span>}
         </Link>
+      </div>
+    </div>
+  );
+
+  const accessDeniedScreen = (
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '60vh',
+      textAlign: 'center',
+      padding: '24px',
+      fontFamily: "'DM Sans', sans-serif",
+    }}>
+      <div style={{
+        background: C.surface,
+        border: `1px solid ${C.border}`,
+        padding: '48px 40px',
+        borderRadius: 16,
+        maxWidth: 500,
+        boxShadow: '0 24px 60px rgba(0,0,0,0.3)',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+      }}>
+        <div style={{
+          width: 64,
+          height: 64,
+          borderRadius: 16,
+          background: 'rgba(240,165,75,0.1)',
+          border: `1px solid ${C.warning}`,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 24,
+          boxShadow: '0 8px 24px rgba(240,165,75,0.15)',
+        }}>
+          <Bell size={28} style={{ color: C.warning }} />
+        </div>
+        
+        <h2 style={{ fontSize: 20, fontWeight: 700, color: C.text, marginBottom: 12 }}>
+          Access Denied
+        </h2>
+        
+        <p style={{ fontSize: 13, color: C.muted, lineHeight: 1.6, marginBottom: 32 }}>
+          Your moderator account (<strong style={{ color: C.text }}>{session?.email}</strong>) does not have permission to view the <strong style={{ color: C.accent }}>{currentNavItem?.label}</strong> tab. Please contact a Super Admin to adjust your security policy.
+        </p>
+
+        <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+          <Link
+            href={session?.permissions && session.permissions.length > 0 ? `/admin/${session.permissions[0].toLowerCase() === 'dashboard' ? 'dashboard' : session.permissions[0].toLowerCase()}` : '/admin'}
+            style={{
+              flex: 1,
+              padding: '10px 18px',
+              background: 'rgba(255,255,255,0.04)',
+              border: `1px solid ${C.border}`,
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 600,
+              color: C.textSec,
+              textDecoration: 'none',
+              transition: 'all 0.15s',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            Go Back
+          </Link>
+          <Link
+            href="/admin"
+            onClick={() => {
+              if (typeof window !== 'undefined') localStorage.removeItem('bg_admin_session');
+            }}
+            style={{
+              flex: 1,
+              padding: '10px 18px',
+              background: C.accent,
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 700,
+              color: '#fff',
+              textDecoration: 'none',
+              transition: 'all 0.15s',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: `0 4px 12px rgba(201,149,109,0.2)`,
+            }}
+          >
+            Switch Account
+          </Link>
+        </div>
       </div>
     </div>
   );
@@ -344,35 +533,180 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {/* Right side */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               {/* Notification bell */}
-              <button
-                style={{
-                  position: 'relative',
-                  width: 34,
-                  height: 34,
-                  borderRadius: 6,
-                  background: 'none',
-                  border: `1px solid ${C.border}`,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  color: C.muted,
-                }}
-              >
-                <Bell size={15} />
-                <span
+              {/* Notification bell dropdown container */}
+              <div style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setShowNotifDropdown(!showNotifDropdown)}
                   style={{
-                    position: 'absolute',
-                    top: 7,
-                    right: 7,
-                    width: 7,
-                    height: 7,
-                    borderRadius: '50%',
-                    background: C.accent,
-                    border: `1.5px solid ${C.surface}`,
+                    position: 'relative',
+                    width: 34,
+                    height: 34,
+                    borderRadius: 6,
+                    background: showNotifDropdown ? 'rgba(255,255,255,0.03)' : 'none',
+                    border: `1px solid ${C.border}`,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: showNotifDropdown ? C.text : C.muted,
+                    transition: 'all 0.2s',
                   }}
-                />
-              </button>
+                >
+                  <Bell size={15} />
+                  {notifications.some((n) => !n.is_read) && (
+                    <span
+                      style={{
+                        position: 'absolute',
+                        top: 7,
+                        right: 7,
+                        width: 7,
+                        height: 7,
+                        borderRadius: '50%',
+                        background: C.accent,
+                        border: `1.5px solid ${C.surface}`,
+                      }}
+                    />
+                  )}
+                </button>
+
+                {showNotifDropdown && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: 42,
+                      right: 0,
+                      width: 320,
+                      background: C.surface,
+                      border: `1px solid ${C.border}`,
+                      borderRadius: 10,
+                      boxShadow: '0 10px 30px rgba(0,0,0,0.5)',
+                      zIndex: 100,
+                      overflow: 'hidden',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '12px 16px',
+                        borderBottom: `1px solid ${C.border}`,
+                        background: C.elevated,
+                      }}
+                    >
+                      <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>
+                        Notifications ({notifications.filter((n) => !n.is_read).length})
+                      </span>
+                      {notifications.length > 0 && (
+                        <button
+                          onClick={() => {
+                            clearAllNotifications();
+                            setShowNotifDropdown(false);
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: C.accent,
+                            fontSize: 10,
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          Clear All
+                        </button>
+                      )}
+                    </div>
+
+                    <div
+                      style={{
+                        maxHeight: 280,
+                        overflowY: 'auto',
+                      }}
+                    >
+                      {notifications.length > 0 ? (
+                        notifications.map((n) => (
+                          <div
+                            key={n.id}
+                            onClick={() => markAsRead(n.id)}
+                            style={{
+                              padding: '12px 16px',
+                              borderBottom: `1px solid ${C.border}`,
+                              cursor: 'pointer',
+                              background: n.is_read ? 'transparent' : 'rgba(201, 149, 109, 0.04)',
+                              transition: 'background 0.2s',
+                            }}
+                          >
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: 4,
+                              }}
+                            >
+                              <span
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: n.is_read ? 600 : 700,
+                                  color: n.is_read ? C.textSec : C.text,
+                                }}
+                              >
+                                {n.title}
+                              </span>
+                              {!n.is_read && (
+                                <span
+                                  style={{
+                                    width: 5,
+                                    height: 5,
+                                    borderRadius: '50%',
+                                    background: C.accent,
+                                  }}
+                                />
+                              )}
+                            </div>
+                            <p
+                              style={{
+                                fontSize: 11,
+                                color: C.textSec,
+                                margin: 0,
+                                lineHeight: 1.4,
+                              }}
+                            >
+                              {n.message}
+                            </p>
+                            <span
+                              style={{
+                                fontSize: 8,
+                                color: C.muted,
+                                display: 'block',
+                                marginTop: 6,
+                              }}
+                            >
+                              {new Date(n.created_at).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              })}
+                            </span>
+                          </div>
+                        ))
+                      ) : (
+                        <div
+                          style={{
+                            padding: '24px 16px',
+                            textAlign: 'center',
+                            color: C.muted,
+                            fontSize: 11,
+                          }}
+                        >
+                          No alerts available.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Admin badge */}
               <div
@@ -391,7 +725,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     width: 26,
                     height: 26,
                     borderRadius: '50%',
-                    background: `linear-gradient(135deg, ${C.accent}, #A07050)`,
+                    background: session?.role === 'admin'
+                      ? `linear-gradient(135deg, ${C.accent}, #A07050)`
+                      : `linear-gradient(135deg, ${C.success}, #3b8e64)`,
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
@@ -400,18 +736,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                     color: '#fff',
                   }}
                 >
-                  A
+                  {session?.name ? session.name[0].toUpperCase() : 'A'}
                 </div>
                 <div className="admin-hide-mobile">
-                  <p style={{ fontSize: 12, fontWeight: 600, color: C.text, lineHeight: 1 }}>Admin</p>
-                  <p style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>Super User</p>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: C.text, lineHeight: 1 }}>
+                    {session?.name || 'Admin'}
+                  </p>
+                  <p style={{ fontSize: 10, color: C.muted, marginTop: 2 }}>
+                    {session?.role === 'admin' ? 'Super User' : 'Moderator'}
+                  </p>
                 </div>
               </div>
             </div>
           </header>
 
           {/* Page Content */}
-          <main style={{ flex: 1, padding: 24, overflow: 'auto' }}>{children}</main>
+          <main style={{ flex: 1, padding: 24, overflow: 'auto' }}>
+            {hasAccess ? children : accessDeniedScreen}
+          </main>
         </div>
       </div>
 
