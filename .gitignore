@@ -44,3 +44,15 @@ next-env.d.ts
 
 # firebase
 /.firebase/
+
+# AI Assistants & Editor Configs
+/.agents/
+/.claude/
+/.windsurf/
+/AGENTS.md
+/CLAUDE.md
+/skills-lock.json
+
+# Legacy & Backups
+/_backup_vite/
+/ADMIN DASHBOARD/
