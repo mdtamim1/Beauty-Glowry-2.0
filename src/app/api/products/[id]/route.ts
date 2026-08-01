@@ -172,7 +172,7 @@ export async function PUT(
         imagesToCreate.push({
           product_id: p.id,
           url: mainImg,
-          alt_text: data.name || p.name,
+          alt_text: `${data.name || p.name} - Beauty Glowry`,
           position: 0,
         });
       }
@@ -184,7 +184,7 @@ export async function PUT(
             imagesToCreate.push({
               product_id: p.id,
               url: imgUrl,
-              alt_text: `${data.name || p.name} Gallery ${idx}`,
+              alt_text: `${data.name || p.name} Gallery ${idx + 1} - Beauty Glowry`,
               position: idx + 1,
             });
           }

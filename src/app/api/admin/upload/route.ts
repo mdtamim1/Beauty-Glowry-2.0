@@ -8,6 +8,7 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;
+    const productName = formData.get('productName') as string | null;
 
     if (!file) {
       return NextResponse.json({ error: 'No file provided in form data' }, { status: 400 });
@@ -16,9 +17,16 @@ export async function POST(request: Request) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
 
-    // Make filename unique and safe
-    const sanitisedName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-    const filename = `img_${Date.now()}_${sanitisedName}`;
+    // Make filename unique, safe, and SEO optimized
+    let filename = '';
+    const ext = path.extname(file.name) || '.jpg';
+    if (productName) {
+      const cleanProductName = productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      filename = `${cleanProductName}-beauty-glowry-${Date.now()}${ext}`;
+    } else {
+      const sanitisedName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
+      filename = `img_${Date.now()}_${sanitisedName}`;
+    }
 
     // Read S3 configuration
     const s3AccessKeyId = process.env.S3_ACCESS_KEY_ID;

@@ -9,6 +9,59 @@ import {
 import { products as initialProducts, Product, categories, brands } from '../../../data/products';
 import { logActivity, getAuthHeaders } from '../utils';
 
+function compressImage(file: File, quality = 0.82, maxWidth = 1600): Promise<File> {
+  return new Promise((resolve) => {
+    if (typeof window === 'undefined' || !window.FileReader || !window.HTMLCanvasElement) {
+      resolve(file);
+      return;
+    }
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve(file);
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob(
+          (blob) => {
+            if (blob) {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              resolve(file);
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+      img.onerror = () => resolve(file);
+    };
+    reader.onerror = () => resolve(file);
+  });
+}
+
 const C = {
   bg: '#0F0F0D', surface: '#1A1A17', elevated: '#222220',
   border: 'rgba(255,255,255,0.07)', borderHover: 'rgba(255,255,255,0.13)',
@@ -573,8 +626,15 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit, categoriesList, 
                         onChange={async (e) => {
                           const file = e.target.files?.[0];
                           if (!file) return;
+                          
+                          // Compress image client side
+                          const compressed = await compressImage(file, 0.82, 1600);
+                          
                           const fd = new FormData();
-                          fd.append('file', file);
+                          fd.append('file', compressed);
+                          if (form.name) {
+                            fd.append('productName', form.name);
+                          }
                           try {
                             const res = await fetch('/api/admin/upload', {
                               method: 'POST',
@@ -671,8 +731,15 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit, categoriesList, 
                               onChange={async (e) => {
                                 const file = e.target.files?.[0];
                                 if (!file) return;
+                                
+                                // Compress image client side
+                                const compressed = await compressImage(file, 0.82, 1600);
+                                
                                 const fd = new FormData();
-                                fd.append('file', file);
+                                fd.append('file', compressed);
+                                if (form.name) {
+                                  fd.append('productName', form.name);
+                                }
                                 try {
                                   const res = await fetch('/api/admin/upload', {
                                     method: 'POST',

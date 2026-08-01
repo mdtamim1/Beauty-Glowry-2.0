@@ -150,7 +150,7 @@ export async function POST(request: Request) {
       imagesToCreate.push({
         product_id: newProduct.id,
         url: data.image,
-        alt_text: data.name,
+        alt_text: `${data.name} - Beauty Glowry`,
         position: 0,
       });
     }
@@ -161,7 +161,7 @@ export async function POST(request: Request) {
           imagesToCreate.push({
             product_id: newProduct.id,
             url: imgUrl,
-            alt_text: `${data.name} Gallery ${idx}`,
+            alt_text: `${data.name} Gallery ${idx + 1} - Beauty Glowry`,
             position: idx + 1,
           });
         }
