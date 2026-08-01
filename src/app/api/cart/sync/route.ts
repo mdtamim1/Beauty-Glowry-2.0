@@ -66,6 +66,7 @@ export async function GET(request: Request) {
           price: Number(prod.price),
           discount_price: prod.discount_price ? Number(prod.discount_price) : undefined,
           category: prod.category?.name || 'Uncategorized',
+          isFreeDelivery: prod.is_free_delivery,
         },
         variant: {
           id: pv.id,
@@ -254,6 +255,7 @@ export async function POST(request: Request) {
           price: Number(prod.price),
           discount_price: prod.discount_price ? Number(prod.discount_price) : undefined,
           category: prod.category?.name || 'Uncategorized',
+          isFreeDelivery: prod.is_free_delivery,
         },
         variant: {
           id: pv.id,

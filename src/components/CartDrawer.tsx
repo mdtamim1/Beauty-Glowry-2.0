@@ -20,9 +20,10 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
   }, 0);
 
   const threshold = storeConfig ? Number(storeConfig.freeShippingThreshold || 1500) : 1500;
-  const isFreeShipping = subtotal >= threshold;
-  const amountNeeded = Math.max(0, threshold - subtotal);
-  const percentage = Math.min(100, (subtotal / threshold) * 100);
+  const hasFreeDeliveryProduct = cart.some(item => item.product.isFreeDelivery === true);
+  const isFreeShipping = subtotal >= threshold || hasFreeDeliveryProduct;
+  const amountNeeded = hasFreeDeliveryProduct ? 0 : Math.max(0, threshold - subtotal);
+  const percentage = hasFreeDeliveryProduct ? 100 : Math.min(100, (subtotal / threshold) * 100);
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? 'hidden' : '';
@@ -130,7 +131,7 @@ export default function CartDrawer({ isOpen, onClose }: CartDrawerProps) {
             }}>
               {isFreeShipping ? (
                 <p style={{ fontSize: 12, fontWeight: 600, color: 'var(--sage-dark)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  🎉 Congratulations! You've unlocked <strong>Free Shipping</strong>
+                  🎉 Congratulations! You've unlocked <strong>Free Shipping</strong> {hasFreeDeliveryProduct && <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--sage-dark)' }}>(Free Delivery Item in Cart)</span>}
                 </p>
               ) : (
                 <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>

@@ -75,6 +75,7 @@ export async function GET(request: Request) {
         isBestseller: p.is_featured,
         isNew: p.is_featured,
         isActive: p.is_active,
+        isFreeDelivery: p.is_free_delivery,
         description: p.description || '',
         actives: [],
         skinTypes: p.skin_type_tags,
@@ -139,6 +140,7 @@ export async function POST(request: Request) {
         stock_qty: data.stock || 0,
         is_featured: data.isBestseller || data.isNew || false,
         is_active: data.isActive !== false,
+        is_free_delivery: data.isFreeDelivery || false,
       },
     });
 

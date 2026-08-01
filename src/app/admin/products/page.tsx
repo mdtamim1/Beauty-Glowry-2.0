@@ -73,7 +73,7 @@ const SKIN_CONCERN_TAGS = [
 const EMPTY_FORM = {
   name: '', brand: 'beauty-glowry', category: categories[0], price: 1000, originalPrice: 1200,
   stock: 20, rating: 4.5, reviewCount: 0,
-  isBestseller: false, isNew: false, isFeatured: false, isActive: true,
+  isBestseller: false, isNew: false, isFeatured: false, isActive: true, isFreeDelivery: false,
   description: '', image: '',
   skinTypes: 'All Skin Types', concerns: '',
   inciList: '', usageSteps: '', actives: '', variants: '', hasVariants: false, productImages: '',
@@ -415,6 +415,33 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit }: {
                     {form.isActive ? '🟢 Active (Visible in Store)' : '🔴 Inactive (Hidden from Store)'}
                   </button>
                 </div>
+                
+                {/* Free Delivery Toggle */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 6 }}>
+                    📦 Free Delivery
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => update('isFreeDelivery', !form.isFreeDelivery)}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      background: form.isFreeDelivery ? 'rgba(76,175,130,0.12)' : C.elevated,
+                      border: `1.5px solid ${form.isFreeDelivery ? C.success : C.border}`,
+                      borderRadius: 7,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: form.isFreeDelivery ? C.success : C.muted,
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {form.isFreeDelivery ? '🟢 Free Delivery (Waived)' : '⚪ Standard Shipping'}
+                  </button>
+                </div>
+
                 <div style={{ gridColumn: '1/-1', display: 'flex', flexDirection: 'column', gap: 6 }}>
                   <label style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>
                     Main Image URL
@@ -1086,6 +1113,7 @@ export default function AdminProducts() {
       isBestseller: p.isBestseller, isNew: p.isNew,
       isFeatured: (p as any).isFeatured ?? false,
       isActive: (p as any).isActive !== false,
+      isFreeDelivery: (p as any).isFreeDelivery ?? false,
       description: p.description,
       image: p.image, skinTypes: p.skinTypes.join(', '), concerns: p.concerns.join(', '),
       inciList: p.inciList, usageSteps: p.usageSteps.join('\n'),
@@ -1133,7 +1161,8 @@ export default function AdminProducts() {
       weight: form.weight || undefined,
       shelfLife: form.shelfLife || undefined,
       madeIn: form.madeIn || undefined,
-      isFeatured: form.isFeatured
+      isFeatured: form.isFeatured,
+      isFreeDelivery: form.isFreeDelivery
     };
 
     try {

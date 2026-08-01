@@ -316,6 +316,7 @@ export default function ProductDetailPage() {
                 <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {product.isBestseller && <span className="badge-bestseller">Bestseller</span>}
                   {product.isNew && <span className="badge-new">New</span>}
+                  {product.isFreeDelivery && <span className="badge-free-delivery">Free Delivery</span>}
                   {discount > 0 && <span className="badge-sale">−{discount}%</span>}
                 </div>
 
@@ -632,7 +633,7 @@ export default function ProductDetailPage() {
                   {
                     icon: <Truck size={18} style={{ color: '#4CAF82' }} />,
                     title: 'Free Delivery',
-                    desc: 'On orders ৳1,500+',
+                    desc: product.isFreeDelivery ? 'Free shipping on this item!' : 'On orders ৳1,500+',
                   },
                   {
                     icon: <Shield size={18} style={{ color: '#60A5FA' }} />,

@@ -87,6 +87,7 @@ export interface Product {
   reviewCount: number;
   isBestseller: boolean;
   isNew: boolean;
+  isFreeDelivery?: boolean;
   description: string;
   actives: ActiveIngredient[];
   skinTypes: string[];

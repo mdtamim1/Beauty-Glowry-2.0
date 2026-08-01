@@ -11,6 +11,7 @@ export interface CartItem {
     price: number;
     discount_price?: number;
     category?: string;
+    isFreeDelivery?: boolean;
   };
   variant?: {
     id: string;
@@ -86,6 +87,7 @@ export const useCartStore = create<CartState>()(
                 price: Number(product.price),
                 discount_price: product.discount_price ? Number(product.discount_price) : undefined,
                 category: product.category?.name || product.category,
+                isFreeDelivery: product.isFreeDelivery || product.is_free_delivery || false,
               },
               variant: variant ? {
                 id: variant.id || variant.sku || 'default',

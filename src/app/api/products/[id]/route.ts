@@ -64,6 +64,7 @@ export async function GET(
       isBestseller: p.is_featured,
       isNew: p.is_featured,
       isActive: p.is_active,
+      isFreeDelivery: p.is_free_delivery,
       description: p.description || '',
       actives: [],
       skinTypes: p.skin_type_tags,
@@ -157,6 +158,7 @@ export async function PUT(
         stock_qty: data.stock ?? p.stock_qty,
         is_featured: data.isBestseller ?? data.is_featured,
         is_active: data.isActive !== undefined ? data.isActive : p.is_active,
+        is_free_delivery: data.isFreeDelivery !== undefined ? data.isFreeDelivery : p.is_free_delivery,
       },
     });
 

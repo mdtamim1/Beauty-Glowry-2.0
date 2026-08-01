@@ -89,6 +89,9 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
             {product.isNew && (
               <span className="pc-badge pc-badge-new">New</span>
             )}
+            {product.isFreeDelivery && (
+              <span className="pc-badge pc-badge-free-delivery">Free Delivery</span>
+            )}
             {discount > 0 && (
               <span className="pc-badge pc-badge-sale">−{discount}%</span>
             )}
@@ -316,6 +319,11 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
           background: rgba(201,149,109,0.92);
           color: #fff;
           border: 1px solid rgba(201,149,109,0.3);
+        }
+        .pc-badge-free-delivery {
+          background: rgba(76,175,130,0.92);
+          color: #fff;
+          border: 1px solid rgba(76,175,130,0.3);
         }
 
         /* ── Wishlist button ─────────────────────────── */

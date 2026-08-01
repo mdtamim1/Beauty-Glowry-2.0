@@ -84,6 +84,14 @@ function CheckoutContent() {
   }, 0);
 
   const getShippingFee = () => {
+    // Check if any product in checkout has free delivery
+    const hasFreeDeliveryProduct = checkoutItems.some(
+      (item) => item.product.isFreeDelivery === true
+    );
+    if (hasFreeDeliveryProduct) {
+      return 0;
+    }
+
     if (!storeConfig) {
       return 120; // Fallback default shipping fee
     }
@@ -635,6 +643,11 @@ function CheckoutContent() {
                       {shipping === 0 ? 'FREE' : `৳${shipping}`}
                     </span>
                   </div>
+                  {shipping === 0 && checkoutItems.some(item => item.product.isFreeDelivery) && (
+                    <div style={{ fontSize: 10, color: 'var(--sage-dark)', marginTop: -6, marginBottom: 10, textAlign: 'right', fontWeight: 500 }}>
+                      (Free Delivery item in cart)
+                    </div>
+                  )}
                   {couponApplied && (
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
                       <span style={{ fontSize: 13, color: 'var(--sage-dark)' }}>Coupon Discount</span>
