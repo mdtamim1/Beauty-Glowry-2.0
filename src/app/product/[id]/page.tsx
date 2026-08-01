@@ -272,7 +272,7 @@ export default function ProductDetailPage() {
       {/* ══ MAIN PRODUCT SECTION ══════════════════════════════════════════ */}
       <section style={{ background: 'var(--bg-base)', padding: '48px 0 64px' }}>
         <div className="container-lg">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56, alignItems: 'flex-start' }}>
+          <div className="responsive-grid-product-detail">
 
             {/* ── LEFT: Gallery ─────────────────────────────────────────── */}
             <div style={{ position: 'sticky', top: 112 }}>
@@ -389,6 +389,7 @@ export default function ProductDetailPage() {
 
               {/* ── Product Specs Card ───────────────────────────────── */}
               <div
+                className="product-specs-grid"
                 style={{
                   marginTop: 16,
                   background: 'var(--bg-elevated)',
@@ -408,6 +409,7 @@ export default function ProductDetailPage() {
                 ].map((spec, i) => (
                   <div
                     key={spec.label}
+                    className="product-specs-item"
                     style={{
                       display: 'flex',
                       alignItems: 'flex-start',
@@ -619,10 +621,8 @@ export default function ProductDetailPage() {
 
               {/* ── Trust Facilities Bar ──────────────────────────────── */}
               <div
+                className="responsive-trust-grid"
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(4, 1fr)',
-                  gap: 0,
                   border: '1px solid var(--border-default)',
                   borderRadius: 6,
                   overflow: 'hidden',
@@ -653,18 +653,7 @@ export default function ProductDetailPage() {
                 ].map((item, i) => (
                   <div
                     key={item.title}
-                    style={{
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      textAlign: 'center',
-                      padding: '16px 10px',
-                      background: 'var(--bg-elevated)',
-                      borderRight: i < 3 ? '1px solid var(--border-subtle)' : 'none',
-                      gap: 7,
-                      transition: 'background 0.2s',
-                    }}
+                    className="responsive-trust-item"
                     onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(201,149,109,0.05)')}
                     onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--bg-elevated)')}
                   >
@@ -1000,7 +989,7 @@ export default function ProductDetailPage() {
               </h2>
               <Link href="/products" className="btn-outline" style={{ fontSize: 12 }}>View All <ArrowRight size={13} /></Link>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 18 }}>
+            <div className="responsive-grid-4">
               {related.map((p) => <ProductCard key={p.id} product={p} />)}
             </div>
           </div>

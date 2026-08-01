@@ -360,7 +360,7 @@ export default function QuizPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 48 }}>
+              <div className="responsive-grid-4" style={{ marginBottom: 48 }}>
                 {getRecommendations().map((p) => (
                   <ProductCard key={p.id} product={p} />
                 ))}
@@ -399,13 +399,7 @@ export default function QuizPage() {
               </div>
 
               <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: currentQ.options.length <= 3 ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
-                  gap: 16,
-                  maxWidth: 640,
-                  margin: '0 auto',
-                }}
+                className={currentQ.options.length <= 3 ? "responsive-quiz-options-3" : "responsive-quiz-options"}
               >
                 {currentQ.options.map((opt) => (
                   <button

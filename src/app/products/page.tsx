@@ -445,6 +445,7 @@ function ProductsContent() {
                   {paginated.map((p) => (
                     <div
                       key={p.id}
+                      className="responsive-product-list-item"
                       style={{
                         display: 'flex',
                         gap: 24,
@@ -458,6 +459,7 @@ function ProductsContent() {
                       onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-default)')}
                     >
                       <div
+                        className="responsive-product-list-item-img"
                         style={{
                           width: 200,
                           flexShrink: 0,
@@ -471,7 +473,7 @@ function ProductsContent() {
                           style={{ width: '100%', height: '100%', objectFit: 'cover', minHeight: 160 }}
                         />
                       </div>
-                      <div style={{ padding: '24px 24px 24px 0', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+                      <div className="responsive-product-list-item-content" style={{ padding: '24px 24px 24px 0', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
                         <div>
                           {p.actives.length > 0 && (
                             <span className="badge-active" style={{ marginBottom: 10, display: 'inline-block' }}>
