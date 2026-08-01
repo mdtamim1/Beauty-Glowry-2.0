@@ -304,7 +304,7 @@ function CheckoutContent() {
           </h1>
 
           {/* Steps */}
-          <div className="checkout-steps-container" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 0 }}>
             {steps.map((s, i) => (
               <React.Fragment key={s.key}>
                 <div
@@ -341,7 +341,7 @@ function CheckoutContent() {
                   </span>
                 </div>
                 {i < steps.length - 1 && (
-                  <div className="checkout-step-connector" style={{ width: 32, height: 1, background: 'var(--border-default)' }} />
+                  <div style={{ width: 32, height: 1, background: 'var(--border-default)' }} />
                 )}
               </React.Fragment>
             ))}
@@ -350,7 +350,7 @@ function CheckoutContent() {
 
         {/* Content */}
         <div className="container-lg" style={{ paddingTop: 40 }}>
-          <div className="responsive-grid-checkout">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 48, alignItems: 'flex-start' }}>
 
             {/* Left: Form */}
             <form onSubmit={handleSubmit}>
@@ -359,7 +359,7 @@ function CheckoutContent() {
                   <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 26, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 28 }}>
                     Contact Information
                   </h2>
-                  <div className="responsive-grid-2">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                     <div style={{ gridColumn: '1 / -1' }}>
                       <label style={{ display: 'block', fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
                         Full Name *
@@ -433,7 +433,7 @@ function CheckoutContent() {
                   <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 26, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 28 }}>
                     Delivery Details
                   </h2>
-                  <div className="responsive-grid-2">
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                     <div>
                       <label style={{ display: 'block', fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Division *</label>
                       <select required value={form.division} onChange={(e) => { update('division', e.target.value); update('district', ''); }} className="input-field">
