@@ -36,6 +36,8 @@ export default function Footer() {
     storeAddress: 'Dhaka, Bangladesh'
   });
 
+  const [footerSections, setFooterSections] = useState(footerLinks);
+
   useEffect(() => {
     fetch('/api/admin/store-config')
       .then((res) => res.json())
@@ -45,6 +47,25 @@ export default function Footer() {
         }
       })
       .catch((err) => console.error('Failed to load store config in Footer:', err));
+
+    fetch('/api/categories')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          const dynamicShop = [
+            { label: 'All Formulations', href: '/products' },
+            ...data.map((c) => ({
+              label: c.name,
+              href: `/products?category=${encodeURIComponent(c.name)}`,
+            })),
+          ];
+          setFooterSections((prev) => ({
+            ...prev,
+            Shop: dynamicShop,
+          }));
+        }
+      })
+      .catch((err) => console.error('Failed to load categories in Footer:', err));
   }, []);
 
   return (
@@ -134,7 +155,7 @@ export default function Footer() {
           </div>
 
           {/* Link Columns */}
-          {Object.entries(footerLinks).map(([title, links]) => (
+          {Object.entries(footerSections).map(([title, links]) => (
             <div key={title}>
               <h4
                 style={{

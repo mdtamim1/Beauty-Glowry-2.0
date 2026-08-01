@@ -199,12 +199,39 @@ function SectionCard({
 }
 
 // ─── Main Modal ──────────────────────────────────────────────────────────────
-function Modal({ title, onClose, onSave, form, setForm, isEdit }: {
+function Modal({ title, onClose, onSave, form, setForm, isEdit, categoriesList, onCategoryCreated }: {
   title: string; onClose: () => void; onSave: () => void;
   form: FormData; setForm: (f: FormData) => void; isEdit: boolean;
+  categoriesList: string[];
+  onCategoryCreated: (catName: string) => void;
 }) {
   const update = (key: keyof FormData, val: any) => setForm({ ...form, [key]: val });
   const [activeTab, setActiveTab] = useState<'basic' | 'sections' | 'advanced'>('basic');
+  const [isCreatingCat, setIsCreatingCat] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [isSavingCat, setIsSavingCat] = useState(false);
+
+  const handleCreateCategory = async () => {
+    if (!newCatName.trim()) return;
+    setIsSavingCat(true);
+    try {
+      const res = await fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ name: newCatName.trim() })
+      });
+      if (!res.ok) throw new Error('Failed to save category');
+      const data = await res.json();
+      onCategoryCreated(data.name);
+      setNewCatName('');
+      setIsCreatingCat(false);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save new category');
+    } finally {
+      setIsSavingCat(false);
+    }
+  };
 
   // ─── Size Variants Helper Logic ──────────────────────────────────────────
   const currentVariants = form.variants
@@ -377,13 +404,42 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit }: {
                 {/* Category Selector */}
                 <div>
                   <label style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 6 }}>Category</label>
-                  <select
-                    value={form.category}
-                    onChange={(e) => update('category', e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.text, outline: 'none', boxSizing: 'border-box' as any }}
-                  >
-                    {categories.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <select
+                      value={form.category}
+                      onChange={(e) => update('category', e.target.value)}
+                      style={{ flex: 1, padding: '10px 12px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.text, outline: 'none', boxSizing: 'border-box' as any }}
+                    >
+                      {categoriesList.map((c) => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingCat(!isCreatingCat)}
+                      style={{ padding: '0 12px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 7, color: C.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      {isCreatingCat ? 'Cancel' : '➕ New'}
+                    </button>
+                  </div>
+
+                  {isCreatingCat && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 8, padding: 8, background: C.bg, borderRadius: 6, border: `1px dashed ${C.border}` }}>
+                      <input
+                        type="text"
+                        placeholder="New Category Name"
+                        value={newCatName}
+                        onChange={(e) => setNewCatName(e.target.value)}
+                        style={{ flex: 1, padding: '6px 10px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, outline: 'none' }}
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCreateCategory}
+                        disabled={isSavingCat || !newCatName}
+                        style={{ padding: '6px 12px', background: C.accent, border: 'none', borderRadius: 5, fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', opacity: (!newCatName || isSavingCat) ? 0.5 : 1 }}
+                      >
+                        {isSavingCat ? 'Saving...' : 'Save'}
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <Input label="Price (৳)" type="number" value={form.price} onChange={(v: number) => update('price', v)} />
                 <Input label="Original Price (৳)" type="number" value={form.originalPrice} onChange={(v: number) => update('originalPrice', v)} hint="Before discount" />
@@ -1086,6 +1142,7 @@ export default function AdminProducts() {
   const [form, setForm] = useState<FormData>({ ...EMPTY_FORM });
   const [selected, setSelected] = useState<(string | number)[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<string | number | null>(null);
+  const [dbCategories, setDbCategories] = useState<string[]>([]);
 
   useEffect(() => {
     fetch('/api/products?includeInactive=true')
@@ -1096,7 +1153,18 @@ export default function AdminProducts() {
         }
       })
       .catch((err) => console.error('Failed to load products from live database:', err));
+
+    fetch('/api/categories')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setDbCategories(data.map((c) => c.name));
+        }
+      })
+      .catch((err) => console.error('Failed to load categories from live database:', err));
   }, []);
+
+  const activeCategories = dbCategories.length > 0 ? dbCategories : categories;
 
   const filtered = items.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.category.toLowerCase().includes(search.toLowerCase());
@@ -1275,7 +1343,7 @@ export default function AdminProducts() {
             style={{ padding: '9px 36px 9px 14px', appearance: 'none', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, color: C.text, cursor: 'pointer', outline: 'none' }}
           >
             <option value="All">All Categories</option>
-            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+            {activeCategories.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
           <ChevronDown size={13} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
         </div>
@@ -1395,6 +1463,11 @@ export default function AdminProducts() {
           form={form}
           setForm={setForm}
           isEdit={!!editTarget}
+          categoriesList={activeCategories}
+          onCategoryCreated={(newCatName) => {
+            setDbCategories((prev) => [...new Set([...prev, newCatName])].sort());
+            setForm((prev) => ({ ...prev, category: newCatName }));
+          }}
         />
       )}
     </div>

@@ -46,6 +46,8 @@ export default function Navbar() {
   const [accountOpen, setAccountOpen] = useState(false);
   const [megaOpen, setMegaOpen] = useState<string | null>(null);
   const [storeName, setStoreName] = useState('Beauty Glowry');
+  const [links, setLinks] = useState(navLinks);
+  const [mobileCategories, setMobileCategories] = useState<any[]>([]);
 
   const cart = useCartStore((s) => s.cart);
   const user = useAuthStore((s) => s.user);
@@ -67,8 +69,46 @@ export default function Navbar() {
       })
       .catch((err) => console.error('Failed to load store config in Navbar:', err));
 
+    fetch('/api/categories')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data) && data.length > 0) {
+          setMobileCategories(data);
+          const dynamicMega = [
+            { label: 'All Formulations', href: '/products', desc: 'Browse the full collection' },
+            ...data.map((c) => ({
+              label: c.name,
+              href: `/products?category=${encodeURIComponent(c.name)}`,
+              desc: c.description || 'Clinical formulation'
+            })),
+            { label: 'New Arrivals', href: '/products?isNew=true', desc: 'Just synthesized' }
+          ];
+          setLinks((prev) =>
+            prev.map((link) =>
+              link.label === 'Shop' ? { ...link, mega: dynamicMega } : link
+            )
+          );
+        }
+      })
+      .catch((err) => console.error('Failed to load dynamic categories in Navbar:', err));
+
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const mobileList = [
+    { label: 'Home', href: '/' },
+    { label: 'All Products', href: '/products' },
+    { label: 'Brands', href: '/brands' },
+    ...(mobileCategories.length > 0
+      ? mobileCategories.map((c) => ({
+          label: c.name,
+          href: `/products?category=${encodeURIComponent(c.name)}`,
+        }))
+      : [{ label: 'Serums & Elixirs', href: '/products?category=Serums+%26+Elixirs' }]),
+    { label: 'Skin Quiz', href: '/quiz' },
+    { label: 'Acne Care', href: '/products?concern=Acne+%26+Blemishes' },
+    { label: 'My Wishlist', href: '/wishlist' },
+  ];
 
   // Close mega on outside click
   useEffect(() => {
@@ -123,7 +163,7 @@ export default function Navbar() {
                 gap: 32,
               }}
             >
-              {navLinks.map((link) => (
+              {links.map((link) => (
                 <div
                   key={link.label}
                   style={{ position: 'relative' }}
@@ -402,15 +442,7 @@ export default function Navbar() {
             </div>
 
             <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {[
-                { label: 'Home', href: '/' },
-                { label: 'All Products', href: '/products' },
-                { label: 'Brands', href: '/brands' },
-                { label: 'Serums & Elixirs', href: '/products?category=Serums+%26+Elixirs' },
-                { label: 'Skin Quiz', href: '/quiz' },
-                { label: 'Acne Care', href: '/products?concern=Acne+%26+Blemishes' },
-                { label: 'My Wishlist', href: '/wishlist' },
-              ].map((item) => (
+              {mobileList.map((item) => (
                 <Link
                   key={item.label}
                   href={item.href}
