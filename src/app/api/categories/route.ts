@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
 import { verifyAdminOrModerator } from '../../../lib/auth';
 
+// Force rebuild comment
+
 export async function GET() {
   try {
     const categories = await prisma.category.findMany({
