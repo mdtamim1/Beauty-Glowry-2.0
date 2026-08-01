@@ -44,3 +44,35 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }
+
+export async function DELETE(request: Request) {
+  try {
+    const auth = await verifyAdminOrModerator(request);
+    if (!auth) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'Category ID is required' }, { status: 400 });
+    }
+
+    // Unlink products associated with this category
+    await prisma.product.updateMany({
+      where: { category_id: id },
+      data: { category_id: null }
+    });
+
+    // Delete category
+    await prisma.category.delete({
+      where: { id }
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error: any) {
+    console.error('[API Categories DELETE Error]:', error);
+    return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+  }
+}

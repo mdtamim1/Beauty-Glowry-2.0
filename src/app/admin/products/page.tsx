@@ -199,11 +199,12 @@ function SectionCard({
 }
 
 // ─── Main Modal ──────────────────────────────────────────────────────────────
-function Modal({ title, onClose, onSave, form, setForm, isEdit, categoriesList, onCategoryCreated }: {
+function Modal({ title, onClose, onSave, form, setForm, isEdit, categoriesList, onCategoryCreated, onCategoryDeleted }: {
   title: string; onClose: () => void; onSave: () => void;
   form: FormData; setForm: (f: FormData) => void; isEdit: boolean;
-  categoriesList: string[];
-  onCategoryCreated: (catName: string) => void;
+  categoriesList: { id: string; name: string }[];
+  onCategoryCreated: (cat: { id: string; name: string }) => void;
+  onCategoryDeleted: (catId: string) => void;
 }) {
   const update = (key: keyof FormData, val: any) => setForm({ ...form, [key]: val });
   const [activeTab, setActiveTab] = useState<'basic' | 'sections' | 'advanced'>('basic');
@@ -222,7 +223,7 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit, categoriesList, 
       });
       if (!res.ok) throw new Error('Failed to save category');
       const data = await res.json();
-      onCategoryCreated(data.name);
+      onCategoryCreated({ id: data.id, name: data.name });
       setNewCatName('');
       setIsCreatingCat(false);
     } catch (err) {
@@ -230,6 +231,21 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit, categoriesList, 
       alert('Failed to save new category');
     } finally {
       setIsSavingCat(false);
+    }
+  };
+
+  const handleDeleteCategory = async (catId: string) => {
+    if (!confirm('Are you sure you want to delete this category? All products in this category will be set to Uncategorized.')) return;
+    try {
+      const res = await fetch(`/api/categories?id=${catId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error('Failed to delete category');
+      onCategoryDeleted(catId);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete category');
     }
   };
 
@@ -410,34 +426,59 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit, categoriesList, 
                       onChange={(e) => update('category', e.target.value)}
                       style={{ flex: 1, padding: '10px 12px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.text, outline: 'none', boxSizing: 'border-box' as any }}
                     >
-                      {categoriesList.map((c) => <option key={c} value={c}>{c}</option>)}
+                      {categoriesList.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
                     </select>
                     <button
                       type="button"
                       onClick={() => setIsCreatingCat(!isCreatingCat)}
                       style={{ padding: '0 12px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 7, color: C.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                     >
-                      {isCreatingCat ? 'Cancel' : '➕ New'}
+                      {isCreatingCat ? 'Cancel' : '⚙️ Manage'}
                     </button>
                   </div>
 
                   {isCreatingCat && (
-                    <div style={{ display: 'flex', gap: 8, marginTop: 8, padding: 8, background: C.bg, borderRadius: 6, border: `1px dashed ${C.border}` }}>
-                      <input
-                        type="text"
-                        placeholder="New Category Name"
-                        value={newCatName}
-                        onChange={(e) => setNewCatName(e.target.value)}
-                        style={{ flex: 1, padding: '6px 10px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, outline: 'none' }}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleCreateCategory}
-                        disabled={isSavingCat || !newCatName}
-                        style={{ padding: '6px 12px', background: C.accent, border: 'none', borderRadius: 5, fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', opacity: (!newCatName || isSavingCat) ? 0.5 : 1 }}
-                      >
-                        {isSavingCat ? 'Saving...' : 'Save'}
-                      </button>
+                    <div style={{ marginTop: 12, padding: 12, background: C.bg, borderRadius: 8, border: `1.5px dashed ${C.border}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {/* Create New Form */}
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input
+                          type="text"
+                          placeholder="New Category Name"
+                          value={newCatName}
+                          onChange={(e) => setNewCatName(e.target.value)}
+                          style={{ flex: 1, padding: '6px 10px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, outline: 'none' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={handleCreateCategory}
+                          disabled={isSavingCat || !newCatName}
+                          style={{ padding: '6px 12px', background: C.accent, border: 'none', borderRadius: 5, fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', opacity: (!newCatName || isSavingCat) ? 0.5 : 1 }}
+                        >
+                          {isSavingCat ? 'Saving...' : 'Save'}
+                        </button>
+                      </div>
+
+                      {/* Existing Categories List with Delete option */}
+                      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>
+                          Manage Existing Categories ({categoriesList.length})
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 150, overflowY: 'auto', paddingRight: 4 }}>
+                          {categoriesList.map((cat) => (
+                            <div key={cat.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: C.elevated, borderRadius: 5, border: `1px solid ${C.border}` }}>
+                              <span style={{ fontSize: 12, color: C.text }}>{cat.name}</span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteCategory(cat.id)}
+                                style={{ background: 'none', border: 'none', color: C.danger, cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center' }}
+                                title="Delete Category"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -1142,7 +1183,7 @@ export default function AdminProducts() {
   const [form, setForm] = useState<FormData>({ ...EMPTY_FORM });
   const [selected, setSelected] = useState<(string | number)[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<string | number | null>(null);
-  const [dbCategories, setDbCategories] = useState<string[]>([]);
+  const [dbCategories, setDbCategories] = useState<{ id: string, name: string }[]>([]);
 
   useEffect(() => {
     fetch('/api/products?includeInactive=true')
@@ -1158,13 +1199,15 @@ export default function AdminProducts() {
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data)) {
-          setDbCategories(data.map((c) => c.name));
+          setDbCategories(data.map((c) => ({ id: c.id, name: c.name })));
         }
       })
       .catch((err) => console.error('Failed to load categories from live database:', err));
   }, []);
 
-  const activeCategories = dbCategories.length > 0 ? dbCategories : categories;
+  const activeCategories = dbCategories.length > 0
+    ? dbCategories
+    : categories.map((c) => ({ id: c.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''), name: c }));
 
   const filtered = items.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.category.toLowerCase().includes(search.toLowerCase());
@@ -1343,7 +1386,7 @@ export default function AdminProducts() {
             style={{ padding: '9px 36px 9px 14px', appearance: 'none', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, color: C.text, cursor: 'pointer', outline: 'none' }}
           >
             <option value="All">All Categories</option>
-            {activeCategories.map((c) => <option key={c} value={c}>{c}</option>)}
+            {activeCategories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
           </select>
           <ChevronDown size={13} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
         </div>
@@ -1464,9 +1507,18 @@ export default function AdminProducts() {
           setForm={setForm}
           isEdit={!!editTarget}
           categoriesList={activeCategories}
-          onCategoryCreated={(newCatName) => {
-            setDbCategories((prev) => [...new Set([...prev, newCatName])].sort());
-            setForm((prev) => ({ ...prev, category: newCatName }));
+          onCategoryCreated={(newCat) => {
+            setDbCategories((prev) => [...prev, newCat].sort((a, b) => a.name.localeCompare(b.name)));
+            setForm((prev) => ({ ...prev, category: newCat.name }));
+          }}
+          onCategoryDeleted={(catId) => {
+            setDbCategories((prev) => prev.filter((c) => c.id !== catId));
+            setForm((prev) => {
+              const remaining = activeCategories.filter((c) => c.id !== catId);
+              return prev.category === activeCategories.find((c) => c.id === catId)?.name
+                ? { ...prev, category: remaining[0]?.name || '' }
+                : prev;
+            });
           }}
         />
       )}
