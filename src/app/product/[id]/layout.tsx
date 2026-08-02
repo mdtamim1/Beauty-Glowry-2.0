@@ -40,6 +40,58 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   };
 }
 
-export default function ProductLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+export default async function ProductLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ id: string }>;
+}) {
+  const resolvedParams = await params;
+  const product = products.find((p) => p.id === Number(resolvedParams.id));
+
+  if (!product) {
+    return <>{children}</>;
+  }
+
+  // Construct JSON-LD Structured Data
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    image: product.image,
+    description: product.description,
+    sku: `BG-SKU-${product.id}`,
+    mpn: `BG-MPN-${product.id}`,
+    brand: {
+      '@type': 'Brand',
+      name: product.brand === 'beauty-glowry' ? 'Beauty Glowry' : product.brand === 'dermalab' ? 'DermaLab' : 'PureAct',
+    },
+    offers: {
+      '@type': 'Offer',
+      url: `https://beautygloowry.com/product/${product.id}`,
+      priceCurrency: 'BDT',
+      price: product.price,
+      itemCondition: 'https://schema.org/NewCondition',
+      availability: product.stock > 0 ? 'https://schema.org/InStock' : 'https://schema.org/OutOfStock',
+      priceValidUntil: '2028-12-31',
+    },
+    aggregateRating: {
+      '@type': 'AggregateRating',
+      ratingValue: product.rating,
+      reviewCount: product.reviewCount > 0 ? product.reviewCount : 1,
+      bestRating: '5',
+      worstRating: '1',
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      {children}
+    </>
+  );
 }
