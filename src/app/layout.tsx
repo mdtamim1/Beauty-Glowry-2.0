@@ -27,12 +27,29 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "BEAUTY GLOWRY | Premium Clinical Skincare",
+  metadataBase: new URL("https://beautygloowry.com"),
+  title: {
+    default: "BEAUTY GLOWRY | Premium Clinical Skincare",
+    template: "%s | BEAUTY GLOWRY"
+  },
   description: "Dermatologist-formulated active skincare. Precision ingredients for measurable results. Trusted by 10,000+ customers across Bangladesh.",
-  keywords: ["skincare", "serum", "niacinamide", "vitamin c", "bangladesh", "clinical skincare", "active ingredients"],
+  keywords: ["skincare", "serum", "niacinamide", "vitamin c", "bangladesh", "clinical skincare", "active ingredients", "acne solution", "dark spots treatment"],
+  alternates: {
+    canonical: "./",
+  },
   openGraph: {
     title: "BEAUTY GLOWRY | Premium Clinical Skincare",
-    description: "Dermatologist-formulated active skincare for measurable results.",
+    description: "Dermatologist-formulated active skincare for measurable results. Trusted by 10,000+ customers across Bangladesh.",
+    url: "https://beautygloowry.com",
+    siteName: "Beauty Glowry",
+    images: [
+      {
+        url: "/logo.PNG",
+        width: 800,
+        height: 600,
+        alt: "Beauty Glowry Logo",
+      },
+    ],
     type: "website",
     locale: "en_US",
   },
@@ -40,6 +57,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "BEAUTY GLOWRY | Premium Clinical Skincare",
     description: "Dermatologist-formulated active skincare for measurable results.",
+    images: ["/logo.PNG"],
   },
 };
 

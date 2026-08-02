@@ -2,12 +2,14 @@ import { MetadataRoute } from 'next';
 import { products } from '../data/products';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://beautyglowry.com';
+  const baseUrl = 'https://beautygloowry.com';
 
   const staticUrls = [
     { url: `${baseUrl}/`, lastModified: new Date() },
     { url: `${baseUrl}/products`, lastModified: new Date() },
     { url: `${baseUrl}/quiz`, lastModified: new Date() },
+    { url: `${baseUrl}/blog`, lastModified: new Date() },
+    { url: `${baseUrl}/brands`, lastModified: new Date() },
   ];
 
   const productUrls = products.map((prod) => ({
