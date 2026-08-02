@@ -427,32 +427,7 @@ export default function AdminAuthPage() {
             </>
           )}
 
-          {/* Hint */}
-          <div
-            style={{
-              marginTop: 24,
-              padding: '12px 16px',
-              background: 'rgba(201,149,109,0.04)',
-              border: `1px solid rgba(201,149,109,0.1)`,
-              borderRadius: 8,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 6,
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              <Shield size={13} style={{ color: C.accent, flexShrink: 0 }} />
-              <p style={{ fontSize: 11, color: C.muted }}>
-                Credentials Check:
-              </p>
-            </div>
-            <p style={{ fontSize: 10, color: C.muted, margin: 0, paddingLeft: 21, lineHeight: 1.4 }}>
-              👑 Super Admin: <span style={{ color: C.accent, fontFamily: "'DM Mono', monospace" }}>beautyglowry@tamim.com</span> / <span style={{ color: C.accent, fontFamily: "'DM Mono', monospace" }}>TAMIM01905276822</span>
-            </p>
-            <p style={{ fontSize: 10, color: C.muted, margin: 0, paddingLeft: 21, lineHeight: 1.4 }}>
-              👤 Moderator: <span style={{ color: C.accent, fontFamily: "'DM Mono', monospace" }}>sarah@beautyglowry.com</span> / <span style={{ color: C.accent, fontFamily: "'DM Mono', monospace" }}>moderator123</span>
-            </p>
-          </div>
+
         </div>
 
         {/* Footer note */}
