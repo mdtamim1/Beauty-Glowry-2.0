@@ -99,7 +99,7 @@ export async function POST(request: Request) {
     const {
       name,
       phone,
-      email,
+      email: rawEmail,
       division,
       district,
       address,
@@ -112,7 +112,12 @@ export async function POST(request: Request) {
       discount = 0,
     } = data;
 
-    if (!name || !phone || !email || !address || !items || items.length === 0) {
+    // email is optional — generate a phone-based placeholder for guests without email
+    const email: string = rawEmail?.trim()
+      ? rawEmail.trim()
+      : `guest_${phone?.replace(/\D/g, '')}@beautygloowry.com`;
+
+    if (!name || !phone || !address || !items || items.length === 0) {
       return NextResponse.json({ error: 'Missing required checkout information' }, { status: 400 });
     }
 
@@ -252,8 +257,15 @@ export async function POST(request: Request) {
       return createdOrder;
     });
 
-    // Send order confirmation email directly (synchronously)
-    await handleSendOrderConfirmationJob(email, order.order_number, String(order.total));
+    // Send order confirmation email — wrapped in try-catch so email failure
+    // never crashes the order (the order is already saved in DB above)
+    if (rawEmail?.trim()) {
+      try {
+        await handleSendOrderConfirmationJob(email, order.order_number, String(order.total));
+      } catch (emailErr: any) {
+        console.warn('[Orders] Email send failed (non-fatal):', emailErr.message);
+      }
+    }
 
     return NextResponse.json({ success: true, orderId: order.order_number });
   } catch (error: any) {
@@ -261,3 +273,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
   }
 }
+
