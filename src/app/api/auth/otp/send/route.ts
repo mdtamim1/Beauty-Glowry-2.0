@@ -1,9 +1,7 @@
 import { NextResponse } from 'next/server';
-import { Resend } from 'resend';
 import { prisma } from '../../../../../lib/prisma';
-
 import { redis } from '../../../../../lib/redis';
-import { emailQueue } from '../../../../../lib/queue';
+import { handleSendOtpJob } from '../../../../../lib/jobs';
 
 export async function POST(request: Request) {
   try {
@@ -37,8 +35,8 @@ export async function POST(request: Request) {
     // Store OTP code with 5 minutes expiration in Redis
     await redis.set(`otp:${email}`, otpCode, 'EX', 300);
 
-    // Queue the OTP email sending job in BullMQ
-    await emailQueue.add('send-otp', { email, code: otpCode });
+    // Send the OTP email directly (synchronously) to ensure reliability on serverless platforms
+    await handleSendOtpJob(email, otpCode);
 
     const apiKey = (process.env.RESEND_API_KEY || '').trim();
     const hasRealApiKey = apiKey && apiKey !== 'your_resend_api_key_here';
