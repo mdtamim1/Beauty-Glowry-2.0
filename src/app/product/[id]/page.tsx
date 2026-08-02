@@ -5,7 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import {
   ShoppingBag, Heart, Star, ChevronLeft, ChevronRight,
-  Plus, Minus, ArrowRight, ZoomIn, Check,
+  Plus, Minus, ArrowRight, ZoomIn, Check, Zap,
   Shield, Truck, Leaf, ChevronDown, Beaker, Package,
   Globe, Clock, FlaskConical, Sparkles, Eye
 } from 'lucide-react';
@@ -506,18 +506,46 @@ export default function ProductDetailPage() {
                 {product.description}
               </p>
 
-              {/* Price */}
-              <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 24 }}>
-                <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 40, fontWeight: 600, color: 'var(--text-primary)' }}>
-                  ৳{price.toLocaleString()}
-                </span>
-                {discount > 0 && (
-                  <>
-                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 18, color: 'var(--text-muted)', textDecoration: 'line-through' }}>
+              {/* ── Price Block ─────────────────────────────────── */}
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, var(--bg-elevated) 0%, rgba(201,149,109,0.04) 100%)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 8,
+                  padding: '18px 20px',
+                  marginBottom: 22,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                  <span style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 44, fontWeight: 600, color: 'var(--text-primary)', lineHeight: 1 }}>
+                    ৳{price.toLocaleString()}
+                  </span>
+                  {discount > 0 && (
+                    <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 16, color: 'var(--text-muted)', textDecoration: 'line-through' }}>
                       ৳{product.originalPrice.toLocaleString()}
                     </span>
-                    <span className="badge-sale">−{discount}%</span>
-                  </>
+                  )}
+                </div>
+                {discount > 0 && (
+                  <div
+                    style={{
+                      background: 'linear-gradient(135deg, var(--accent), #d9835a)',
+                      color: '#fff',
+                      fontWeight: 800,
+                      fontSize: 13,
+                      padding: '6px 14px',
+                      borderRadius: 99,
+                      letterSpacing: '0.04em',
+                      whiteSpace: 'nowrap',
+                      boxShadow: '0 4px 12px rgba(201,149,109,0.3)',
+                    }}
+                  >
+                    −{discount}% OFF
+                  </div>
                 )}
               </div>
 
@@ -547,75 +575,155 @@ export default function ProductDetailPage() {
                 </div>
               )}
 
-              {/* Quantity + Add to Cart */}
-              <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
-                <div style={{ display: 'flex', alignItems: 'center', border: '1px solid var(--border-default)', borderRadius: 3, overflow: 'hidden' }}>
-                  <button onClick={() => setQuantity(Math.max(1, quantity - 1))} style={{ width: 42, height: 50, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Minus size={13} />
+              {/* ── Purchase Block ─────────────────────────────── */}
+              <div
+                style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 10,
+                  padding: '20px',
+                  marginBottom: 20,
+                  boxShadow: '0 2px 16px rgba(26,26,24,0.05)',
+                }}
+              >
+                {/* Quantity Label */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', margin: 0 }}>
+                    Quantity
+                  </p>
+                  <span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: "'DM Mono', monospace" }}>
+                    Total: <strong style={{ color: 'var(--accent)' }}>৳{(price * quantity).toLocaleString()}</strong>
+                  </span>
+                </div>
+
+                {/* Quantity Stepper */}
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 8,
+                    overflow: 'hidden',
+                    marginBottom: 16,
+                    background: 'var(--bg-elevated)',
+                  }}
+                >
+                  <button
+                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    style={{
+                      width: 44, height: 44, background: 'none', border: 'none',
+                      cursor: 'pointer', color: 'var(--text-secondary)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 18, transition: 'background 0.2s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(201,149,109,0.08)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                  >
+                    <Minus size={14} />
                   </button>
-                  <span style={{ width: 46, textAlign: 'center', fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', fontFamily: "'DM Mono', monospace" }}>
+                  <span
+                    style={{
+                      minWidth: 52, textAlign: 'center', fontSize: 16, fontWeight: 700,
+                      color: 'var(--text-primary)', fontFamily: "'DM Mono', monospace",
+                      borderLeft: '1px solid var(--border-default)',
+                      borderRight: '1px solid var(--border-default)',
+                      padding: '0 12px', lineHeight: '44px',
+                    }}
+                  >
                     {quantity}
                   </span>
-                  <button onClick={() => setQuantity(quantity + 1)} style={{ width: 42, height: 50, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Plus size={13} />
+                  <button
+                    onClick={() => setQuantity(quantity + 1)}
+                    style={{
+                      width: 44, height: 44, background: 'none', border: 'none',
+                      cursor: 'pointer', color: 'var(--text-secondary)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 18, transition: 'background 0.2s',
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(201,149,109,0.08)')}
+                    onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                  >
+                    <Plus size={14} />
                   </button>
                 </div>
 
-                <button
-                  onClick={handleAddToCart}
-                  className="btn-primary"
-                  style={{
-                    flex: 1, justifyContent: 'center',
-                    background: isAdded ? 'var(--sage)' : 'var(--text-primary)',
-                    borderColor: isAdded ? 'var(--sage)' : 'var(--text-primary)',
-                    fontSize: 13,
-                  }}
-                >
-                  {isAdded ? <><Check size={14} /> Added!</> : <><ShoppingBag size={14} /> Add to Cart</>}
-                </button>
+                {/* CTA Buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {/* Order Now — Primary CTA */}
+                  <button
+                    onClick={handleOrderNow}
+                    style={{
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 10,
+                      height: 54,
+                      background: 'linear-gradient(135deg, var(--accent) 0%, #c07a50 100%)',
+                      color: '#FFF',
+                      border: 'none',
+                      borderRadius: 8,
+                      fontSize: 14,
+                      fontWeight: 700,
+                      letterSpacing: '0.06em',
+                      textTransform: 'uppercase',
+                      cursor: 'pointer',
+                      boxShadow: '0 6px 24px rgba(201,149,109,0.35)',
+                      transition: 'all 0.25s ease',
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 10px 30px rgba(201,149,109,0.45)'; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(201,149,109,0.35)'; }}
+                  >
+                    <Zap size={16} />
+                    Order Now — ৳{(price * quantity).toLocaleString()}
+                  </button>
 
-                <button
-                  onClick={() => toggleWishlist(product.id.toString())}
-                  style={{
-                    width: 50, height: 50, border: '1px solid var(--border-default)', borderRadius: 3,
-                    background: 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'border-color 0.2s',
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-default)')}
-                >
-                  <Heart size={17} style={{ fill: isInWishlist(product.id.toString()) ? 'var(--accent)' : 'none', color: isInWishlist(product.id.toString()) ? 'var(--accent)' : 'var(--text-muted)' }} />
-                </button>
+                  {/* Add to Cart + Wishlist */}
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <button
+                      onClick={handleAddToCart}
+                      style={{
+                        flex: 1,
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: 8,
+                        height: 50,
+                        background: isAdded ? 'rgba(139,157,119,0.12)' : 'var(--bg-elevated)',
+                        color: isAdded ? 'var(--sage)' : 'var(--text-primary)',
+                        border: isAdded ? '1.5px solid var(--sage)' : '1.5px solid var(--border-dark)',
+                        borderRadius: 8,
+                        fontSize: 13,
+                        fontWeight: 700,
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase',
+                        cursor: 'pointer',
+                        transition: 'all 0.25s ease',
+                      }}
+                    >
+                      {isAdded ? <><Check size={15} /> Added to Bag</> : <><ShoppingBag size={15} /> Add to Bag</>}
+                    </button>
+
+                    <button
+                      onClick={() => toggleWishlist(product.id.toString())}
+                      style={{
+                        width: 50, height: 50,
+                        border: isInWishlist(product.id.toString()) ? '1.5px solid rgba(239,68,68,0.4)' : '1.5px solid var(--border-dark)',
+                        borderRadius: 8,
+                        background: isInWishlist(product.id.toString()) ? 'rgba(239,68,68,0.06)' : 'var(--bg-elevated)',
+                        cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'all 0.25s ease',
+                        flexShrink: 0,
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'rgba(239,68,68,0.5)'; e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = isInWishlist(product.id.toString()) ? 'rgba(239,68,68,0.4)' : 'var(--border-dark)'; e.currentTarget.style.background = isInWishlist(product.id.toString()) ? 'rgba(239,68,68,0.06)' : 'var(--bg-elevated)'; }}
+                    >
+                      <Heart size={17} style={{ fill: isInWishlist(product.id.toString()) ? '#ef4444' : 'none', color: isInWishlist(product.id.toString()) ? '#ef4444' : 'var(--text-muted)', transition: 'all 0.25s' }} />
+                    </button>
+                  </div>
+                </div>
               </div>
-
-              {/* Order Now Button */}
-              <button
-                onClick={handleOrderNow}
-                style={{
-                  width: '100%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  height: 50,
-                  background: 'var(--accent)',
-                  color: '#FFF',
-                  border: 'none',
-                  borderRadius: 3,
-                  fontSize: 13,
-                  fontWeight: 700,
-                  letterSpacing: '0.06em',
-                  textTransform: 'uppercase',
-                  cursor: 'pointer',
-                  marginBottom: 24,
-                  boxShadow: '0 4px 20px rgba(201,149,109,0.25)',
-                  transition: 'all 0.25s ease',
-                }}
-                onMouseEnter={(e) => { e.currentTarget.style.background = '#d9a37b'; }}
-                onMouseLeave={(e) => { e.currentTarget.style.background = 'var(--accent)'; }}
-              >
-                Order Now — ৳{(price * quantity).toLocaleString()}
-              </button>
 
               {/* ── Trust Facilities Bar ──────────────────────────────── */}
               <div className="pdp-trust-bar">
