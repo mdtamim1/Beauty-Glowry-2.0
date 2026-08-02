@@ -18,6 +18,7 @@ interface AuthState {
   login: (user: UserProfile, token: string) => void;
   logout: () => void;
   updateSkinProfile: (skinType: string) => void;
+  updateUser: (partial: Partial<UserProfile>) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -36,6 +37,12 @@ export const useAuthStore = create<AuthState>()(
         const u = get().user;
         if (u) {
           set({ user: { ...u, skin_type: skinType } });
+        }
+      },
+      updateUser: (partial) => {
+        const u = get().user;
+        if (u) {
+          set({ user: { ...u, ...partial } });
         }
       },
     }),

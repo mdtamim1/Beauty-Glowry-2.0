@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ShoppingBag, Search, Menu, X, ChevronDown, Heart, User } from 'lucide-react';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
@@ -46,6 +47,7 @@ export default function Navbar() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [megaOpen, setMegaOpen] = useState<string | null>(null);
+  const router = useRouter();
   const [storeName, setStoreName] = useState('Beauty Glowry');
   const [links, setLinks] = useState(navLinks);
   const [mobileCategories, setMobileCategories] = useState<any[]>([]);
@@ -282,17 +284,17 @@ export default function Navbar() {
           {/* Right: Icons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'flex-end' }}>
             <button
-              onClick={() => setAccountOpen(true)}
+              onClick={() => user ? router.push('/account') : setAccountOpen(true)}
               aria-label="Account"
               style={{ padding: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
               className="btn-ghost"
             >
               {user ? (
                 <div style={{
-                  width: 22,
-                  height: 22,
+                  width: 28,
+                  height: 28,
                   borderRadius: '50%',
-                  background: 'var(--accent, #C9956D)',
+                  background: user.avatar ? 'transparent' : 'var(--accent, #C9956D)',
                   color: '#FFFFFF',
                   fontSize: 10,
                   fontWeight: 700,
@@ -300,9 +302,15 @@ export default function Navbar() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   textTransform: 'uppercase',
-                  fontFamily: "'DM Sans', sans-serif"
+                  fontFamily: "'DM Sans', sans-serif",
+                  overflow: 'hidden',
+                  border: '2px solid var(--accent)',
                 }}>
-                  {user.name.charAt(0)}
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    user.name.charAt(0)
+                  )}
                 </div>
               ) : (
                 <User size={18} />
