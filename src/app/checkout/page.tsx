@@ -350,7 +350,7 @@ function CheckoutContent() {
 
         {/* Content */}
         <div className="container-lg" style={{ paddingTop: 40 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 48, alignItems: 'flex-start' }}>
+          <div className="checkout-main-grid">
 
             {/* Left: Form */}
             <form onSubmit={handleSubmit}>
@@ -731,6 +731,36 @@ function CheckoutContent() {
       </div>
 
       <Footer />
+
+      <style>{`
+        .checkout-main-grid {
+          display: grid;
+          grid-template-columns: 1fr 380px;
+          gap: 48px;
+          align-items: flex-start;
+        }
+        /* On tablet, narrow sidebar */
+        @media (max-width: 900px) {
+          .checkout-main-grid {
+            grid-template-columns: 1fr 320px;
+            gap: 32px;
+          }
+        }
+        /* On mobile, stack vertically - summary first then form */
+        @media (max-width: 640px) {
+          .checkout-main-grid {
+            grid-template-columns: 1fr;
+            gap: 24px;
+          }
+          .checkout-main-grid > form { order: 2; }
+          .checkout-main-grid > div { order: 1; }
+          .checkout-steps-wrap { padding: 32px 0 28px; }
+          .checkout-steps-wrap h1 { font-size: 28px !important; margin-bottom: 20px !important; }
+        }
+        @media (max-width: 420px) {
+          .checkout-steps-label { display: none; }
+        }
+      `}</style>
     </>
   );
 }

@@ -472,10 +472,19 @@ input:focus, select:focus, textarea:focus {
   .container-xl,
   .container-lg,
   .container-md {
-    padding: 0 20px;
+    padding: 0 16px;
   }
-  .section-lg { padding: 64px 0; }
-  .section-md { padding: 48px 0; }
+  .section-lg { padding: 48px 0; }
+  .section-md { padding: 36px 0; }
+  .section-sm { padding: 24px 0; }
+}
+
+@media (max-width: 480px) {
+  .container-xl,
+  .container-lg,
+  .container-md {
+    padding: 0 14px;
+  }
 }
 
 /* ─── Responsive Utility ─────────────────────────── */

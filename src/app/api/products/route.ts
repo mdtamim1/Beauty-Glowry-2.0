@@ -156,14 +156,16 @@ export async function POST(request: Request) {
     }
 
     if (data.productImages && Array.isArray(data.productImages)) {
-      data.productImages.forEach((imgUrl: string, idx: number) => {
+      let galleryCount = 1;
+      data.productImages.forEach((imgUrl: string) => {
         if (imgUrl && imgUrl !== data.image) {
           imagesToCreate.push({
             product_id: newProduct.id,
             url: imgUrl,
-            alt_text: `${data.name} Gallery ${idx + 1} - Beauty Glowry`,
-            position: idx + 1,
+            alt_text: `${data.name} Gallery ${galleryCount} - Beauty Glowry`,
+            position: galleryCount,
           });
+          galleryCount++;
         }
       });
     }

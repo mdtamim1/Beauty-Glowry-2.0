@@ -16,6 +16,7 @@ const footerLinks = {
     { label: 'Anti-Aging', href: '/products?concern=Aging+%26+Fine+Lines' },
     { label: 'Hydration', href: '/products?concern=Dehydration+%26+Dryness' },
     { label: 'Skin Quiz', href: '/quiz' },
+    { label: 'Skincare Blog', href: '/blog' },
   ],
   Support: [
     { label: 'Track Order', href: '#' },
@@ -255,8 +256,20 @@ export default function Footer() {
         /* Mobile — 560px */
         @media (max-width: 560px) {
           .footer-top-grid {
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            padding-bottom: 36px;
+          }
+          .footer-top-grid > div:first-child {
+            grid-column: 1 / -1;
+          }
+        }
+
+        /* Very small — 380px */
+        @media (max-width: 380px) {
+          .footer-top-grid {
             grid-template-columns: 1fr;
-            gap: 32px;
+            gap: 24px;
           }
         }
       `}</style>

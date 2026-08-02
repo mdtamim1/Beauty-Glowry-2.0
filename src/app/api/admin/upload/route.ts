@@ -19,13 +19,13 @@ export async function POST(request: Request) {
 
     // Make filename unique, safe, and SEO optimized
     let filename = '';
-    const ext = path.extname(file.name) || '.jpg';
     if (productName) {
       const cleanProductName = productName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-      filename = `${cleanProductName}-beauty-glowry-${Date.now()}${ext}`;
+      filename = `${cleanProductName}-beauty-glowry-${Date.now()}.jpg`;
     } else {
-      const sanitisedName = file.name.replace(/[^a-zA-Z0-9.]/g, '_');
-      filename = `img_${Date.now()}_${sanitisedName}`;
+      const baseName = file.name.replace(/\.[^/.]+$/, "");
+      const cleanBaseName = baseName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+      filename = `${cleanBaseName || 'product'}-beauty-glowry-${Date.now()}.jpg`;
     }
 
     // Read S3 configuration

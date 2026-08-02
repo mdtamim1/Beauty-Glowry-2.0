@@ -272,10 +272,10 @@ export default function ProductDetailPage() {
       {/* ══ MAIN PRODUCT SECTION ══════════════════════════════════════════ */}
       <section style={{ background: 'var(--bg-base)', padding: '48px 0 64px' }}>
         <div className="container-lg">
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 56, alignItems: 'flex-start' }}>
+          <div className="pdp-main-grid">
 
-            {/* ── LEFT: Gallery ─────────────────────────────────────────── */}
-            <div style={{ position: 'sticky', top: 112 }}>
+            {/* ── LEFT: Gallery ───────────────────────────────────── */}
+            <div className="pdp-gallery">
 
               {/* Main Image */}
               <div
@@ -618,17 +618,7 @@ export default function ProductDetailPage() {
               </button>
 
               {/* ── Trust Facilities Bar ──────────────────────────────── */}
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(4, 1fr)',
-                  gap: 0,
-                  border: '1px solid var(--border-default)',
-                  borderRadius: 6,
-                  overflow: 'hidden',
-                  marginBottom: 24,
-                }}
-              >
+              <div className="pdp-trust-bar">
                 {[
                   {
                     icon: <Truck size={18} style={{ color: '#4CAF82' }} />,
@@ -773,7 +763,7 @@ export default function ProductDetailPage() {
       {/* ══ REVIEWS ══════════════════════════════════════════════════════ */}
       <section style={{ padding: '72px 0', background: 'var(--bg-surface)', borderTop: '1px solid var(--border-default)' }}>
         <div className="container-lg">
-          <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 56 }}>
+          <div className="pdp-reviews-grid">
             {/* Summary */}
             <div>
               <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 400, color: 'var(--text-primary)', marginBottom: 20 }}>
@@ -895,7 +885,7 @@ export default function ProductDetailPage() {
       {/* ══ QUESTIONS & ANSWERS ═══════════════════════════════════════════ */}
       <section style={{ padding: '72px 0', background: 'var(--bg-base)', borderTop: '1px solid var(--border-default)' }}>
         <div className="container-lg">
-          <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 56 }}>
+          <div className="pdp-reviews-grid">
             {/* Left Side: Summary & Ask box */}
             <div>
               <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 32, fontWeight: 400, color: 'var(--text-primary)', marginBottom: 16 }}>
@@ -1000,7 +990,7 @@ export default function ProductDetailPage() {
               </h2>
               <Link href="/products" className="btn-outline" style={{ fontSize: 12 }}>View All <ArrowRight size={13} /></Link>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 18 }}>
+            <div className="pdp-related-grid">
               {related.map((p) => <ProductCard key={p.id} product={p} />)}
             </div>
           </div>
@@ -1008,6 +998,74 @@ export default function ProductDetailPage() {
       )}
 
       <Footer />
+
+      <style>{`
+        /* ── Product Detail Page Mobile Responsive ──── */
+        .pdp-main-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 56px;
+          align-items: flex-start;
+        }
+        .pdp-gallery {
+          position: sticky;
+          top: 112px;
+        }
+        .pdp-trust-bar {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 0;
+          border: 1px solid var(--border-default);
+          border-radius: 6px;
+          overflow: hidden;
+          margin-bottom: 24px;
+        }
+        .pdp-reviews-grid {
+          display: grid;
+          grid-template-columns: 280px 1fr;
+          gap: 56px;
+        }
+        .pdp-related-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 18px;
+        }
+
+        /* ── Tablet (max 900px) */
+        @media (max-width: 900px) {
+          .pdp-main-grid { grid-template-columns: 1fr; gap: 32px; }
+          .pdp-gallery { position: static; top: auto; }
+          .pdp-trust-bar { grid-template-columns: repeat(2, 1fr); }
+          .pdp-reviews-grid { grid-template-columns: 1fr; gap: 40px; }
+          .pdp-related-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        }
+
+        /* ── Mobile (max 640px) */
+        @media (max-width: 640px) {
+          .pdp-main-grid { gap: 24px; }
+          .pdp-trust-bar {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .pdp-related-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+        }
+
+        /* ── Mobile buy buttons sticky bar */
+        @media (max-width: 640px) {
+          .pdp-action-sticky {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 40;
+            background: var(--bg-surface);
+            border-top: 1px solid var(--border-default);
+            padding: 12px 16px;
+            display: flex;
+            gap: 10px;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+          }
+        }
+      `}</style>
     </>
   );
 }

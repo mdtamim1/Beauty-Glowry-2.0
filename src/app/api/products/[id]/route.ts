@@ -179,14 +179,16 @@ export async function PUT(
 
       const galleryImgs = data.productImages || [];
       if (Array.isArray(galleryImgs)) {
-        galleryImgs.forEach((imgUrl: string, idx: number) => {
+        let galleryCount = 1;
+        galleryImgs.forEach((imgUrl: string) => {
           if (imgUrl && imgUrl !== mainImg) {
             imagesToCreate.push({
               product_id: p.id,
               url: imgUrl,
-              alt_text: `${data.name || p.name} Gallery ${idx + 1} - Beauty Glowry`,
-              position: idx + 1,
+              alt_text: `${data.name || p.name} Gallery ${galleryCount} - Beauty Glowry`,
+              position: galleryCount,
             });
+            galleryCount++;
           }
         });
       }

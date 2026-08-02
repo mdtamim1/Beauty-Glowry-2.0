@@ -570,6 +570,16 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
           padding: 3px 8px;
           border-radius: 99px;
         }
+
+        /* On mobile/touch screens: always show action bar */
+        @media (hover: none) and (pointer: coarse), (max-width: 640px) {
+          .pc-action-bar {
+            transform: translateY(0) !important;
+            opacity: 1 !important;
+          }
+          .pc-quickview { display: none; }
+          .pc-img-gradient { opacity: 0.5; }
+        }
       `}</style>
     </div>
   );

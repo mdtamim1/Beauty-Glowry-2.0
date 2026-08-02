@@ -35,6 +35,7 @@ const navLinks = [
     ],
   },
   { label: 'Skin Quiz', href: '/quiz' },
+  { label: 'Blog', href: '/blog' },
   { label: 'Acne Care', href: '/products?concern=Acne+%26+Blemishes' },
 ];
 
@@ -106,6 +107,7 @@ export default function Navbar() {
         }))
       : [{ label: 'Serums & Elixirs', href: '/products?category=Serums+%26+Elixirs' }]),
     { label: 'Skin Quiz', href: '/quiz' },
+    { label: 'Blog', href: '/blog' },
     { label: 'Acne Care', href: '/products?concern=Acne+%26+Blemishes' },
     { label: 'My Wishlist', href: '/wishlist' },
   ];
@@ -513,6 +515,19 @@ export default function Navbar() {
         /* Ensure container fits on mobile */
         @media (max-width: 768px) {
           .navbar-container { padding: 0 16px !important; }
+        }
+
+        /* ── MOBILE: Always show solid navbar background ────────────
+           On mobile, transparent header causes content bleed-through.
+           Force a solid frosted background at all scroll positions.
+        ────────────────────────────────────────────────────────────── */
+        @media (max-width: 768px) {
+          header {
+            background: rgba(250, 247, 242, 0.97) !important;
+            backdrop-filter: blur(20px) !important;
+            -webkit-backdrop-filter: blur(20px) !important;
+            border-bottom: 1px solid var(--border-default) !important;
+          }
         }
 
         /* Premium cart pill button */

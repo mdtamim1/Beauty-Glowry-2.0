@@ -668,7 +668,7 @@ function ProductsContent() {
            SMALL MOBILE — 420px
         ═══════════════════════════════════════════════════ */
         @media (max-width: 420px) {
-          .products-grid { grid-template-columns: 1fr; }
+          .products-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
           .products-sidebar { width: 100vw; }
         }
       `}</style>

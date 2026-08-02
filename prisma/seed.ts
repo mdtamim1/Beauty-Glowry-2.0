@@ -112,11 +112,15 @@ async function main() {
     // Seed Images
     const allImages = [p.image, ...(p.productImages || []).filter((img) => img !== p.image)];
     for (let i = 0; i < allImages.length; i++) {
+      const isMainImage = i === 0;
+      const altText = isMainImage
+        ? `${p.name} - Beauty Glowry`
+        : `${p.name} Gallery ${i} - Beauty Glowry`;
       await prisma.productImage.create({
         data: {
           product_id: product.id,
           url: allImages[i],
-          alt_text: `${p.name} Image ${i + 1}`,
+          alt_text: altText,
           position: i,
         },
       });
