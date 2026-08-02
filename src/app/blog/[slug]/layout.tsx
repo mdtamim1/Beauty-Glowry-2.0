@@ -49,7 +49,85 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     };
   }
 }
+export default async function BlogPostLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ slug: string }>;
+}) {
+  const resolvedParams = await params;
+  let post = null;
 
-export default function BlogPostLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+  try {
+    post = await prisma.blogPost.findFirst({
+      where: { slug: resolvedParams.slug },
+    });
+  } catch (error) {
+    console.error('Error fetching blog post in layout:', error);
+  }
+
+  if (!post) {
+    return <>{children}</>;
+  }
+
+  const articleSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BlogPosting',
+    headline: post.title,
+    description: post.summary,
+    image: post.cover_image || undefined,
+    datePublished: post.created_at ? new Date(post.created_at).toISOString() : undefined,
+    author: {
+      '@type': 'Person',
+      name: post.author || 'Beauty Glowry Specialist',
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: 'Beauty Glowry',
+      logo: {
+        '@type': 'ImageObject',
+        url: 'https://beautygloowry.com/logo.PNG',
+      },
+    },
+  };
+
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: 'https://beautygloowry.com/',
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Blog',
+        item: 'https://beautygloowry.com/blog',
+      },
+      {
+        '@type': 'ListItem',
+        position: 3,
+        name: post.title,
+        item: `https://beautygloowry.com/blog/${post.slug}`,
+      },
+    ],
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(articleSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+      />
+      {children}
+    </>
+  );
 }
