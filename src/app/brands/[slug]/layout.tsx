@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { brands } from '../../../data/products';
+import { brands, products } from '../../../data/products';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
@@ -15,6 +15,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   return {
     title: brand.name,
     description: `${brand.name} — ${brand.tagline}. ${brand.description}`,
+    alternates: {
+      canonical: `https://beautygloowry.com/brands/${brand.id}`,
+    },
     openGraph: {
       title: `${brand.name} | BEAUTY GLOWRY`,
       description: `${brand.name} — ${brand.tagline}. Origin: ${brand.country}.`,
@@ -35,6 +38,50 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   };
 }
 
-export default function BrandLayout({ children }: { children: React.ReactNode }) {
-  return <>{children}</>;
+export default async function BrandLayout({
+  children,
+  params,
+}: {
+  children: React.ReactNode;
+  params: Promise<{ slug: string }>;
+}) {
+  const resolvedParams = await params;
+  const brand = brands.find((b) => b.id === resolvedParams.slug);
+  const brandProducts = products.filter((p) => p.brand === resolvedParams.slug);
+
+  if (!brand) {
+    return <>{children}</>;
+  }
+
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: `${brand.name} Formulations`,
+    description: brand.description,
+    url: `https://beautygloowry.com/brands/${brand.id}`,
+    about: {
+      '@type': 'Brand',
+      name: brand.name,
+      description: brand.tagline,
+    },
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListElement: brandProducts.map((p, idx) => ({
+        '@type': 'ListItem',
+        position: idx + 1,
+        url: `https://beautygloowry.com/product/${p.id}`,
+        name: p.name,
+      })),
+    },
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      {children}
+    </>
+  );
 }

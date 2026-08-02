@@ -3,6 +3,9 @@ import type { Metadata } from 'next';
 export const metadata: Metadata = {
   title: 'Skincare Science Blog & Dermatologist Advice',
   description: 'Learn skincare science, routines, and dermatology tips from certified specialists. Science-backed advice for curing acne, brightening, and barrier repair.',
+  alternates: {
+    canonical: 'https://beautygloowry.com/blog',
+  },
   openGraph: {
     title: 'Skincare Science Blog & Dermatologist Advice | BEAUTY GLOWRY',
     description: 'Learn skincare science, routines, and dermatology tips. Science-backed advice for acne, hyperpigmentation, and barrier repair.',

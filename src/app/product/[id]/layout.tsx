@@ -20,6 +20,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   return {
     title: product.name,
     description: `${product.name} — ${product.description.slice(0, 150)}... Formulated with premium actives for ${product.concerns.join(', ')}. Target skin types: ${product.skinTypes.join(', ')}.`,
+    alternates: {
+      canonical: `https://beautygloowry.com/product/${product.id}`,
+    },
     openGraph: {
       title: `${product.name} | BEAUTY GLOWRY`,
       description: `${product.name} — ${product.description.slice(0, 150)}... Price: ৳${product.price.toLocaleString()}. Targeted for ${product.concerns.join(', ')}.`,

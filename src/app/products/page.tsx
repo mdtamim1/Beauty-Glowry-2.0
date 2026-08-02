@@ -241,9 +241,33 @@ function ProductsContent() {
     </div>
   );
 
+  // Dynamically generate CollectionPage schema for the products page
+  const collectionSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    name: selectedCategories.length > 0 
+      ? `${selectedCategories.join(', ')} Skincare Formulations`
+      : 'Beauty Glowry Skincare Formulations',
+    description: 'Shop dermatologist-formulated active skincare treatments at Beauty Glowry. Clean, clinical formulas.',
+    url: 'https://beautygloowry.com/products',
+    mainEntity: {
+      '@type': 'ItemList',
+      itemListElement: filteredProducts.map((p, idx) => ({
+        '@type': 'ListItem',
+        position: idx + 1,
+        url: `https://beautygloowry.com/product/${p.id}`,
+        name: p.name,
+      })),
+    },
+  };
+
   return (
     <>
       <Navbar />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }}
+      />
       <div style={{ minHeight: '80vh', paddingTop: 24, background: 'var(--bg-base)' }}>
         {/* Page Header */}
         <div
