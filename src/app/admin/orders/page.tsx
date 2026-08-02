@@ -142,6 +142,245 @@ function LabeledField({ label, required, children }: { label: string; required?:
 }
 
 // ─── View/Edit Order Modal ─────────────────────────────────────────────────────
+// ─── Steadfast Send Modal ────────────────────────────────────────────────────
+function SteadfastModal({ order, onClose, onSent }: { order: Order; onClose: () => void; onSent: (cid: string, url: string) => void }) {
+  const codAmount = order.total;
+  const fullAddress = [order.address, order.thana, order.area, order.district].filter(Boolean).join(', ');
+  const [name, setName] = useState(order.customer);
+  const [phone, setPhone] = useState(order.phone);
+  const [addr, setAddr] = useState(fullAddress);
+  const [cod, setCod] = useState(codAmount);
+  const [note, setNote] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState('');
+
+  const getToken = () => {
+    try { const s = localStorage.getItem('bg_admin_session'); return s ? JSON.parse(s)?.token : null; } catch { return null; }
+  };
+
+  const handleSend = async () => {
+    setLoading(true); setError('');
+    const token = getToken();
+    try {
+      const res = await fetch('/api/courier/steadfast/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          order_number: order.id,
+          recipient_name: name,
+          recipient_phone: phone,
+          recipient_address: addr,
+          cod_amount: cod,
+          note,
+          item_description: order.items.map(i => `${i.name} x${i.qty}`).join(', '),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || 'Failed to send to Steadfast'); return; }
+      setResult(data);
+      onSent(data.consignment_id, data.tracking_url);
+    } catch (e: any) { setError(e.message); } finally { setLoading(false); }
+  };
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 201 }} />
+      <div style={{
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+        zIndex: 202, width: '90%', maxWidth: 480,
+        background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14,
+        overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `1px solid ${C.border}`, background: 'rgba(16,185,129,0.08)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Truck size={18} style={{ color: '#10B981' }} />
+            <span style={{ fontSize: 14, fontWeight: 800, color: C.text }}>Send to Steadfast</span>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 4 }}><X size={18} /></button>
+        </div>
+
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {result ? (
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>✅</div>
+              <p style={{ fontSize: 16, fontWeight: 800, color: '#10B981', marginBottom: 8 }}>Sent to Steadfast!</p>
+              <p style={{ fontSize: 13, color: C.textSec, marginBottom: 16 }}>Consignment ID:</p>
+              <div style={{ padding: '10px 16px', background: C.elevated, borderRadius: 8, fontFamily: "'DM Mono', monospace", fontSize: 16, fontWeight: 700, color: '#10B981', letterSpacing: '0.1em', marginBottom: 16 }}>
+                {result.consignment_id}
+              </div>
+              {result.tracking_url && (
+                <a href={result.tracking_url} target="_blank" rel="noopener noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '8px 20px', background: '#10B981', color: '#fff', borderRadius: 8, fontSize: 13, fontWeight: 700, textDecoration: 'none' }}>
+                  <Truck size={13} /> Track Package
+                </a>
+              )}
+            </div>
+          ) : (
+            <>
+              {error && <div style={{ padding: '10px 14px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, fontSize: 12, color: '#EF4444' }}>{error}</div>}
+              {[{ label: 'Recipient Name', val: name, set: setName }, { label: 'Phone', val: phone, set: setPhone }, { label: 'Address', val: addr, set: setAddr }].map(f => (
+                <div key={f.label}>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: C.muted, marginBottom: 5 }}>{f.label}</label>
+                  <input value={f.val} onChange={e => f.set(e.target.value)} style={{ ...iS }} />
+                </div>
+              ))}
+              <div>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: C.muted, marginBottom: 5 }}>COD Amount (৳)</label>
+                <input type="number" value={cod} onChange={e => setCod(Number(e.target.value))} style={{ ...iS }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: C.muted, marginBottom: 5 }}>Note (Optional)</label>
+                <input value={note} onChange={e => setNote(e.target.value)} placeholder="Special delivery instructions..." style={{ ...iS }} />
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+                <button onClick={onClose} style={{ flex: 1, padding: '10px 0', background: 'none', border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, color: C.muted, cursor: 'pointer' }}>Cancel</button>
+                <button onClick={handleSend} disabled={loading} style={{ flex: 2, padding: '10px 0', background: '#10B981', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 800, color: '#fff', cursor: loading ? 'wait' : 'pointer', opacity: loading ? 0.7 : 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <Truck size={14} /> {loading ? 'Sending…' : 'Confirm & Send'}
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── Fraud Check Modal ────────────────────────────────────────────────────────
+function FraudCheckModal({ phone, onClose }: { phone: string; onClose: () => void }) {
+  const [loading, setLoading] = useState(true);
+  const [result, setResult] = useState<any>(null);
+  const [error, setError] = useState('');
+
+  const getToken = () => {
+    try { const s = localStorage.getItem('bg_admin_session'); return s ? JSON.parse(s)?.token : null; } catch { return null; }
+  };
+
+  useEffect(() => {
+    const token = getToken();
+    fetch('/api/courier/fraud-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ phone }),
+    })
+      .then(r => r.json())
+      .then(data => { setResult(data); })
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [phone]);
+
+  const getRiskConfig = (score: number) => {
+    if (score >= 70) return { label: 'HIGH RISK', color: '#EF4444', bg: 'rgba(239,68,68,0.12)', icon: '🚨' };
+    if (score >= 40) return { label: 'MEDIUM RISK', color: '#F59E0B', bg: 'rgba(245,158,11,0.12)', icon: '⚠️' };
+    return { label: 'LOW RISK', color: '#10B981', bg: 'rgba(16,185,129,0.12)', icon: '✅' };
+  };
+
+  const riskScore = result?.risk_score ?? result?.riskScore ?? result?.score ?? null;
+  const riskCfg = riskScore !== null ? getRiskConfig(riskScore) : null;
+
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', zIndex: 201 }} />
+      <div style={{
+        position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%,-50%)',
+        zIndex: 202, width: '90%', maxWidth: 500,
+        background: C.surface, border: `1px solid ${C.border}`, borderRadius: 14,
+        overflow: 'hidden', boxShadow: '0 24px 80px rgba(0,0,0,0.6)',
+        maxHeight: '85vh', display: 'flex', flexDirection: 'column',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: `1px solid ${C.border}`, background: 'rgba(96,165,250,0.08)', flexShrink: 0 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Shield size={18} style={{ color: C.info }} />
+            <div>
+              <span style={{ fontSize: 14, fontWeight: 800, color: C.text }}>Fraud Check</span>
+              <div style={{ fontSize: 11, color: C.muted, fontFamily: "'DM Mono', monospace" }}>{phone}</div>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: C.muted, padding: 4 }}><X size={18} /></button>
+        </div>
+
+        <div style={{ padding: 20, overflowY: 'auto' }}>
+          {loading && (
+            <div style={{ textAlign: 'center', padding: '40px 0' }}>
+              <RefreshCw size={28} style={{ color: C.info, animation: 'spin 1s linear infinite', margin: '0 auto 12px', display: 'block' }} />
+              <p style={{ color: C.muted, fontSize: 13 }}>Checking across Pathao, Steadfast, RedX, Paperfly…</p>
+              <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
+            </div>
+          )}
+
+          {error && (
+            <div style={{ padding: '14px 16px', background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, fontSize: 13, color: '#EF4444', textAlign: 'center' }}>
+              <AlertCircle size={18} style={{ marginBottom: 8, display: 'block', margin: '0 auto 8px' }} />
+              {error}
+              <p style={{ fontSize: 11, marginTop: 6, color: C.muted }}>Make sure the BD Courier API key is configured.</p>
+            </div>
+          )}
+
+          {result && !loading && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Risk Score Banner */}
+              {riskCfg && (
+                <div style={{ padding: '16px 20px', background: riskCfg.bg, border: `1px solid ${riskCfg.color}40`, borderRadius: 12, display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <span style={{ fontSize: 32 }}>{riskCfg.icon}</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: riskCfg.color }}>{riskCfg.label}</div>
+                    <div style={{ fontSize: 28, fontWeight: 900, color: riskCfg.color, fontFamily: "'DM Mono', monospace", lineHeight: 1 }}>{riskScore}<span style={{ fontSize: 14, fontWeight: 500 }}>/100</span></div>
+                    <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>Risk Score</div>
+                  </div>
+                </div>
+              )}
+
+              {/* Stats Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                {[
+                  { label: 'Total Orders', value: result.total_orders ?? result.totalOrders ?? '—', color: C.text },
+                  { label: 'Delivered', value: result.success_count ?? result.delivered ?? result.successCount ?? '—', color: '#10B981' },
+                  { label: 'Returned/Cancelled', value: result.return_count ?? result.returned ?? result.returnCount ?? '—', color: '#EF4444' },
+                ].map(stat => (
+                  <div key={stat.label} style={{ padding: '12px 14px', background: C.elevated, borderRadius: 10, textAlign: 'center', border: `1px solid ${C.border}` }}>
+                    <div style={{ fontSize: 22, fontWeight: 900, color: stat.color, fontFamily: "'DM Mono', monospace" }}>{stat.value}</div>
+                    <div style={{ fontSize: 10, color: C.muted, marginTop: 4, letterSpacing: '0.05em' }}>{stat.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Per-courier breakdown */}
+              {(result.couriers || result.courier_wise || result.breakdown) && (
+                <div style={{ background: C.elevated, borderRadius: 10, border: `1px solid ${C.border}`, overflow: 'hidden' }}>
+                  <div style={{ padding: '8px 14px', borderBottom: `1px solid ${C.border}`, fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: C.muted }}>Courier Breakdown</div>
+                  {Object.entries(result.couriers || result.courier_wise || result.breakdown || {}).map(([courier, stats]: [string, any]) => (
+                    <div key={courier} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderBottom: `1px solid ${C.border}` }}>
+                      <span style={{ fontSize: 13, fontWeight: 600, color: C.text }}>{courier}</span>
+                      <div style={{ display: 'flex', gap: 12, fontSize: 12 }}>
+                        <span style={{ color: '#10B981' }}>✓ {typeof stats === 'object' ? (stats.delivered ?? stats.success ?? stats.success_count ?? 0) : 0}</span>
+                        <span style={{ color: '#EF4444' }}>✗ {typeof stats === 'object' ? (stats.returned ?? stats.return ?? stats.return_count ?? 0) : 0}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Raw message if exists */}
+              {result.message && (
+                <div style={{ padding: '10px 14px', background: C.elevated, borderRadius: 8, fontSize: 12, color: C.muted }}>
+                  {result.message}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div style={{ padding: '12px 20px', borderTop: `1px solid ${C.border}`, flexShrink: 0 }}>
+          <button onClick={onClose} style={{ width: '100%', padding: '10px 0', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, fontWeight: 700, color: C.muted, cursor: 'pointer' }}>Close</button>
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ─── View/Edit Order Modal ─────────────────────────────────────────────────────
 function ViewOrderModal({ order, onClose, onSave }: {
   order: Order;
   onClose: () => void;
@@ -180,6 +419,12 @@ function ViewOrderModal({ order, onClose, onSave }: {
   const [couponCode, setCouponCode] = useState('');
   const [couponApplied, setCouponApplied] = useState(false);
   const [couponDiscount, setCouponDiscount] = useState(0);
+
+  // Courier integration states
+  const [showSteadfastModal, setShowSteadfastModal] = useState(false);
+  const [showFraudModal, setShowFraudModal] = useState(false);
+  const [consignmentId, setConsignmentId] = useState((order as any).consignment_id || '');
+  const [trackingUrl, setTrackingUrl] = useState((order as any).tracking_url || '');
 
   // Reassignment states
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -810,30 +1055,92 @@ function ViewOrderModal({ order, onClose, onSave }: {
         </div>
 
         {/* ── Footer */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 28px', borderTop: `1px solid ${C.border}`, background: C.elevated, flexShrink: 0 }}>
-          <button onClick={() => window.open(`/api/orders/${order.id}/invoice`, '_blank')} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.muted, cursor: 'pointer' }}>
-            <Printer size={14} /> Download Invoice PDF
-          </button>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={onClose} style={{ padding: '9px 20px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.muted, cursor: 'pointer' }}>
-              Cancel
-            </button>
+        <div style={{ borderTop: `1px solid ${C.border}`, background: C.elevated, flexShrink: 0 }}>
+          {/* Courier Actions Row */}
+          <div style={{ display: 'flex', gap: 10, padding: '12px 20px', borderBottom: `1px solid ${C.border}` }}>
+            {/* Steadfast Button */}
             <button
-              onClick={handleUpdate}
-              disabled={!customerName || !customerPhone || !customerAddress}
+              onClick={() => setShowSteadfastModal(true)}
               style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: '9px 24px',
-                background: (!customerName || !customerPhone || !customerAddress) ? C.muted : C.accent,
-                border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, color: '#fff',
-                cursor: (!customerName || !customerPhone || !customerAddress) ? 'not-allowed' : 'pointer',
-                boxShadow: (!customerName || !customerPhone || !customerAddress) ? 'none' : `0 4px 16px rgba(201,149,109,0.3)`,
-                transition: 'all 0.2s',
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                padding: '9px 0', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                background: consignmentId ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.15)',
+                border: `1px solid ${consignmentId ? '#10B981' : 'rgba(16,185,129,0.4)'}`,
+                color: '#10B981', transition: 'all 0.2s',
               }}
             >
-              <Save size={14} /> Save Changes
+              <Truck size={13} />
+              {consignmentId ? `Steadfast: ${consignmentId}` : 'Send to Steadfast'}
+            </button>
+
+            {/* Fraud Check Button */}
+            <button
+              onClick={() => setShowFraudModal(true)}
+              style={{
+                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+                padding: '9px 0', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.4)',
+                color: C.info, transition: 'all 0.2s',
+              }}
+            >
+              <Shield size={13} /> Check Fraud
             </button>
           </div>
+
+          {/* Tracking link if consignment already set */}
+          {consignmentId && trackingUrl && (
+            <div style={{ padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${C.border}`, background: 'rgba(16,185,129,0.05)' }}>
+              <Check size={12} style={{ color: '#10B981', flexShrink: 0 }} />
+              <span style={{ fontSize: 11, color: '#10B981', fontWeight: 600 }}>Dispatched via Steadfast</span>
+              <a href={trackingUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: C.info, marginLeft: 'auto', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                Track Package →
+              </a>
+            </div>
+          )}
+
+          {/* Main Save/Cancel */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px' }}>
+            <button onClick={() => window.open(`/api/orders/${order.id}/invoice`, '_blank')} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '9px 18px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.muted, cursor: 'pointer' }}>
+              <Printer size={14} /> Download Invoice PDF
+            </button>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button onClick={onClose} style={{ padding: '9px 20px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.muted, cursor: 'pointer' }}>
+                Cancel
+              </button>
+              <button
+                onClick={handleUpdate}
+                disabled={!customerName || !customerPhone || !customerAddress}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8, padding: '9px 24px',
+                  background: (!customerName || !customerPhone || !customerAddress) ? C.muted : C.accent,
+                  border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, color: '#fff',
+                  cursor: (!customerName || !customerPhone || !customerAddress) ? 'not-allowed' : 'pointer',
+                  boxShadow: (!customerName || !customerPhone || !customerAddress) ? 'none' : `0 4px 16px rgba(201,149,109,0.3)`,
+                  transition: 'all 0.2s',
+                }}
+              >
+                <Save size={14} /> Save Changes
+              </button>
+            </div>
+          </div>
         </div>
+
+        {/* Steadfast Modal */}
+        {showSteadfastModal && (
+          <SteadfastModal
+            order={order}
+            onClose={() => setShowSteadfastModal(false)}
+            onSent={(cid, url) => { setConsignmentId(cid); setTrackingUrl(url); setShowSteadfastModal(false); }}
+          />
+        )}
+
+        {/* Fraud Check Modal */}
+        {showFraudModal && (
+          <FraudCheckModal
+            phone={customerPhone}
+            onClose={() => setShowFraudModal(false)}
+          />
+        )}
       </div>
     </>
   );

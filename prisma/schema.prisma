@@ -252,6 +252,8 @@ model Order {
   thana          String?     @default("")
   area           String?     @default("")
   assigned_to    String?     @default("")
+  consignment_id String?     // Steadfast consignment ID
+  tracking_url   String?     // Steadfast tracking URL
   status_history OrderStatusHistory[]
   
   user           User?       @relation(fields: [user_id], references: [id], onDelete: SetNull)

@@ -30,6 +30,8 @@ interface Order {
   address: string;
   courier: string;
   customer_notes: string;
+  consignment_id?: string;
+  tracking_url?: string;
   items: { name: string; image: string; qty: number; price: number; variant: string; productId: string }[];
   timeline: { status: string; note: string; date: string }[];
 }
@@ -367,9 +369,36 @@ function OrdersTab({ orders }: { orders: Order[] }) {
                   </div>
                 )}
                 {order.courier && (
-                  <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                     <Truck size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Courier: {order.courier}</span>
+                    {order.consignment_id && (
+                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                        (Consignment: <strong>{order.consignment_id}</strong>)
+                      </span>
+                    )}
+                    {order.tracking_url && (
+                      <a
+                        href={order.tracking_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          fontSize: 11,
+                          color: 'var(--accent)',
+                          fontWeight: 700,
+                          textDecoration: 'none',
+                          marginLeft: 8,
+                          border: '1px solid var(--accent)',
+                          padding: '2px 8px',
+                          borderRadius: 6,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 4
+                        }}
+                      >
+                        Track Package
+                      </a>
+                    )}
                   </div>
                 )}
               </div>

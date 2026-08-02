@@ -49,6 +49,8 @@ export async function GET(request: NextRequest) {
       address: o.address ? `${o.address.address_line}, ${o.address.city}` : '',
       courier: o.courier || '',
       customer_notes: o.customer_notes || '',
+      consignment_id: o.consignment_id || '',
+      tracking_url: o.tracking_url || '',
       items: o.items.map((item: any) => ({
         name: item.product_variant?.product?.name || 'Product',
         image: item.product_variant?.product?.images?.[0]?.url || item.product_variant?.image || '',
