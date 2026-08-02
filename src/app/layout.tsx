@@ -3,6 +3,7 @@ import { Cormorant_Garamond, DM_Sans, DM_Mono } from "next/font/google";
 import "./globals.css";
 import WhatsAppButton from "../components/WhatsAppButton";
 import AuthInterceptor from "../components/AuthInterceptor";
+import { prisma } from "../lib/prisma";
 
 const cormorant = Cormorant_Garamond({
   subsets: ["latin"],
@@ -61,16 +62,79 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  let storeConfig = {
+    storeName: 'Beauty Glowry',
+    storeTagline: 'Clinical Skincare for Every Skin Type',
+    storeEmail: 'hello@beautyglowry.com',
+    storePhone: '+880 1700 000000',
+    storeAddress: 'House 12, Road 4, Dhanmondi, Dhaka 1205',
+  };
+
+  try {
+    const section = await prisma.homepageSection.findFirst({
+      where: { section_type: 'store_settings' },
+    });
+    if (section) {
+      const parsed = JSON.parse(section.config_json || '{}');
+      storeConfig = { ...storeConfig, ...parsed };
+    }
+  } catch (e) {
+    console.error('[RootLayout] Failed to load store settings:', e);
+  }
+
+  // Construct JSON-LD schemas
+  const orgSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: storeConfig.storeName,
+    url: 'https://beautygloowry.com',
+    logo: 'https://beautygloowry.com/logo.PNG',
+    description: storeConfig.storeTagline,
+    contactPoint: {
+      '@type': 'ContactPoint',
+      telephone: storeConfig.storePhone,
+      contactType: 'customer service',
+      areaServed: 'BD',
+      availableLanguage: ['en', 'bn'],
+    },
+    sameAs: [
+      'https://www.facebook.com/beautyglowry',
+      'https://www.instagram.com/beautyglowry',
+    ],
+  };
+
+  const webSiteSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: storeConfig.storeName,
+    url: 'https://beautygloowry.com',
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: 'https://beautygloowry.com/products?search={search_term_string}',
+      'query-input': 'required name=search_term_string',
+    },
+  };
+
   return (
     <html
       lang="en"
       className={`${cormorant.variable} ${dmSans.variable} ${dmMono.variable} h-full antialiased`}
     >
+      <head>
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteSchema) }}
+        />
+      </head>
       <body
         className="min-h-full flex flex-col"
         style={{ background: "var(--bg-base)", color: "var(--text-primary)", fontFamily: "'DM Sans', system-ui, sans-serif" }}
