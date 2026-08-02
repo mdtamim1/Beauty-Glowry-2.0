@@ -369,34 +369,50 @@ function OrdersTab({ orders }: { orders: Order[] }) {
                   </div>
                 )}
                 {order.courier && (
-                  <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                  <div style={{ marginTop: 6, display: 'flex', gap: 8, alignItems: 'center' }}>
                     <Truck size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                     <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Courier: {order.courier}</span>
-                    {order.consignment_id && (
-                      <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                        (Consignment: <strong>{order.consignment_id}</strong>)
-                      </span>
-                    )}
+                  </div>
+                )}
+
+                {/* Steadfast Tracking Card */}
+                {order.consignment_id && (
+                  <div style={{
+                    marginTop: 12, padding: '12px 14px',
+                    background: 'rgba(16,185,129,0.06)',
+                    border: '1px solid rgba(16,185,129,0.25)',
+                    borderRadius: 12,
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 32, height: 32, borderRadius: 8, background: 'rgba(16,185,129,0.15)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        <Truck size={14} style={{ color: '#10B981' }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, fontWeight: 700, color: '#10B981', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          Steadfast — In Transit
+                        </div>
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: "'DM Mono', monospace" }}>
+                          CN: {order.consignment_id}
+                        </div>
+                      </div>
+                    </div>
                     {order.tracking_url && (
                       <a
                         href={order.tracking_url}
                         target="_blank"
                         rel="noopener noreferrer"
                         style={{
-                          fontSize: 11,
-                          color: 'var(--accent)',
-                          fontWeight: 700,
-                          textDecoration: 'none',
-                          marginLeft: 8,
-                          border: '1px solid var(--accent)',
-                          padding: '2px 8px',
-                          borderRadius: 6,
-                          display: 'inline-flex',
-                          alignItems: 'center',
-                          gap: 4
+                          padding: '7px 14px', background: '#10B981', color: '#fff',
+                          borderRadius: 8, fontSize: 12, fontWeight: 700,
+                          textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5,
+                          flexShrink: 0,
                         }}
                       >
-                        Track Package
+                        <Truck size={11} /> Track
                       </a>
                     )}
                   </div>
@@ -409,6 +425,7 @@ function OrdersTab({ orders }: { orders: Order[] }) {
     </div>
   );
 }
+
 
 // Profile Tab
 function ProfileTab({ user, token, onUpdate }: { user: any; token: string; onUpdate: (u: any) => void }) {

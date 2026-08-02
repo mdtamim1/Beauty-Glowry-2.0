@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '../../../../../lib/prisma';
-import { verifyAdminOrModerator } from '../../../../../lib/auth';
+import { prisma } from '@/lib/prisma';
+import { verifyAdminOrModerator } from '@/lib/auth';
 
 const STEADFAST_API_KEY = process.env.STEADFAST_API_KEY!;
 const STEADFAST_SECRET_KEY = process.env.STEADFAST_SECRET_KEY!;
-const STEADFAST_BASE_URL = process.env.STEADFAST_BASE_URL || 'https://portal.packzy.com/api/v1';
+const STEADFAST_BASE_URL = process.env.STEADFAST_BASE_URL || 'https://portal.steadfast.com.bd/api/v1';
 
 const sfHeaders = {
   'Api-Key': STEADFAST_API_KEY,
@@ -57,7 +57,7 @@ export async function POST(request: NextRequest) {
       }, { status: 400 });
     }
 
-    const consignment_id = sfData.consignment?.consignment_id || sfData.consignment_id || '';
+    const consignment_id = String(sfData.consignment?.consignment_id || sfData.consignment_id || '');
     const tracking_url = consignment_id
       ? `https://steadfast.com.bd/t/${consignment_id}`
       : '';

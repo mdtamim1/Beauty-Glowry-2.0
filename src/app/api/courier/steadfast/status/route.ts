@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminOrModerator } from '../../../../../lib/auth';
+import { verifyAdminOrModerator } from '@/lib/auth';
 
 const STEADFAST_API_KEY = process.env.STEADFAST_API_KEY!;
 const STEADFAST_SECRET_KEY = process.env.STEADFAST_SECRET_KEY!;
-const STEADFAST_BASE_URL = process.env.STEADFAST_BASE_URL || 'https://portal.packzy.com/api/v1';
+const STEADFAST_BASE_URL = process.env.STEADFAST_BASE_URL || 'https://portal.steadfast.com.bd/api/v1';
 
 const sfHeaders = {
   'Api-Key': STEADFAST_API_KEY,

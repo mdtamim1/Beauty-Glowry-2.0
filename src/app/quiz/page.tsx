@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { ArrowRight, ArrowLeft, Check, Sparkles, RefreshCw } from 'lucide-react';
-import { products, skinConcerns } from '../../data/products';
+import { ArrowLeft, Check, Sparkles, RefreshCw } from 'lucide-react';
+import { products } from '../../data/products';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import ProductCard from '../../components/ProductCard';
@@ -85,19 +85,12 @@ export default function QuizPage() {
 
   const currentQ = QUESTIONS[step];
   const isLastStep = step === QUESTIONS.length - 1;
-  const progress = ((step) / QUESTIONS.length) * 100;
 
   useEffect(() => {
     if (token) {
-      fetch('/api/quiz/history', {
-        headers: { 'Authorization': `Bearer ${token}` }
-      })
+      fetch('/api/quiz/history', { headers: { 'Authorization': `Bearer ${token}` } })
         .then(res => res.json())
-        .then(data => {
-          if (data.success) {
-            setHistory(data.history || []);
-          }
-        })
+        .then(data => { if (data.success) setHistory(data.history || []); })
         .catch(console.error);
     }
   }, [token, completed]);
@@ -105,28 +98,16 @@ export default function QuizPage() {
   const handleAnswer = async (value: string) => {
     const updated = { ...answers, [currentQ.id]: value };
     setAnswers(updated);
-
     if (isLastStep) {
       if (token) {
         try {
           await fetch('/api/quiz/history', {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`
-            },
-            body: JSON.stringify({
-              skin_type: updated.skin_type,
-              concern: updated.concern,
-              routine_type: updated.routine,
-              budget: updated.budget,
-              answers_json: JSON.stringify(updated)
-            })
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify({ skin_type: updated.skin_type, concern: updated.concern, routine_type: updated.routine, budget: updated.budget, answers_json: JSON.stringify(updated) })
           });
           updateSkinProfile(updated.skin_type);
-        } catch (e) {
-          console.error('Failed to sync skin quiz with database:', e);
-        }
+        } catch (e) { console.error('Failed to sync skin quiz:', e); }
       }
       setTimeout(() => setCompleted(true), 300);
     } else {
@@ -137,64 +118,33 @@ export default function QuizPage() {
   const getRecommendations = () => {
     const concern = answers.concern || 'acne';
     const skinType = answers.skin_type || 'oily';
-
     const concernTags = CONCERN_MAP[concern] || [];
     const skinTypeTags = SKIN_TYPE_MAP[skinType] || [];
-
     return products
-      .filter((p) => {
-        const matchesConcern = p.concerns.some((c) => concernTags.some((tag) => c.includes(tag.split(' ')[0])));
-        const matchesSkin = p.skinTypes.some((st) => skinTypeTags.includes(st));
-        return matchesConcern || matchesSkin;
+      .filter(p => {
+        const mc = p.concerns.some(c => concernTags.some(tag => c.includes(tag.split(' ')[0])));
+        const ms = p.skinTypes.some(st => skinTypeTags.includes(st));
+        return mc || ms;
       })
       .sort((a, b) => (b.isBestseller ? 1 : 0) - (a.isBestseller ? 1 : 0))
       .slice(0, 4);
   };
 
-  const reset = () => {
-    setStep(0);
-    setAnswers({});
-    setCompleted(false);
-  };
+  const reset = () => { setStep(0); setAnswers({}); setCompleted(false); };
+
+  const colClass = !completed && currentQ ? (currentQ.options.length <= 3 ? 'quiz-opts-3' : 'quiz-opts-even') : '';
 
   return (
     <>
       <Navbar />
-
       <div style={{ minHeight: '90vh', background: 'var(--bg-base)', paddingBottom: 80 }}>
-        {/* Header */}
-        <div
-          style={{
-            textAlign: 'center',
-            padding: '64px 20px 0',
-            background: 'var(--bg-surface)',
-            borderBottom: '1px solid var(--border-default)',
-            paddingBottom: 48,
-          }}
-        >
-          <p
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              letterSpacing: '0.14em',
-              textTransform: 'uppercase',
-              color: 'var(--accent)',
-              marginBottom: 14,
-            }}
-          >
+
+        {/* ── Header ──────────────────────────────────────────── */}
+        <div style={{ textAlign: 'center', padding: '64px 20px 48px', background: 'var(--bg-surface)', borderBottom: '1px solid var(--border-default)' }}>
+          <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 14 }}>
             Personalized Routine Builder
           </p>
-          <h1
-            className="font-editorial"
-            style={{
-              fontFamily: "'Cormorant Garamond', Georgia, serif",
-              fontSize: 'clamp(36px, 5vw, 56px)',
-              fontWeight: 400,
-              color: 'var(--text-primary)',
-              lineHeight: 1.1,
-              marginBottom: 12,
-            }}
-          >
+          <h1 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 'clamp(28px, 5vw, 56px)', fontWeight: 400, color: 'var(--text-primary)', lineHeight: 1.1, marginBottom: 12 }}>
             Your Skin Diagnostic
           </h1>
           <p style={{ fontSize: 15, color: 'var(--text-secondary)', maxWidth: 480, margin: '0 auto 32px' }}>
@@ -202,51 +152,20 @@ export default function QuizPage() {
           </p>
 
           {step === 0 && !completed && history.length > 0 && (
-            <div style={{ marginTop: 24, maxWidth: 480, margin: '24px auto 0' }}>
-              <button
-                onClick={() => setShowHistory(!showHistory)}
-                className="btn-outline"
-                style={{ fontSize: 12, padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: 6 }}
-              >
-                📜 {showHistory ? 'Hide Previous Diagnostics' : `View Skincare Profile History (${history.length})`}
+            <div style={{ maxWidth: 480, margin: '0 auto' }}>
+              <button onClick={() => setShowHistory(!showHistory)} className="btn-outline" style={{ fontSize: 12, padding: '8px 16px', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                📜 {showHistory ? 'Hide History' : `View History (${history.length})`}
               </button>
-
               {showHistory && (
-                <div
-                  className="animate-scale-in"
-                  style={{
-                    marginTop: 16,
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 4,
-                    padding: 16,
-                    textAlign: 'left',
-                    maxHeight: 280,
-                    overflowY: 'auto'
-                  }}
-                >
-                  <h4 style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: 'var(--text-primary)' }}>Your Skin Diagnostics History</h4>
+                <div style={{ marginTop: 16, background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 4, padding: 16, textAlign: 'left', maxHeight: 240, overflowY: 'auto' }}>
                   {history.map((h, i) => (
-                    <div
-                      key={h.id}
-                      style={{
-                        paddingBottom: i !== history.length - 1 ? 12 : 0,
-                        marginBottom: i !== history.length - 1 ? 12 : 0,
-                        borderBottom: i !== history.length - 1 ? '1px solid var(--border-subtle)' : 'none'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', textTransform: 'capitalize' }}>
-                          Type: {h.skin_type}
-                        </span>
-                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>
-                          {new Date(h.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </span>
+                    <div key={h.id} style={{ paddingBottom: i !== history.length - 1 ? 12 : 0, marginBottom: i !== history.length - 1 ? 12 : 0, borderBottom: i !== history.length - 1 ? '1px solid var(--border-subtle)' : 'none' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 4 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)', textTransform: 'capitalize' }}>Type: {h.skin_type}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{new Date(h.created_at).toLocaleDateString()}</span>
                       </div>
                       <p style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                        Concern: <span style={{ textTransform: 'capitalize', fontWeight: 600 }}>{h.concern}</span> · 
-                        Routine: <span style={{ textTransform: 'capitalize' }}>{h.routine_type}</span> · 
-                        Budget: <span style={{ textTransform: 'capitalize' }}>{h.budget}</span>
+                        Concern: <strong>{h.concern}</strong> · Routine: {h.routine_type} · Budget: {h.budget}
                       </p>
                     </div>
                   ))}
@@ -256,197 +175,94 @@ export default function QuizPage() {
           )}
 
           {!completed && (
-            <>
-              {/* Progress Bar */}
-              <div
-                style={{ width: '100%', maxWidth: 480, margin: '0 auto', position: 'relative' }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-                  {QUESTIONS.map((_, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        width: 28,
-                        height: 28,
-                        borderRadius: '50%',
-                        background: i < step ? 'var(--sage)' : i === step ? 'var(--accent)' : 'var(--bg-elevated)',
-                        border: i <= step ? 'none' : '1px solid var(--border-default)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: i <= step ? '#FFF' : 'var(--text-muted)',
-                        transition: 'all 0.3s ease',
-                        zIndex: 1,
-                      }}
-                    >
-                      {i < step ? <Check size={12} /> : i + 1}
-                    </div>
-                  ))}
-                  <div
-                    style={{
-                      position: 'absolute',
-                      top: 14,
-                      left: 14,
-                      right: 14,
-                      height: 1,
-                      background: 'var(--border-default)',
-                      zIndex: 0,
-                    }}
-                  />
-                </div>
+            <div style={{ maxWidth: 480, margin: '28px auto 0', position: 'relative', padding: '0 10px' }}>
+              <div style={{ position: 'absolute', top: 14, left: 24, right: 24, height: 1, background: 'var(--border-default)', zIndex: 0 }} />
+              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                {QUESTIONS.map((_, i) => (
+                  <div key={i} style={{
+                    width: 28, height: 28, borderRadius: '50%', zIndex: 1, position: 'relative',
+                    background: i < step ? 'var(--sage)' : i === step ? 'var(--accent)' : 'var(--bg-elevated)',
+                    border: i <= step ? 'none' : '1px solid var(--border-default)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 11, fontWeight: 700, color: i <= step ? '#FFF' : 'var(--text-muted)',
+                    transition: 'all 0.3s ease',
+                  }}>
+                    {i < step ? <Check size={12} /> : i + 1}
+                  </div>
+                ))}
               </div>
-            </>
+            </div>
           )}
         </div>
 
-        {/* Quiz Content */}
-        <div className="container-md" style={{ paddingTop: 56 }}>
+        {/* ── Content ─────────────────────────────────────────── */}
+        <div className="container-md" style={{ paddingTop: 48 }}>
           {completed ? (
-            // Results
+            /* Results */
             <div className="animate-fade-up">
-              <div style={{ textAlign: 'center', marginBottom: 56 }}>
-                <div
-                  style={{
-                    width: 72,
-                    height: 72,
-                    borderRadius: '50%',
-                    background: 'linear-gradient(135deg, var(--accent), var(--sage))',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    margin: '0 auto 24px',
-                    boxShadow: '0 12px 40px rgba(201,149,109,0.3)',
-                  }}
-                >
+              <div style={{ textAlign: 'center', marginBottom: 40, padding: '0 16px' }}>
+                <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), var(--sage))', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px', boxShadow: '0 12px 40px rgba(201,149,109,0.3)' }}>
                   <Sparkles size={32} style={{ color: '#FFF' }} />
                 </div>
-                <h2
-                  className="font-editorial"
-                  style={{
-                    fontFamily: "'Cormorant Garamond', Georgia, serif",
-                    fontSize: 40,
-                    fontWeight: 400,
-                    color: 'var(--text-primary)',
-                    marginBottom: 12,
-                  }}
-                >
+                <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 'clamp(24px, 5vw, 40px)', fontWeight: 400, color: 'var(--text-primary)', marginBottom: 12 }}>
                   Your Personalized Routine
                 </h2>
-                <p style={{ fontSize: 15, color: 'var(--text-secondary)', maxWidth: 440, margin: '0 auto 32px' }}>
-                  Based on your {answers.skin_type} skin type and {answers.concern} concern,
-                  these formulations are clinically matched for you.
+                <p style={{ fontSize: 15, color: 'var(--text-secondary)', maxWidth: 440, margin: '0 auto 20px' }}>
+                  Based on your <strong>{answers.skin_type}</strong> skin type and <strong>{answers.concern}</strong> concern.
                 </p>
-
-                <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
                   {Object.entries(answers).map(([key, val]) => (
-                    <span
-                      key={key}
-                      style={{
-                        fontSize: 12,
-                        padding: '6px 14px',
-                        background: 'rgba(201,149,109,0.08)',
-                        border: '1px solid rgba(201,149,109,0.25)',
-                        borderRadius: 2,
-                        color: 'var(--accent)',
-                        fontWeight: 600,
-                        textTransform: 'capitalize',
-                      }}
-                    >
-                      {val}
-                    </span>
+                    <span key={key} style={{ fontSize: 11, padding: '4px 12px', background: 'rgba(201,149,109,0.08)', border: '1px solid rgba(201,149,109,0.25)', borderRadius: 2, color: 'var(--accent)', fontWeight: 600, textTransform: 'capitalize' }}>{val}</span>
                   ))}
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 20, marginBottom: 48 }}>
-                {getRecommendations().map((p) => (
-                  <ProductCard key={p.id} product={p} />
-                ))}
+              {/* Responsive product grid */}
+              <div className="quiz-results-grid">
+                {getRecommendations().map(p => <ProductCard key={p.id} product={p} />)}
               </div>
 
-              <div style={{ display: 'flex', gap: 14, justifyContent: 'center' }}>
+              <div style={{ display: 'flex', gap: 14, justifyContent: 'center', flexWrap: 'wrap', marginTop: 40, padding: '0 16px' }}>
                 <button onClick={reset} className="btn-outline" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                   <RefreshCw size={14} /> Retake Quiz
                 </button>
-                <Link href="/products" className="btn-primary">
-                  Shop All Products <ArrowRight size={14} />
-                </Link>
+                <Link href="/products" className="btn-primary">Shop All Products →</Link>
               </div>
             </div>
           ) : (
-            // Question
+            /* Question */
             <div className="animate-scale-in" key={step}>
-              <div style={{ textAlign: 'center', marginBottom: 48 }}>
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: "'DM Mono', monospace", marginBottom: 12 }}>
+              <div style={{ textAlign: 'center', marginBottom: 36, padding: '0 16px' }}>
+                <p style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: "'DM Mono', monospace", marginBottom: 10 }}>
                   Step {step + 1} of {QUESTIONS.length}
                 </p>
-                <h2
-                  className="font-editorial"
-                  style={{
-                    fontFamily: "'Cormorant Garamond', Georgia, serif",
-                    fontSize: 38,
-                    fontWeight: 400,
-                    color: 'var(--text-primary)',
-                    marginBottom: 10,
-                    lineHeight: 1.2,
-                  }}
-                >
+                <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 'clamp(22px, 4vw, 38px)', fontWeight: 400, color: 'var(--text-primary)', marginBottom: 8, lineHeight: 1.2 }}>
                   {currentQ.question}
                 </h2>
                 <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>{currentQ.subtitle}</p>
               </div>
 
-              <div
-                style={{
-                  display: 'grid',
-                  gridTemplateColumns: currentQ.options.length <= 3 ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)',
-                  gap: 16,
-                  maxWidth: 640,
-                  margin: '0 auto',
-                }}
-              >
-                {currentQ.options.map((opt) => (
+              <div className={`quiz-opts-grid ${colClass}`}>
+                {currentQ.options.map(opt => (
                   <button
                     key={opt.value}
                     onClick={() => handleAnswer(opt.value)}
+                    className="quiz-opt-btn"
                     style={{
-                      padding: '24px 20px',
                       background: answers[currentQ.id] === opt.value ? 'rgba(201,149,109,0.08)' : 'var(--bg-surface)',
-                      border: answers[currentQ.id] === opt.value ? '1px solid var(--accent)' : '1px solid var(--border-default)',
-                      borderRadius: 4,
-                      cursor: 'pointer',
-                      textAlign: 'center',
-                      transition: 'all 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
-                    }}
-                    onMouseEnter={(e) => {
-                      if (answers[currentQ.id] !== opt.value) {
-                        e.currentTarget.style.borderColor = 'var(--accent)';
-                        e.currentTarget.style.transform = 'translateY(-2px)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (answers[currentQ.id] !== opt.value) {
-                        e.currentTarget.style.borderColor = 'var(--border-default)';
-                        e.currentTarget.style.transform = 'translateY(0)';
-                      }
+                      border: answers[currentQ.id] === opt.value ? '2px solid var(--accent)' : '1px solid var(--border-default)',
                     }}
                   >
-                    <div style={{ fontSize: 28, marginBottom: 12 }}>{opt.icon}</div>
-                    <p style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>{opt.label}</p>
-                    <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{opt.desc}</p>
+                    <div style={{ fontSize: 26, marginBottom: 8 }}>{opt.icon}</div>
+                    <p style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 4 }}>{opt.label}</p>
+                    <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5 }}>{opt.desc}</p>
                   </button>
                 ))}
               </div>
 
               {step > 0 && (
-                <div style={{ textAlign: 'center', marginTop: 32 }}>
-                  <button
-                    onClick={() => setStep(step - 1)}
-                    className="btn-ghost"
-                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
-                  >
+                <div style={{ textAlign: 'center', marginTop: 28 }}>
+                  <button onClick={() => setStep(step - 1)} className="btn-ghost" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                     <ArrowLeft size={14} /> Back
                   </button>
                 </div>
@@ -457,6 +273,60 @@ export default function QuizPage() {
       </div>
 
       <Footer />
+
+      <style>{`
+        /* Results product grid */
+        .quiz-results-grid {
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+          gap: 20px;
+          margin-bottom: 8px;
+        }
+        @media (max-width: 880px) {
+          .quiz-results-grid { grid-template-columns: repeat(2, 1fr); gap: 14px; }
+        }
+        @media (max-width: 400px) {
+          .quiz-results-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+        }
+
+        /* Quiz option grid */
+        .quiz-opts-grid {
+          display: grid;
+          gap: 14px;
+          max-width: 680px;
+          margin: 0 auto;
+          padding: 0 12px;
+        }
+        .quiz-opts-3 { grid-template-columns: repeat(3, 1fr); }
+        .quiz-opts-even { grid-template-columns: repeat(2, 1fr); }
+
+        @media (max-width: 520px) {
+          .quiz-opts-3 { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+          .quiz-opts-even { grid-template-columns: repeat(2, 1fr); gap: 8px; }
+        }
+        @media (max-width: 360px) {
+          .quiz-opts-3 { grid-template-columns: repeat(2, 1fr); }
+        }
+
+        .quiz-opt-btn {
+          padding: 20px 12px;
+          border-radius: 8px;
+          cursor: pointer;
+          text-align: center;
+          transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+          width: 100%;
+        }
+        .quiz-opt-btn:hover {
+          border-color: var(--accent) !important;
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(201,149,109,0.12);
+        }
+        @media (max-width: 480px) {
+          .quiz-opt-btn { padding: 14px 8px; }
+          .quiz-opt-btn p:first-of-type { font-size: 13px !important; }
+          .quiz-opt-btn p:last-of-type { font-size: 10px !important; }
+        }
+      `}</style>
     </>
   );
 }

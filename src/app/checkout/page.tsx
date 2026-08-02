@@ -289,59 +289,51 @@ function CheckoutContent() {
       <div style={{ background: 'var(--bg-base)', minHeight: '80vh', paddingBottom: 80 }}>
         {/* Header */}
         <div
+          className="checkout-header-wrap"
           style={{
             background: 'var(--bg-surface)',
             borderBottom: '1px solid var(--border-default)',
-            padding: '48px 0 40px',
+            padding: '48px 20px 36px',
             textAlign: 'center',
           }}
         >
           <h1
-            className="font-editorial"
-            style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 44, fontWeight: 400, color: 'var(--text-primary)', marginBottom: 28 }}
+            className="checkout-header-title"
+            style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 44, fontWeight: 400, color: 'var(--text-primary)', marginBottom: 24 }}
           >
             Secure Checkout
           </h1>
 
           {/* Steps */}
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 0 }}>
+          <div className="checkout-steps">
             {steps.map((s, i) => (
               <React.Fragment key={s.key}>
                 <div
+                  className="checkout-step-item"
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
-                    padding: '8px 16px',
-                    borderRadius: 2,
                     background: step === s.key ? 'rgba(201,149,109,0.08)' : 'transparent',
                   }}
                 >
                   <div
                     style={{
-                      width: 26,
-                      height: 26,
-                      borderRadius: '50%',
-                      background: steps.indexOf({ key: step, label: '' } as any) > i || step === s.key
-                        ? 'var(--accent)' : 'var(--bg-elevated)',
+                      width: 26, height: 26, borderRadius: '50%',
+                      background: step === s.key ? 'var(--accent)' : 'var(--bg-elevated)',
                       border: '1px solid',
                       borderColor: step === s.key ? 'var(--accent)' : 'var(--border-default)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: 11,
-                      fontWeight: 700,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 11, fontWeight: 700,
                       color: step === s.key ? '#FFF' : 'var(--text-muted)',
+                      flexShrink: 0,
                     }}
                   >
                     {i + 1}
                   </div>
-                  <span style={{ fontSize: 13, fontWeight: step === s.key ? 700 : 400, color: step === s.key ? 'var(--accent)' : 'var(--text-muted)' }}>
+                  <span className="checkout-step-label" style={{ fontWeight: step === s.key ? 700 : 400, color: step === s.key ? 'var(--accent)' : 'var(--text-muted)' }}>
                     {s.label}
                   </span>
                 </div>
                 {i < steps.length - 1 && (
-                  <div style={{ width: 32, height: 1, background: 'var(--border-default)' }} />
+                  <div style={{ width: 24, height: 1, background: 'var(--border-default)', flexShrink: 0 }} />
                 )}
               </React.Fragment>
             ))}
@@ -359,7 +351,7 @@ function CheckoutContent() {
                   <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 26, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 28 }}>
                     Contact Information
                   </h2>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                  <div className="checkout-form-grid">
                     <div style={{ gridColumn: '1 / -1' }}>
                       <label style={{ display: 'block', fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>
                         Full Name *
@@ -412,7 +404,7 @@ function CheckoutContent() {
                     </div>
                   </div>
 
-                  <div style={{ marginTop: 32, display: 'flex', justifyContent: 'space-between' }}>
+                  <div className="checkout-nav-row">
                     <Link href="/products" className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <ArrowLeft size={14} /> Back to Shop
                     </Link>
@@ -433,7 +425,7 @@ function CheckoutContent() {
                   <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 26, fontWeight: 500, color: 'var(--text-primary)', marginBottom: 28 }}>
                     Delivery Details
                   </h2>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                <div className="checkout-form-grid">
                     <div>
                       <label style={{ display: 'block', fontSize: 12, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 8 }}>Division *</label>
                       <select required value={form.division} onChange={(e) => { update('division', e.target.value); update('district', ''); }} className="input-field">
@@ -484,17 +476,10 @@ function CheckoutContent() {
                           key={method.value}
                           type="button"
                           onClick={() => update('paymentMethod', method.value)}
+                          className="checkout-payment-btn"
                           style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 14,
-                            padding: '16px 18px',
                             background: form.paymentMethod === method.value ? 'rgba(201,149,109,0.06)' : 'var(--bg-surface)',
                             border: form.paymentMethod === method.value ? '1px solid var(--accent)' : '1px solid var(--border-default)',
-                            borderRadius: 3,
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            transition: 'all 0.2s ease',
                           }}
                         >
                           <span style={{ fontSize: 22 }}>{method.icon}</span>
@@ -523,7 +508,7 @@ function CheckoutContent() {
                     </div>
                   </div>
 
-                  <div style={{ marginTop: 32, display: 'flex', justifyContent: 'space-between' }}>
+                  <div className="checkout-nav-row">
                     <button type="button" onClick={() => setStep('info')} className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <ArrowLeft size={14} /> Back
                     </button>
@@ -546,15 +531,7 @@ function CheckoutContent() {
                   </h2>
 
                   {/* Summary Info */}
-                  <div
-                    style={{
-                      background: 'var(--bg-elevated)',
-                      border: '1px solid var(--border-default)',
-                      borderRadius: 4,
-                      padding: 24,
-                      marginBottom: 24,
-                    }}
-                  >
+                  <div className="checkout-confirm-box">
                     <h3 style={{ fontSize: 14, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 16 }}>Delivery To</h3>
                     <p style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>{form.name}</p>
                     <p style={{ fontSize: 14, color: 'var(--text-secondary)' }}>{form.phone}</p>
@@ -585,7 +562,7 @@ function CheckoutContent() {
                     </p>
                   </div>
 
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <div className="checkout-nav-row">
                     <button type="button" onClick={() => setStep('shipping')} className="btn-ghost" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                       <ArrowLeft size={14} /> Edit Delivery
                     </button>
@@ -733,32 +710,130 @@ function CheckoutContent() {
       <Footer />
 
       <style>{`
+        /* ── Checkout main two-column grid ─────────────────────── */
         .checkout-main-grid {
           display: grid;
           grid-template-columns: 1fr 380px;
           gap: 48px;
           align-items: flex-start;
         }
-        /* On tablet, narrow sidebar */
-        @media (max-width: 900px) {
+
+        /* Tablet */
+        @media (max-width: 960px) {
           .checkout-main-grid {
-            grid-template-columns: 1fr 320px;
-            gap: 32px;
+            grid-template-columns: 1fr 300px;
+            gap: 28px;
           }
         }
-        /* On mobile, stack vertically - summary first then form */
-        @media (max-width: 640px) {
+
+        /* Mobile — stack, summary on top */
+        @media (max-width: 700px) {
           .checkout-main-grid {
             grid-template-columns: 1fr;
-            gap: 24px;
+            gap: 20px;
           }
+          /* Order summary shows first, form second */
           .checkout-main-grid > form { order: 2; }
-          .checkout-main-grid > div { order: 1; }
-          .checkout-steps-wrap { padding: 32px 0 28px; }
-          .checkout-steps-wrap h1 { font-size: 28px !important; margin-bottom: 20px !important; }
+          .checkout-main-grid > div  { order: 1; position: static !important; top: auto !important; }
+        }
+
+        /* ── Step indicator ───────────────────────────────────── */
+        .checkout-steps {
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 0;
+          flex-wrap: nowrap;
+          overflow: hidden;
+        }
+        .checkout-step-item {
+          display: flex;
+          align-items: center;
+          gap: 7px;
+          padding: 8px 12px;
+          border-radius: 4px;
+          white-space: nowrap;
+        }
+        .checkout-step-label {
+          font-size: 13px;
+        }
+        @media (max-width: 480px) {
+          .checkout-step-label { display: none; }
+          .checkout-step-item { padding: 6px 8px; }
+        }
+
+        /* ── Form grid (2-col → 1-col on mobile) ─────────────── */
+        .checkout-form-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 16px;
+        }
+        @media (max-width: 480px) {
+          .checkout-form-grid {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        /* ── Form navigation row ─────────────────────────────── */
+        .checkout-nav-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-top: 28px;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+        @media (max-width: 400px) {
+          .checkout-nav-row {
+            flex-direction: column-reverse;
+            align-items: stretch;
+          }
+          .checkout-nav-row > * {
+            width: 100%;
+            justify-content: center;
+            text-align: center;
+          }
+        }
+
+        /* ── Payment method buttons ───────────────────────────── */
+        .checkout-payment-btn {
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          padding: 14px 16px;
+          border-radius: 6px;
+          cursor: pointer;
+          text-align: left;
+          transition: all 0.2s ease;
+          width: 100%;
         }
         @media (max-width: 420px) {
-          .checkout-steps-label { display: none; }
+          .checkout-payment-btn { gap: 10px; padding: 12px 14px; }
+        }
+
+        /* ── Coupon row ───────────────────────────────────────── */
+        .checkout-coupon-row {
+          display: flex;
+          gap: 8px;
+          align-items: center;
+        }
+
+        /* ── Confirm page delivery summary ───────────────────── */
+        .checkout-confirm-box {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-default);
+          border-radius: 8px;
+          padding: 24px;
+          margin-bottom: 24px;
+        }
+        @media (max-width: 480px) {
+          .checkout-confirm-box { padding: 16px; }
+        }
+
+        /* ── Header adjustments ───────────────────────────────── */
+        @media (max-width: 480px) {
+          .checkout-header-title { font-size: 28px !important; margin-bottom: 18px !important; }
+          .checkout-header-wrap { padding: 36px 16px 28px !important; }
         }
       `}</style>
     </>
@@ -772,3 +847,4 @@ export default function CheckoutPage() {
     </React.Suspense>
   );
 }
+
