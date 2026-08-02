@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyAdminOrModerator } from '../../../lib/auth';
+import { verifyAdminOrModerator } from '../../../../lib/auth';
 
 const COURIERCHECK_API_KEY = process.env.COURIERCHECK_API_KEY!;
 const COURIERCHECK_BASE_URL = process.env.COURIERCHECK_BASE_URL || 'https://api.bdcourier.com';

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '../../../../lib/prisma';
-import { verifyAdminOrModerator } from '../../../../lib/auth';
+import { prisma } from '../../../../../lib/prisma';
+import { verifyAdminOrModerator } from '../../../../../lib/auth';
 
 const STEADFAST_API_KEY = process.env.STEADFAST_API_KEY!;
 const STEADFAST_SECRET_KEY = process.env.STEADFAST_SECRET_KEY!;
