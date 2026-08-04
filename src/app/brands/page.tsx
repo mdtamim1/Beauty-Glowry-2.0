@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { ArrowRight, Package, MapPin, Calendar } from 'lucide-react';
 import { brands, products } from '../../data/products';
@@ -9,11 +9,23 @@ import Footer from '../../components/Footer';
 
 export default function BrandsPage() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [dbProducts, setDbProducts] = useState<typeof products>(products);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setDbProducts(data);
+        }
+      })
+      .catch((err) => console.error('Failed to load products for brand count:', err));
+  }, []);
 
   // Compute product count per brand
   const brandsWithCount = brands.map((brand) => ({
     ...brand,
-    productCount: products.filter((p) => p.brand === brand.id).length,
+    productCount: dbProducts.filter((p) => p.brand === brand.id).length,
   }));
 
   return (

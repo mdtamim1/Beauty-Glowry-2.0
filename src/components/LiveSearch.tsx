@@ -12,8 +12,20 @@ interface LiveSearchProps {
 
 export default function LiveSearch({ isOpen, onClose }: LiveSearchProps) {
   const [query, setQuery] = useState('');
+  const [dbProducts, setDbProducts] = useState<typeof products>(products);
   const [results, setResults] = useState(products.slice(0, 4));
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setDbProducts(data);
+        }
+      })
+      .catch((err) => console.error('Failed to fetch live products for search:', err));
+  }, []);
 
   useEffect(() => {
     if (isOpen) {
@@ -28,19 +40,19 @@ export default function LiveSearch({ isOpen, onClose }: LiveSearchProps) {
 
   useEffect(() => {
     if (!query.trim()) {
-      setResults(products.slice(0, 4));
+      setResults(dbProducts.slice(0, 4));
       return;
     }
     const q = query.toLowerCase();
     setResults(
-      products.filter(
+      dbProducts.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
           p.category.toLowerCase().includes(q) ||
           p.actives.some((a) => a.name.toLowerCase().includes(q))
       ).slice(0, 6)
     );
-  }, [query]);
+  }, [query, dbProducts]);
 
   if (!isOpen) return null;
 

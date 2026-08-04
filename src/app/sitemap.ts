@@ -1,6 +1,5 @@
 import { MetadataRoute } from 'next';
 import { prisma } from '../lib/prisma';
-import { products as staticProducts } from '../data/products';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://beautygloowry.com';
@@ -13,13 +12,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { url: `${baseUrl}/brands`, lastModified: new Date() },
   ];
 
-  // 1. Static Products mapping
-  const staticProductUrls = staticProducts.map((prod) => ({
-    url: `${baseUrl}/product/${prod.id}`,
-    lastModified: new Date(),
-  }));
-
-  // 2. Database active products mapping
+  // Database active products mapping
   let dbProductUrls: { url: string; lastModified: Date }[] = [];
   try {
     const dbProducts = await prisma.product.findMany({
@@ -34,7 +27,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error('[Sitemap] Failed to load DB products:', e);
   }
 
-  // 3. Database published blog posts mapping
+  // Database published blog posts mapping
   let dbBlogUrls: { url: string; lastModified: Date }[] = [];
   try {
     const dbPosts = await prisma.blogPost.findMany({
@@ -49,5 +42,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     console.error('[Sitemap] Failed to load DB blogs:', e);
   }
 
-  return [...staticUrls, ...staticProductUrls, ...dbProductUrls, ...dbBlogUrls];
+  return [...staticUrls, ...dbProductUrls, ...dbBlogUrls];
 }

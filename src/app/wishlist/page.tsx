@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Heart, ShoppingBag, Zap, ArrowRight, Trash2, ArrowLeft } from 'lucide-react';
 import { useCartStore } from '../../store/useCartStore';
@@ -13,9 +13,21 @@ export default function WishlistPage() {
   const { wishlist, removeFromWishlist, addToCart, setBuyNow } = useCartStore();
   const router = useRouter();
   const [addedIds, setAddedIds] = useState<Record<string, boolean>>({});
+  const [dbProducts, setDbProducts] = useState<typeof products>(products);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setDbProducts(data);
+        }
+      })
+      .catch((err) => console.error('Failed to fetch live products for wishlist:', err));
+  }, []);
 
   // Get full product objects from wishlist IDs
-  const wishlistProducts = products.filter((p) => wishlist.includes(String(p.id)));
+  const wishlistProducts = dbProducts.filter((p) => wishlist.includes(String(p.id)));
 
   const handleAddToCart = (product: typeof products[0]) => {
     addToCart(product);

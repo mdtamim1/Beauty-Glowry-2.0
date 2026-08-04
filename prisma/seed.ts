@@ -51,6 +51,42 @@ async function main() {
 
   // 3. Seed Products
   console.log('Seeding products, variants, and images...');
+
+  const activeStaticIds = new Set(staticProducts.map((p) => String(p.id)));
+
+  // Clean up any seeded products that are no longer in staticProducts
+  const dbProducts = await prisma.product.findMany({
+    select: { id: true },
+  });
+
+  for (const dbP of dbProducts) {
+    if (!isNaN(Number(dbP.id)) && !activeStaticIds.has(dbP.id)) {
+      // Check if any variant of this product has associated order items
+      const hasOrderItems = await prisma.orderItem.findFirst({
+        where: {
+          product_variant: {
+            product_id: dbP.id,
+          },
+        },
+      });
+
+      if (hasOrderItems) {
+        console.log(`Product ID: ${dbP.id} has associated orders. Deactivating instead of deleting.`);
+        await prisma.product.update({
+          where: { id: dbP.id },
+          data: { is_active: false },
+        });
+      } else {
+        console.log(`Cleaning up removed static product ID: ${dbP.id}`);
+        await prisma.productVariant.deleteMany({ where: { product_id: dbP.id } });
+        await prisma.productImage.deleteMany({ where: { product_id: dbP.id } });
+        await prisma.productReview.deleteMany({ where: { product_id: dbP.id } });
+        await prisma.productQnA.deleteMany({ where: { product_id: dbP.id } });
+        await prisma.product.delete({ where: { id: dbP.id } });
+      }
+    }
+  }
+
   for (const p of staticProducts) {
     const prodSlug = slugify(p.name);
     const catSlug = slugify(p.category);
@@ -91,14 +127,36 @@ async function main() {
       },
     });
 
-    // Delete existing variants and images to prevent duplicates when re-seeding
-    await prisma.productVariant.deleteMany({ where: { product_id: product.id } });
+    // Handle variants safely without violating foreign key constraints
+    const activeSkus = new Set(p.variants.map((v) => v.sku));
+    const existingVariants = await prisma.productVariant.findMany({
+      where: { product_id: product.id },
+    });
+
+    for (const ev of existingVariants) {
+      if (!activeSkus.has(ev.sku)) {
+        const hasOrders = await prisma.orderItem.findFirst({
+          where: { product_variant_id: ev.id },
+        });
+        if (!hasOrders) {
+          await prisma.productVariant.delete({ where: { id: ev.id } });
+        }
+      }
+    }
+
     await prisma.productImage.deleteMany({ where: { product_id: product.id } });
 
-    // Seed Variants
+    // Seed Variants using upsert
     for (const v of p.variants) {
-      await prisma.productVariant.create({
-        data: {
+      await prisma.productVariant.upsert({
+        where: { sku: v.sku },
+        update: {
+          size: v.label,
+          price: v.price || p.price,
+          stock_qty: v.stock || p.stock,
+          image: p.image,
+        },
+        create: {
           product_id: product.id,
           size: v.label,
           sku: v.sku,

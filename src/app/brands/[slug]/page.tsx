@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft, MapPin, Calendar, Package, ArrowRight } from 'lucide-react';
@@ -14,7 +14,20 @@ export default function BrandDetailPage() {
   const slug = params.slug as string;
 
   const brand = brands.find((b) => b.id === slug);
-  const brandProducts = products.filter((p) => p.brand === slug);
+  const [dbProducts, setDbProducts] = useState<typeof products>(products);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setDbProducts(data);
+        }
+      })
+      .catch((err) => console.error('Failed to load products for brand page:', err));
+  }, []);
+
+  const brandProducts = dbProducts.filter((p) => p.brand === slug);
 
   if (!brand) {
     return (

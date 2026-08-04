@@ -82,6 +82,14 @@ export default function QuizPage() {
   const [completed, setCompleted] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
+  const [dbProducts, setDbProducts] = useState<typeof products>(products);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then(res => res.json())
+      .then(data => { if (Array.isArray(data)) setDbProducts(data); })
+      .catch(err => console.error('Failed to fetch live products for quiz:', err));
+  }, []);
 
   const currentQ = QUESTIONS[step];
   const isLastStep = step === QUESTIONS.length - 1;
@@ -120,7 +128,7 @@ export default function QuizPage() {
     const skinType = answers.skin_type || 'oily';
     const concernTags = CONCERN_MAP[concern] || [];
     const skinTypeTags = SKIN_TYPE_MAP[skinType] || [];
-    return products
+    return dbProducts
       .filter(p => {
         const mc = p.concerns.some(c => concernTags.some(tag => c.includes(tag.split(' ')[0])));
         const ms = p.skinTypes.some(st => skinTypeTags.includes(st));

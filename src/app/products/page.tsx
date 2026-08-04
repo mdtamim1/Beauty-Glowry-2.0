@@ -14,19 +14,24 @@ function ProductsContent() {
   const searchParams = useSearchParams();
 
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     fetch('/api/products')
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setDbProducts(data);
         }
+        setLoaded(true);
       })
-      .catch((err) => console.error('Failed to fetch live products:', err));
+      .catch((err) => {
+        console.error('Failed to fetch live products:', err);
+        setLoaded(true);
+      });
   }, []);
 
-  const displayProducts = dbProducts.length > 0 ? dbProducts : products;
+  const displayProducts = loaded ? dbProducts : products;
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
     const cat = searchParams.get('category');

@@ -68,6 +68,7 @@ export default function ProductDetailPage() {
   
   const staticProduct = products.find((p) => p.id === Number(params.id));
   const [product, setProduct] = useState<Product | undefined>(staticProduct);
+  const [dbProducts, setDbProducts] = useState<Product[]>(products);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
@@ -82,7 +83,11 @@ export default function ProductDetailPage() {
     if (!params || !params.id) return;
     fetch(`/api/products/${params.id}`)
       .then((res) => {
-        if (!res.ok) throw new Error('Not found');
+        if (res.status === 404) {
+          setProduct(undefined);
+          throw new Error('Product not found in database');
+        }
+        if (!res.ok) throw new Error('Failed to load product');
         return res.json();
       })
       .then((data) => {
@@ -93,6 +98,15 @@ export default function ProductDetailPage() {
         }
       })
       .catch((err) => console.error('Failed to load product from DB:', err));
+
+    fetch('/api/products')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setDbProducts(data);
+        }
+      })
+      .catch((err) => console.error('Failed to fetch live products for related section:', err));
   }, [params]);
 
   const [isAdded, setIsAdded] = useState(false);
@@ -250,7 +264,7 @@ export default function ProductDetailPage() {
   const discount = product.originalPrice > product.price
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100) : 0;
   const avgRating = reviews.length > 0 ? (reviews.reduce((a, r) => a + r.rating, 0) / reviews.length).toFixed(1) : '5.0';
-  const related = products.filter(p => p.id !== product.id && p.category === product.category).slice(0, 4);
+  const related = dbProducts.filter(p => p.id !== product.id && p.category === product.category).slice(0, 4);
 
   return (
     <>

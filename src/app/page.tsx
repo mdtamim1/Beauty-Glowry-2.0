@@ -38,6 +38,7 @@ const CONCERN_ICONS: Record<string, string> = {
 
 export default function HomePage() {
   const [dbProducts, setDbProducts] = useState<any[]>([]);
+  const [loaded, setLoaded] = useState(false);
   const [banners, setBanners] = useState<any[]>([]);
   const [activeSlide, setActiveSlide] = useState(0);
   const [sectionVisibility, setSectionVisibility] = useState<Record<string, boolean>>({
@@ -54,11 +55,15 @@ export default function HomePage() {
     fetch('/api/products')
       .then((res) => res.json())
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
+        if (Array.isArray(data)) {
           setDbProducts(data);
         }
+        setLoaded(true);
       })
-      .catch((err) => console.error('Failed to fetch live products:', err));
+      .catch((err) => {
+        console.error('Failed to fetch live products:', err);
+        setLoaded(true);
+      });
 
     fetch('/api/admin/banners')
       .then((res) => res.json())
@@ -94,7 +99,7 @@ export default function HomePage() {
 
   const currentBanner = banners.length > 0 ? banners[activeSlide] : null;
 
-  const displayProducts = dbProducts.length > 0 ? dbProducts : products;
+  const displayProducts = loaded ? dbProducts : products;
   const bestsellers = displayProducts.filter((p) => p.isBestseller).slice(0, 4);
   const newArrivals = displayProducts.filter((p) => p.isNew).slice(0, 3);
 
