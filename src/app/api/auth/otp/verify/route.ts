@@ -105,6 +105,8 @@ export async function POST(request: Request) {
       role: user.role,
       avatar: user.avatar || undefined,
       skin_type: user.skin_type || undefined,
+      allergies: user.allergies || undefined,
+      current_routine: user.current_routine || undefined,
       created_at: user.created_at.toISOString(),
     };
 

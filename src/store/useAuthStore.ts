@@ -9,6 +9,8 @@ export interface UserProfile {
   role: string;
   avatar?: string;
   skin_type?: string;
+  allergies?: string;
+  current_routine?: string;
   created_at: string;
 }
 

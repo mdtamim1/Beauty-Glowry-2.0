@@ -27,6 +27,7 @@ export interface CartItem {
 interface CartState {
   cart: CartItem[];
   wishlist: string[]; // list of productIds
+  compareList: string[]; // list of productIds for comparison
   buyNow: CartItem | null; // temporary buy-now item (doesn't go to cart)
   addToCart: (product: any, variant?: any, qty?: number) => void;
   removeFromCart: (cartItemId: string) => void;
@@ -35,6 +36,10 @@ interface CartState {
   toggleWishlist: (productId: string) => void;
   removeFromWishlist: (productId: string) => void;
   isInWishlist: (productId: string) => boolean;
+  addToCompare: (productId: string) => void;
+  removeFromCompare: (productId: string) => void;
+  clearCompare: () => void;
+  isInCompare: (productId: string) => boolean;
   setBuyNow: (item: CartItem | null) => void;
   clearBuyNow: () => void;
 }
@@ -62,6 +67,7 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       cart: [],
       wishlist: [],
+      compareList: [],
       buyNow: null,
       addToCart: (product, variant, qty = 1) => {
         const cartItemId = variant ? `${product.id}-${variant.id}` : `${product.id}-default`;
@@ -141,6 +147,22 @@ export const useCartStore = create<CartState>()(
         syncWithDatabase(get().cart, nextWishlist);
       },
       isInWishlist: (productId) => get().wishlist.includes(productId),
+      addToCompare: (productId) => {
+        const list = get().compareList;
+        if (list.includes(productId)) return;
+        if (list.length >= 3) {
+          alert('You can compare up to 3 products at a time.');
+          return;
+        }
+        set({ compareList: [...list, productId] });
+      },
+      removeFromCompare: (productId) => {
+        set({ compareList: get().compareList.filter((id) => id !== productId) });
+      },
+      clearCompare: () => {
+        set({ compareList: [] });
+      },
+      isInCompare: (productId) => get().compareList.includes(productId),
       setBuyNow: (item) => set({ buyNow: item }),
       clearBuyNow: () => set({ buyNow: null }),
     }),

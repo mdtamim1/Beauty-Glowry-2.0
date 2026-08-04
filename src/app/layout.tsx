@@ -3,6 +3,7 @@ import { Cormorant_Garamond, DM_Sans, DM_Mono } from "next/font/google";
 import "./globals.css";
 import WhatsAppButton from "../components/WhatsAppButton";
 import AuthInterceptor from "../components/AuthInterceptor";
+import CompareTray from "../components/CompareTray";
 import { prisma } from "../lib/prisma";
 
 const cormorant = Cormorant_Garamond({
@@ -142,6 +143,7 @@ export default async function RootLayout({
         {children}
         <AuthInterceptor />
         <WhatsAppButton />
+        <CompareTray />
       </body>
     </html>
   );

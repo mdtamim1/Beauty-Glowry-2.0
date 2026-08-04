@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ShoppingBag, Heart, Star, Zap, Check } from 'lucide-react';
+import { ShoppingBag, Heart, Star, Zap, Check, GitCompare } from 'lucide-react';
 import { Product, brands } from '../data/products';
 import { useCartStore } from '../store/useCartStore';
 
@@ -16,10 +16,11 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
   const [isAdded, setIsAdded] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [hovered, setHovered] = useState(false);
-  const { addToCart, toggleWishlist, isInWishlist, setBuyNow } = useCartStore();
+  const { addToCart, toggleWishlist, isInWishlist, setBuyNow, addToCompare, removeFromCompare, isInCompare } = useCartStore();
   const router = useRouter();
 
   const inWishlist = isInWishlist(product.id.toString());
+  const inCompare = isInCompare(product.id.toString());
   const discount = product.originalPrice > product.price
     ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
     : 0;
@@ -36,6 +37,16 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
     e.preventDefault();
     e.stopPropagation();
     toggleWishlist(product.id.toString());
+  };
+
+  const handleCompare = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (inCompare) {
+      removeFromCompare(product.id.toString());
+    } else {
+      addToCompare(product.id.toString());
+    }
   };
 
   const handleOrderNow = (e: React.MouseEvent) => {
@@ -111,6 +122,18 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
             <Heart
               size={13}
               style={{ fill: inWishlist ? '#fff' : 'none', color: '#fff', transition: 'all 0.2s' }}
+            />
+          </button>
+
+          {/* ── Compare — top-right below wishlist */}
+          <button
+            onClick={handleCompare}
+            aria-label="Compare"
+            className={`pc-compare${inCompare ? ' pc-compare-on' : ''}`}
+          >
+            <GitCompare
+              size={13}
+              style={{ color: '#fff', transition: 'all 0.25s' }}
             />
           </button>
 
@@ -350,6 +373,35 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
         .pc-wishlist-on {
           background: rgba(239,68,68,0.85) !important;
           border-color: rgba(239,68,68,0.5) !important;
+        }
+
+        /* ═══ COMPARE ═════════════════════════════════════════ */
+        .pc-compare {
+          position: absolute;
+          top: 48px;
+          right: 10px;
+          z-index: 10;
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: rgba(20,16,12,0.5);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(255,255,255,0.13);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all 0.25s ease;
+        }
+        .pc-compare:hover {
+          background: rgba(201,149,109,0.7);
+          border-color: rgba(201,149,109,0.4);
+          transform: scale(1.12);
+        }
+        .pc-compare-on {
+          background: rgba(201,149,109,0.85) !important;
+          border-color: rgba(201,149,109,0.5) !important;
         }
 
         /* ═══ ACTION BAR ═════════════════════════════════════ */

@@ -7,7 +7,7 @@ import {
   ShoppingBag, Heart, Star, ChevronLeft, ChevronRight,
   Plus, Minus, ArrowRight, ZoomIn, Check, Zap,
   Shield, Truck, Leaf, ChevronDown, Beaker, Package,
-  Globe, Clock, FlaskConical, Sparkles, Eye
+  Globe, Clock, FlaskConical, Sparkles, Eye, GitCompare
 } from 'lucide-react';
 import { products, Product, brands } from '../../../data/products';
 import { useCartStore } from '../../../store/useCartStore';
@@ -141,7 +141,7 @@ export default function ProductDetailPage() {
   }, [user]);
 
   const imgRef = useRef<HTMLDivElement>(null);
-  const { addToCart, toggleWishlist, isInWishlist, clearCart } = useCartStore();
+  const { addToCart, toggleWishlist, isInWishlist, clearCart, addToCompare, removeFromCompare, isInCompare } = useCartStore();
 
   const allImages = product
     ? [product.image, ...(product.productImages?.filter(img => img !== product.image) || [])]
@@ -755,6 +755,32 @@ export default function ProductDetailPage() {
                       onMouseLeave={(e) => { e.currentTarget.style.borderColor = isInWishlist(product.id.toString()) ? 'rgba(239,68,68,0.4)' : 'var(--border-dark)'; e.currentTarget.style.background = isInWishlist(product.id.toString()) ? 'rgba(239,68,68,0.06)' : 'var(--bg-elevated)'; }}
                     >
                       <Heart size={17} style={{ fill: isInWishlist(product.id.toString()) ? '#ef4444' : 'none', color: isInWishlist(product.id.toString()) ? '#ef4444' : 'var(--text-muted)', transition: 'all 0.25s' }} />
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        const pid = product.id.toString();
+                        if (isInCompare(pid)) {
+                          removeFromCompare(pid);
+                        } else {
+                          addToCompare(pid);
+                        }
+                      }}
+                      style={{
+                        width: 50, height: 50,
+                        border: isInCompare(product.id.toString()) ? '1.5px solid rgba(201,149,109,0.5)' : '1.5px solid var(--border-dark)',
+                        borderRadius: 8,
+                        background: isInCompare(product.id.toString()) ? 'rgba(201,149,109,0.06)' : 'var(--bg-elevated)',
+                        cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        transition: 'all 0.25s ease',
+                        flexShrink: 0,
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.background = 'rgba(201,149,109,0.08)'; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = isInCompare(product.id.toString()) ? 'rgba(201,149,109,0.5)' : 'var(--border-dark)'; e.currentTarget.style.background = isInCompare(product.id.toString()) ? 'rgba(201,149,109,0.06)' : 'var(--bg-elevated)'; }}
+                      title="Compare Product"
+                    >
+                      <GitCompare size={17} style={{ color: isInCompare(product.id.toString()) ? 'var(--accent)' : 'var(--text-muted)', transition: 'all 0.25s' }} />
                     </button>
                   </div>
                 </div>
