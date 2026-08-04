@@ -75,91 +75,95 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
       onMouseLeave={() => setHovered(false)}
     >
       {/* ══ IMAGE BLOCK ══════════════════════════════════════ */}
-      <Link href={`/product/${product.id}`} className="pc-img-link">
-        <div className="pc-img-wrap">
+      <div style={{ position: 'relative' }}>
+        <Link href={`/product/${product.id}`} className="pc-img-link">
+          <div className="pc-img-wrap">
 
-          {/* Skeleton */}
-          {!imageLoaded && <div className="pc-skeleton" />}
+            {/* Skeleton */}
+            {!imageLoaded && <div className="pc-skeleton" />}
 
-          <img
-            src={product.image}
-            alt={product.name}
-            loading="lazy"
-            onLoad={() => setImageLoaded(true)}
-            className={`pc-img${hovered ? ' pc-img-zoom' : ''}`}
-            style={{ display: imageLoaded ? 'block' : 'none' }}
-          />
+            <img
+              src={product.image}
+              alt={product.name}
+              loading="lazy"
+              onLoad={() => setImageLoaded(true)}
+              className={`pc-img${hovered ? ' pc-img-zoom' : ''}`}
+              style={{ display: imageLoaded ? 'block' : 'none' }}
+            />
 
-          {/* Bottom gradient — always present, deepens on hover */}
-          <div className={`pc-overlay${hovered ? ' pc-overlay-deep' : ''}`} />
+            {/* Bottom gradient — always present, deepens on hover */}
+            <div className={`pc-overlay${hovered ? ' pc-overlay-deep' : ''}`} />
 
-          {/* ── Top-left badges */}
-          <div className="pc-badges">
-            {product.isBestseller && (
-              <span className="pc-badge pc-badge-bestseller">★ Bestseller</span>
-            )}
-            {product.isNew && (
-              <span className="pc-badge pc-badge-new">New</span>
-            )}
-            {product.isFreeDelivery && (
-              <span className="pc-badge pc-badge-free">Free Ship</span>
-            )}
-          </div>
-
-          {/* ── Discount badge — top-right corner */}
-          {discount > 0 && (
-            <div className="pc-discount-badge">
-              −{discount}%
+            {/* ── Top-left badges */}
+            <div className="pc-badges">
+              {product.isBestseller && (
+                <span className="pc-badge pc-badge-bestseller">★ Bestseller</span>
+              )}
+              {product.isNew && (
+                <span className="pc-badge pc-badge-new">New</span>
+              )}
+              {product.isFreeDelivery && (
+                <span className="pc-badge pc-badge-free">Free Ship</span>
+              )}
             </div>
-          )}
 
-          {/* ── Wishlist — top-right below discount */}
-          <button
-            onClick={handleWishlist}
-            aria-label="Wishlist"
-            className={`pc-wishlist${inWishlist ? ' pc-wishlist-on' : ''}`}
-          >
-            <Heart
-              size={13}
-              style={{ fill: inWishlist ? '#fff' : 'none', color: '#fff', transition: 'all 0.2s' }}
-            />
-          </button>
+            {/* ── Discount badge — top-right corner */}
+            {discount > 0 && (
+              <div className="pc-discount-badge">
+                −{discount}%
+              </div>
+            )}
 
-          {/* ── Compare — top-right below wishlist */}
-          <button
-            onClick={handleCompare}
-            aria-label="Compare"
-            className={`pc-compare${inCompare ? ' pc-compare-on' : ''}`}
-          >
-            <GitCompare
-              size={13}
-              style={{ color: '#fff', transition: 'all 0.25s' }}
-            />
-          </button>
+            {/* ── Action bar slides up on hover / always visible on touch */}
+            <div className={`pc-action-bar${hovered ? ' pc-action-bar-visible' : ''}`}>
+              <button
+                onClick={handleAddToCart}
+                className={`pc-btn-bag${isAdded ? ' pc-btn-bag-added' : ''}`}
+              >
+                {isAdded
+                  ? <><Check size={12} /> <span>Added!</span></>
+                  : <><ShoppingBag size={12} /> <span>Add to Bag</span></>
+                }
+              </button>
+              <div className="pc-btn-sep" />
+              <button
+                onClick={handleOrderNow}
+                className="pc-btn-buy"
+              >
+                <Zap size={12} />
+                <span>Buy Now</span>
+              </button>
+            </div>
 
-          {/* ── Action bar slides up on hover / always visible on touch */}
-          <div className={`pc-action-bar${hovered ? ' pc-action-bar-visible' : ''}`}>
-            <button
-              onClick={handleAddToCart}
-              className={`pc-btn-bag${isAdded ? ' pc-btn-bag-added' : ''}`}
-            >
-              {isAdded
-                ? <><Check size={12} /> <span>Added!</span></>
-                : <><ShoppingBag size={12} /> <span>Add to Bag</span></>
-              }
-            </button>
-            <div className="pc-btn-sep" />
-            <button
-              onClick={handleOrderNow}
-              className="pc-btn-buy"
-            >
-              <Zap size={12} />
-              <span>Buy Now</span>
-            </button>
           </div>
+        </Link>
 
-        </div>
-      </Link>
+        {/* ── Wishlist — top-right below discount ── */}
+        <button
+          onClick={handleWishlist}
+          aria-label="Wishlist"
+          className={`pc-wishlist${inWishlist ? ' pc-wishlist-on' : ''}`}
+          style={{ zIndex: 30 }}
+        >
+          <Heart
+            size={13}
+            style={{ fill: inWishlist ? '#fff' : 'none', color: '#fff', transition: 'all 0.2s' }}
+          />
+        </button>
+
+        {/* ── Compare — top-right below wishlist ── */}
+        <button
+          onClick={handleCompare}
+          aria-label="Compare"
+          className={`pc-compare${inCompare ? ' pc-compare-on' : ''}`}
+          style={{ zIndex: 30 }}
+        >
+          <GitCompare
+            size={13}
+            style={{ color: '#fff', transition: 'all 0.25s' }}
+          />
+        </button>
+      </div>
 
       {/* ══ CONTENT BLOCK ════════════════════════════════════ */}
       <div className="pc-body">

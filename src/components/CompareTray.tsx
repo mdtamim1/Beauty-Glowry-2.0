@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { X, ArrowRight, GitCompare, Trash2 } from 'lucide-react';
 import { useCartStore } from '../store/useCartStore';
@@ -8,12 +8,28 @@ import { products as localProducts } from '../data/products';
 
 export default function CompareTray() {
   const { compareList, removeFromCompare, clearCompare } = useCartStore();
+  const [dbProducts, setDbProducts] = useState<any[]>([]);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setDbProducts(data);
+        } else {
+          setDbProducts(localProducts);
+        }
+      })
+      .catch(() => {
+        setDbProducts(localProducts);
+      });
+  }, []);
 
   if (!compareList || compareList.length === 0) return null;
 
   // Resolve compared products
   const selectedProducts = compareList
-    .map(id => localProducts.find(p => String(p.id) === String(id)))
+    .map(id => dbProducts.find(p => String(p.id) === String(id)))
     .filter(Boolean);
 
   const canCompare = selectedProducts.length >= 2;
