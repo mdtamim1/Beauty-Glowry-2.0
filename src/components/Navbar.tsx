@@ -37,6 +37,7 @@ const navLinks = [
   },
   { label: 'Skin Quiz', href: '/quiz' },
   { label: 'AI Skin Analyzer', href: '/skin-analyzer' },
+  { label: 'Compare Products', href: '/compare' },
   { label: 'Blog', href: '/blog' },
   { label: 'Acne Care', href: '/products?concern=Acne+%26+Blemishes' },
 ];
@@ -111,6 +112,7 @@ export default function Navbar() {
       : [{ label: 'Serums & Elixirs', href: '/products?category=Serums+%26+Elixirs' }]),
     { label: 'Skin Quiz', href: '/quiz' },
     { label: 'AI Skin Analyzer', href: '/skin-analyzer' },
+    { label: 'Compare Products', href: '/compare' },
     { label: 'Blog', href: '/blog' },
     { label: 'Acne Care', href: '/products?concern=Acne+%26+Blemishes' },
     { label: 'My Wishlist', href: '/wishlist' },
