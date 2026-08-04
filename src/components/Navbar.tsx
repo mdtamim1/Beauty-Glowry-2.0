@@ -36,6 +36,7 @@ const navLinks = [
     ],
   },
   { label: 'Skin Quiz', href: '/quiz' },
+  { label: 'AI Skin Analyzer', href: '/skin-analyzer' },
   { label: 'Blog', href: '/blog' },
   { label: 'Acne Care', href: '/products?concern=Acne+%26+Blemishes' },
 ];
