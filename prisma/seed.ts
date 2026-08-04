@@ -108,6 +108,7 @@ async function main() {
         sku: mainSku,
         stock_qty: p.stock,
         is_featured: p.isBestseller || p.isNew,
+        is_active: true,
       },
       create: {
         id: String(p.id),
@@ -124,6 +125,7 @@ async function main() {
         sku: mainSku,
         stock_qty: p.stock,
         is_featured: p.isBestseller || p.isNew,
+        is_active: true,
       },
     });
 
