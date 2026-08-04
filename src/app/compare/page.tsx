@@ -4,28 +4,22 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  GitCompare, Trash2, ArrowLeft, Plus, ShoppingBag, Star,
-  CheckCircle, AlertCircle, Sparkles, Check, AlertTriangle, User
+  GitCompare, Trash2, ArrowLeft, ShoppingBag, Star, Check, Sparkles
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { useCartStore } from '../../store/useCartStore';
-import { useAuthStore } from '../../store/useAuthStore';
 import { products as localProducts } from '../../data/products';
 
 export default function ComparePage() {
   const { compareList, removeFromCompare, clearCompare, addToCart } = useCartStore();
-  const { user, token } = useAuthStore();
   const router = useRouter();
 
   // Load products list (database fallback)
   const [dbProducts, setDbProducts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Custom diagnostic overrides (interactive inputs)
-  const [customSkinType, setCustomSkinType] = useState('');
-  const [customConcern, setCustomConcern] = useState('');
-  const [customAllergies, setCustomAllergies] = useState('');
+  // Success indicator for bag additions
   const [successMsg, setSuccessMsg] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
@@ -44,14 +38,6 @@ export default function ComparePage() {
         setLoading(false);
       });
   }, []);
-
-  // Sync profile values if logged in
-  useEffect(() => {
-    if (user) {
-      if (user.skin_type) setCustomSkinType(user.skin_type);
-      if (user.allergies) setCustomAllergies(user.allergies);
-    }
-  }, [user]);
 
   // Resolve compared items
   const comparedItems = useMemo(() => {
@@ -89,105 +75,6 @@ export default function ComparePage() {
       return orig ? orig.trim() : ing;
     }).slice(0, 8); // top 8 shared
   }, [comparedItems]);
-
-  // AI Diagnostic Advisor Rules
-  const aiReport = useMemo(() => {
-    if (comparedItems.length < 2) return null;
-
-    const skin = (customSkinType || 'Normal').toLowerCase();
-    const concern = (customConcern || 'Hydration').toLowerCase();
-    const allergiesList = customAllergies
-      .toLowerCase()
-      .split(',')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
-
-    // 1. Allergen Check
-    const allergenFlags: Record<string, string[]> = {};
-    comparedItems.forEach(p => {
-      const flags: string[] = [];
-      allergiesList.forEach(allergen => {
-        const inName = p.name.toLowerCase().includes(allergen);
-        const inIngredients = (p.inciList || '').toLowerCase().includes(allergen);
-        if (inName || inIngredients) {
-          flags.push(allergen);
-        }
-      });
-      if (flags.length > 0) allergenFlags[p.id] = flags;
-    });
-
-    // 2. Active Ingredient Scoring for Primary Concern
-    // Concerns list: Acne, Dark Spots, Hydration, Anti-aging, Barrier Repair
-    const ingredientKeywords: Record<string, string[]> = {
-      acne: ['salicylic', 'bha', 'tea tree', 'zinc', 'niacinamide', 'clay', 'retinol', 'willow bark'],
-      'dark spots': ['vitamin c', 'niacinamide', 'alpha arbutin', 'tranexamic', 'licorice', 'kojic', 'glycolic', 'aha'],
-      hydration: ['hyaluronic', 'glycerin', 'panthenol', 'squalane', 'aloe', 'sodium hyaluronate', 'honey', 'beta-glucan'],
-      'anti-aging': ['retinol', 'peptide', 'adenosine', 'ginseng', 'collagen', 'coenzyme q10', 'bakuchiol'],
-      'barrier repair': ['ceramide', 'panthenol', 'centella', 'cholesterol', 'allantoin', 'squalane', 'madecassoside']
-    };
-
-    const targetKeywords = ingredientKeywords[concern] || ingredientKeywords.hydration;
-
-    const scores = comparedItems.map(p => {
-      let score = 0;
-      const lowerInci = (p.inciList || '').toLowerCase();
-      const lowerName = p.name.toLowerCase();
-
-      // Check key actives match
-      targetKeywords.forEach(kw => {
-        if (lowerInci.includes(kw) || lowerName.includes(kw)) {
-          score += 2;
-        }
-      });
-
-      // Boost if skin type matches product skinTypes
-      const matchesSkin = p.skinTypes?.some((st: string) => 
-        st.toLowerCase().includes(skin) || skin.includes(st.toLowerCase())
-      );
-      if (matchesSkin) score += 3;
-
-      // Penalize if contains user allergens
-      if (allergenFlags[p.id]) score -= 10;
-
-      return { product: p, score };
-    });
-
-    // Determine winner
-    const sorted = [...scores].sort((a, b) => b.score - a.score);
-    const winner = sorted[0].score > -5 ? sorted[0].product : null;
-
-    // 3. Synergy Check & Warnings
-    const clashes: string[] = [];
-    const synergies: string[] = [];
-    
-    // Check active properties
-    const hasRetinol = comparedItems.some(p => p.name.toLowerCase().includes('retinol') || (p.inciList || '').toLowerCase().includes('retinol'));
-    const hasAhaBha = comparedItems.some(p => p.name.toLowerCase().includes('salicylic') || p.name.toLowerCase().includes('glycolic') || (p.inciList || '').toLowerCase().includes('salicylic') || (p.inciList || '').toLowerCase().includes('glycolic'));
-    const hasVitC = comparedItems.some(p => p.name.toLowerCase().includes('vitamin c') || (p.inciList || '').toLowerCase().includes('ascorbic') || (p.inciList || '').toLowerCase().includes('ascorbyl'));
-    const hasNiacinamide = comparedItems.some(p => p.name.toLowerCase().includes('niacinamide') || (p.inciList || '').toLowerCase().includes('niacinamide'));
-    const hasCeramide = comparedItems.some(p => p.name.toLowerCase().includes('ceramide') || (p.inciList || '').toLowerCase().includes('ceramide'));
-
-    if (hasRetinol && hasAhaBha) {
-      clashes.push('Acid + Retinol Clash: Combining chemical exfoliants (AHA/BHA) with Retinol in the same application step can lead to extreme irritation and skin barrier damage. Use AHA/BHA in the morning (with SPF) and Retinol at night.');
-    }
-    if (hasVitC && hasAhaBha) {
-      clashes.push('Double Acid Sensitization: Pure Vitamin C (Ascorbic Acid) combined with AHA/BHA might over-exfoliate your skin. Layer with caution or alternate days.');
-    }
-    if (hasNiacinamide && hasAhaBha) {
-      synergies.push('Sebum Control Synergy: Niacinamide + Salicylic Acid (BHA) is an excellent pairing. Salicylic acid unclogs pores while Niacinamide strengthens skin elasticity to visibly reduce pore size.');
-    }
-    if (hasCeramide && (hasRetinol || hasAhaBha)) {
-      synergies.push('Exfoliation + Barrier Buffer: The combination of Ceramides with Retinoids or chemical exfoliants is highly recommended. Ceramides replenish skin lipids, buffer irritation, and restore the skin barrier.');
-    }
-
-    return {
-      winner,
-      allergenFlags,
-      clashes,
-      synergies,
-      scores
-    };
-  }, [comparedItems, customSkinType, customConcern, customAllergies]);
 
   const handleQuickAdd = (p: any) => {
     addToCart(p);
@@ -467,192 +354,7 @@ export default function ComparePage() {
                 </div>
               )}
 
-              {/* AI Dermatologist Advisor Panel */}
-              {aiReport && (
-                <div style={{
-                  background: 'var(--bg-surface)',
-                  border: '1px solid var(--border-default)',
-                  borderRadius: 24, padding: 28,
-                  boxShadow: '0 12px 40px rgba(0,0,0,0.03)'
-                }}>
-                  <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-                    
-                    {/* Diagnostic profile Selector (Left side) */}
-                    <div style={{
-                      flex: '1 1 240px', background: 'var(--bg-base)', border: '1px solid var(--border-default)',
-                      borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column', gap: 14
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>
-                        <User size={16} color="var(--accent)" /> AI Skin Profile Analyzer
-                      </div>
-                      
-                      {user && (
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)', background: 'rgba(201,149,109,0.08)', padding: '6px 10px', borderRadius: 8 }}>
-                          ⚡ Profile synchronized with your user account.
-                        </div>
-                      )}
 
-                      <div>
-                        <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                          Skin Type
-                        </label>
-                        <select
-                          value={customSkinType}
-                          onChange={e => setCustomSkinType(e.target.value)}
-                          style={{
-                            width: '100%', padding: '10px 12px', borderRadius: 10, background: 'var(--bg-surface)',
-                            border: '1px solid var(--border-default)', color: 'var(--text-primary)', fontSize: 13, outline: 'none'
-                          }}
-                        >
-                          <option value="">Select skin type...</option>
-                          <option value="Normal">Normal</option>
-                          <option value="Dry">Dry</option>
-                          <option value="Oily">Oily</option>
-                          <option value="Combination">Combination</option>
-                          <option value="Sensitive">Sensitive</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                          Primary Concern
-                        </label>
-                        <select
-                          value={customConcern}
-                          onChange={e => setCustomConcern(e.target.value)}
-                          style={{
-                            width: '100%', padding: '10px 12px', borderRadius: 10, background: 'var(--bg-surface)',
-                            border: '1px solid var(--border-default)', color: 'var(--text-primary)', fontSize: 13, outline: 'none'
-                          }}
-                        >
-                          <option value="">Select concern...</option>
-                          <option value="Hydration">Hydration & Dryness</option>
-                          <option value="Acne">Acne & Pore Control</option>
-                          <option value="Dark Spots">Hyperpigmentation & Brightening</option>
-                          <option value="Anti-aging">Anti-aging & Fine Lines</option>
-                          <option value="Barrier Repair">Skin Barrier Repair</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                          Allergies Override
-                        </label>
-                        <input
-                          value={customAllergies}
-                          onChange={e => setCustomAllergies(e.target.value)}
-                          placeholder="e.g. Fragrance, Vitamin C"
-                          style={{
-                            width: '100%', padding: '10px 12px', borderRadius: 10, background: 'var(--bg-surface)',
-                            border: '1px solid var(--border-default)', color: 'var(--text-primary)', fontSize: 13, outline: 'none',
-                            boxSizing: 'border-box'
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* AI Advisor output (Right side) */}
-                    <div style={{ flex: '2 1 400px', display: 'flex', flexDirection: 'column', gap: 20 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <div style={{
-                          width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(135deg, var(--accent), #8B4513)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', flexShrink: 0
-                        }}>
-                          <Sparkles size={16} />
-                        </div>
-                        <div>
-                          <h3 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                            AI Dermatologist Advisor
-                          </h3>
-                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Precision Diagnostic Engine</span>
-                        </div>
-                      </div>
-
-                      {/* ── Allergen Alert Banner */}
-                      {Object.keys(aiReport.allergenFlags).length > 0 && (
-                        <div style={{
-                          background: 'rgba(224,90,90,0.08)', border: '1px solid rgba(224,90,90,0.25)',
-                          borderRadius: 16, padding: '16px 20px', display: 'flex', gap: 12, alignItems: 'flex-start'
-                        }}>
-                          <AlertTriangle size={18} style={{ color: 'var(--danger)', marginTop: 2, flexShrink: 0 }} />
-                          <div>
-                            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--danger)', marginBottom: 4 }}>Allergen Warning Detected!</div>
-                            {Object.entries(aiReport.allergenFlags).map(([pid, flags]: any) => {
-                              const item = comparedItems.find(p => String(p.id) === String(pid));
-                              return (
-                                <div key={pid} style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
-                                  • <strong style={{ color: 'var(--text-primary)' }}>{item?.name}</strong> contains ingredients matching your allergy search: <strong style={{ color: 'var(--danger)' }}>{flags.join(', ')}</strong>.
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* ── Exfoliant / Synergy clashes */}
-                      {aiReport.clashes.map((clash, i) => (
-                        <div key={i} style={{
-                          background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)',
-                          borderRadius: 16, padding: '14px 18px', display: 'flex', gap: 10, alignItems: 'flex-start'
-                        }}>
-                          <AlertCircle size={17} style={{ color: '#D97706', marginTop: 2, flexShrink: 0 }} />
-                          <div style={{ fontSize: 12.5, color: '#92400E', lineHeight: 1.4 }}>
-                            {clash}
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* ── Exfoliant / Synergy matches */}
-                      {aiReport.synergies.map((syn, i) => (
-                        <div key={i} style={{
-                          background: 'rgba(16,185,129,0.08)', border: '1px solid rgba(16,185,129,0.25)',
-                          borderRadius: 16, padding: '14px 18px', display: 'flex', gap: 10, alignItems: 'flex-start'
-                        }}>
-                          <CheckCircle size={17} style={{ color: '#059669', marginTop: 2, flexShrink: 0 }} />
-                          <div style={{ fontSize: 12.5, color: '#065F46', lineHeight: 1.4 }}>
-                            {syn}
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* ── Final Verdict / Winner Card */}
-                      {aiReport.winner ? (
-                        <div style={{
-                          background: 'rgba(201,149,109,0.07)', border: '1px dashed var(--accent)',
-                          borderRadius: 18, padding: 20, display: 'flex', gap: 16, alignItems: 'flex-start'
-                        }}>
-                          <div style={{
-                            width: 38, height: 38, borderRadius: '50%', background: 'rgba(201,149,109,0.15)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)', flexShrink: 0
-                          }}>
-                            <Sparkles size={18} />
-                          </div>
-                          <div>
-                            <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--accent)', marginBottom: 2 }}>
-                              Dermatologist Verdict Winner
-                            </div>
-                            <h4 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 6px' }}>
-                              {aiReport.winner.name}
-                            </h4>
-                            <p style={{ fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.5, margin: 0 }}>
-                              Recommended because it has the highest concentration of active ingredients targeted at your primary concern of <strong style={{ color: 'var(--accent)' }}>{customConcern || 'Hydration'}</strong> and aligns perfectly with your <strong style={{ color: 'var(--accent)' }}>{customSkinType || 'Normal'}</strong> skin compatibility scores.
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{
-                          background: 'var(--bg-base)', border: '1px solid var(--border-default)',
-                          borderRadius: 18, padding: 20, textAlign: 'center'
-                        }}>
-                          <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
-                            Adjust your skin type and sensitivities in the analyzer panel to generate matching dermatologist recommendations.
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
             </div>
           )}
         </div>
