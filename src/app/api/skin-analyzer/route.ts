@@ -54,7 +54,13 @@ export async function POST(request: NextRequest) {
     // Call real Google Gemini API
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
-    const promptText = `You are a professional clinical dermatologist AI. Analyze this selfie and diagnose these skin concerns: Acne, Dark spots, Oiliness, Redness, Fine lines, Pores visibility, Skin Hydration, Dark Circles, and Skin Barrier.
+    const promptText = `You are a professional clinical dermatologist AI.
+First, verify if the image contains a clear human face. If the image does not contain a human face, or if the face is not clearly visible, you MUST return a JSON object containing ONLY the field "error" explaining the problem:
+{
+  "error": "No clear human face detected. Please upload or capture a front-facing selfie of your face."
+}
+
+If a human face is present, analyze the face and diagnose these skin concerns: Acne, Dark spots, Oiliness, Redness, Fine lines, Pores visibility, Skin Hydration, Dark Circles, and Skin Barrier.
 
 For each skin concern, provide:
 1. A severity score (0 to 100).
@@ -124,6 +130,9 @@ You MUST return the response ONLY as a minified JSON object matching this schema
 
     // Parse the JSON output from Gemini
     const resultJson = JSON.parse(textResult.trim());
+    if (resultJson.error) {
+      return NextResponse.json({ error: resultJson.error }, { status: 400 });
+    }
     return NextResponse.json(resultJson);
 
   } catch (error: any) {
