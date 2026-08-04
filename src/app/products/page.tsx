@@ -31,7 +31,7 @@ function ProductsContent() {
       });
   }, []);
 
-  const displayProducts = loaded ? dbProducts : products;
+  const displayProducts = dbProducts;
 
   const [selectedCategories, setSelectedCategories] = useState<string[]>(() => {
     const cat = searchParams.get('category');
@@ -423,7 +423,27 @@ function ProductsContent() {
 
             {/* Products */}
             <div style={{ flex: 1, minWidth: 0 }}>
-              {paginated.length === 0 ? (
+              {!loaded ? (
+                <div className="products-grid">
+                  {Array.from({ length: 6 }).map((_, idx) => (
+                    <div key={idx} style={{
+                      height: 380,
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 10,
+                      position: 'relative',
+                      overflow: 'hidden'
+                    }}>
+                      <div className="pc-skeleton" style={{ height: '70%' }} />
+                      <div style={{ padding: 15 }}>
+                        <div className="pc-skeleton" style={{ height: 15, width: '40%', marginBottom: 10 }} />
+                        <div className="pc-skeleton" style={{ height: 20, width: '90%', marginBottom: 10 }} />
+                        <div className="pc-skeleton" style={{ height: 15, width: '60%' }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : paginated.length === 0 ? (
                 <div
                   style={{
                     textAlign: 'center',
@@ -555,6 +575,22 @@ function ProductsContent() {
       <Footer />
 
       <style>{`
+        /* pc-skeleton shimmer animation */
+        .pc-skeleton {
+          background: linear-gradient(
+            90deg,
+            var(--bg-elevated) 25%,
+            rgba(201,149,109,0.06) 50%,
+            var(--bg-elevated) 75%
+          );
+          background-size: 200% 100%;
+          animation: pc-shimmer 1.4s infinite;
+        }
+        @keyframes pc-shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+
         /* ── Page title ─────────────────────────────────── */
         .products-page-title { font-size: 52px; }
 

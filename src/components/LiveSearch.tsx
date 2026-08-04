@@ -12,8 +12,8 @@ interface LiveSearchProps {
 
 export default function LiveSearch({ isOpen, onClose }: LiveSearchProps) {
   const [query, setQuery] = useState('');
-  const [dbProducts, setDbProducts] = useState<typeof products>(products);
-  const [results, setResults] = useState(products.slice(0, 4));
+  const [dbProducts, setDbProducts] = useState<typeof products>([]);
+  const [results, setResults] = useState<typeof products>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -22,6 +22,7 @@ export default function LiveSearch({ isOpen, onClose }: LiveSearchProps) {
       .then((data) => {
         if (Array.isArray(data)) {
           setDbProducts(data);
+          setResults(data.slice(0, 4));
         }
       })
       .catch((err) => console.error('Failed to fetch live products for search:', err));

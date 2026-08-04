@@ -13,7 +13,8 @@ export default function WishlistPage() {
   const { wishlist, removeFromWishlist, addToCart, setBuyNow } = useCartStore();
   const router = useRouter();
   const [addedIds, setAddedIds] = useState<Record<string, boolean>>({});
-  const [dbProducts, setDbProducts] = useState<typeof products>(products);
+  const [dbProducts, setDbProducts] = useState<typeof products>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     fetch('/api/products')
@@ -22,8 +23,12 @@ export default function WishlistPage() {
         if (Array.isArray(data)) {
           setDbProducts(data);
         }
+        setLoaded(true);
       })
-      .catch((err) => console.error('Failed to fetch live products for wishlist:', err));
+      .catch((err) => {
+        console.error('Failed to fetch live products for wishlist:', err);
+        setLoaded(true);
+      });
   }, []);
 
   // Get full product objects from wishlist IDs
@@ -116,7 +121,11 @@ export default function WishlistPage() {
         </div>
 
         <div className="container-lg" style={{ paddingTop: 40 }}>
-          {wishlistProducts.length === 0 ? (
+          {!loaded ? (
+            <div style={{ textAlign: 'center', padding: '80px 20px' }}>
+              <p style={{ color: 'var(--text-muted)' }}>Loading saved items...</p>
+            </div>
+          ) : wishlistProducts.length === 0 ? (
             /* Empty State */
             <div
               style={{

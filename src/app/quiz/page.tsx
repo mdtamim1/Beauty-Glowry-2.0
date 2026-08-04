@@ -82,7 +82,7 @@ export default function QuizPage() {
   const [completed, setCompleted] = useState(false);
   const [history, setHistory] = useState<any[]>([]);
   const [showHistory, setShowHistory] = useState(false);
-  const [dbProducts, setDbProducts] = useState<typeof products>(products);
+  const [dbProducts, setDbProducts] = useState<typeof products>([]);
 
   useEffect(() => {
     fetch('/api/products')

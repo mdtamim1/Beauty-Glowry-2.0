@@ -9,7 +9,8 @@ import Footer from '../../components/Footer';
 
 export default function BrandsPage() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [dbProducts, setDbProducts] = useState<typeof products>(products);
+  const [dbProducts, setDbProducts] = useState<typeof products>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     fetch('/api/products')
@@ -18,8 +19,12 @@ export default function BrandsPage() {
         if (Array.isArray(data)) {
           setDbProducts(data);
         }
+        setLoaded(true);
       })
-      .catch((err) => console.error('Failed to load products for brand count:', err));
+      .catch((err) => {
+        console.error('Failed to load products for brand count:', err);
+        setLoaded(true);
+      });
   }, []);
 
   // Compute product count per brand
@@ -206,28 +211,30 @@ export default function BrandsPage() {
                       </div>
 
                       {/* Product count badge */}
-                      <div
-                        style={{
-                          position: 'absolute',
-                          top: 12,
-                          right: 12,
-                          background: 'rgba(26,26,24,0.75)',
-                          backdropFilter: 'blur(10px)',
-                          border: '1px solid rgba(250,247,242,0.15)',
-                          borderRadius: 99,
-                          padding: '4px 12px',
-                          fontSize: 10,
-                          fontWeight: 700,
-                          color: '#FAF7F2',
-                          letterSpacing: '0.06em',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 5,
-                        }}
-                      >
-                        <Package size={10} />
-                        {brand.productCount} products
-                      </div>
+                      {loaded && (
+                        <div
+                          style={{
+                            position: 'absolute',
+                            top: 12,
+                            right: 12,
+                            background: 'rgba(26,26,24,0.75)',
+                            backdropFilter: 'blur(10px)',
+                            border: '1px solid rgba(250,247,242,0.15)',
+                            borderRadius: 99,
+                            padding: '4px 12px',
+                            fontSize: 10,
+                            fontWeight: 700,
+                            color: '#FAF7F2',
+                            letterSpacing: '0.06em',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 5,
+                          }}
+                        >
+                          <Package size={10} />
+                          {brand.productCount} products
+                        </div>
+                      )}
                     </div>
 
                     {/* Content */}

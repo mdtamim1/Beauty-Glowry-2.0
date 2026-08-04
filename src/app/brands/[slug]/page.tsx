@@ -14,7 +14,8 @@ export default function BrandDetailPage() {
   const slug = params.slug as string;
 
   const brand = brands.find((b) => b.id === slug);
-  const [dbProducts, setDbProducts] = useState<typeof products>(products);
+  const [dbProducts, setDbProducts] = useState<typeof products>([]);
+  const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     fetch('/api/products')
@@ -23,8 +24,12 @@ export default function BrandDetailPage() {
         if (Array.isArray(data)) {
           setDbProducts(data);
         }
+        setLoaded(true);
       })
-      .catch((err) => console.error('Failed to load products for brand page:', err));
+      .catch((err) => {
+        console.error('Failed to load products for brand page:', err);
+        setLoaded(true);
+      });
   }, []);
 
   const brandProducts = dbProducts.filter((p) => p.brand === slug);
@@ -257,7 +262,11 @@ export default function BrandDetailPage() {
             }}
           />
 
-          {brandProducts.length === 0 ? (
+          {!loaded ? (
+            <div style={{ textAlign: 'center', padding: '80px 20px' }}>
+              <p style={{ color: 'var(--text-muted)' }}>Loading collection...</p>
+            </div>
+          ) : brandProducts.length === 0 ? (
             <div
               style={{
                 textAlign: 'center',

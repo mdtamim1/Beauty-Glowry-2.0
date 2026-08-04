@@ -99,7 +99,7 @@ export default function HomePage() {
 
   const currentBanner = banners.length > 0 ? banners[activeSlide] : null;
 
-  const displayProducts = loaded ? dbProducts : products;
+  const displayProducts = dbProducts;
   const bestsellers = displayProducts.filter((p) => p.isBestseller).slice(0, 4);
   const newArrivals = displayProducts.filter((p) => p.isNew).slice(0, 3);
 
@@ -352,9 +352,29 @@ export default function HomePage() {
             </div>
 
             <div className="bestsellers-grid">
-              {bestsellers.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
+              {!loaded ? (
+                Array.from({ length: 4 }).map((_, idx) => (
+                  <div key={idx} style={{
+                    height: 380,
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 10,
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}>
+                    <div className="pc-skeleton" style={{ height: '70%' }} />
+                    <div style={{ padding: 15 }}>
+                      <div className="pc-skeleton" style={{ height: 15, width: '40%', marginBottom: 10 }} />
+                      <div className="pc-skeleton" style={{ height: 20, width: '90%', marginBottom: 10 }} />
+                      <div className="pc-skeleton" style={{ height: 15, width: '60%' }} />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                bestsellers.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))
+              )}
             </div>
           </div>
         </section>
@@ -456,9 +476,29 @@ export default function HomePage() {
               </h2>
             </div>
             <div className="new-arrivals-grid">
-              {newArrivals.map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
+              {!loaded ? (
+                Array.from({ length: 3 }).map((_, idx) => (
+                  <div key={idx} style={{
+                    height: 380,
+                    background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 10,
+                    position: 'relative',
+                    overflow: 'hidden'
+                  }}>
+                    <div className="pc-skeleton" style={{ height: '70%' }} />
+                    <div style={{ padding: 15 }}>
+                      <div className="pc-skeleton" style={{ height: 15, width: '40%', marginBottom: 10 }} />
+                      <div className="pc-skeleton" style={{ height: 20, width: '90%', marginBottom: 10 }} />
+                      <div className="pc-skeleton" style={{ height: 15, width: '60%' }} />
+                    </div>
+                  </div>
+                ))
+              ) : (
+                newArrivals.map((product) => (
+                  <ProductCard key={product.id} product={product} />
+                ))
+              )}
             </div>
           </div>
         </section>
@@ -602,6 +642,22 @@ export default function HomePage() {
       <Footer />
 
       <style>{`
+        /* pc-skeleton shimmer animation */
+        .pc-skeleton {
+          background: linear-gradient(
+            90deg,
+            var(--bg-elevated) 25%,
+            rgba(201,149,109,0.06) 50%,
+            var(--bg-elevated) 75%
+          );
+          background-size: 200% 100%;
+          animation: pc-shimmer 1.4s infinite;
+        }
+        @keyframes pc-shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+
         /* ── Hero ───────────────────────────────────────── */
         .hero-section {
           position: relative;

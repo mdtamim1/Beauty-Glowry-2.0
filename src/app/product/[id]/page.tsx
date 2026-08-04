@@ -66,9 +66,9 @@ export default function ProductDetailPage() {
   const params = useParams();
   const router = useRouter();
   
-  const staticProduct = products.find((p) => p.id === Number(params.id));
-  const [product, setProduct] = useState<Product | undefined>(staticProduct);
-  const [dbProducts, setDbProducts] = useState<Product[]>(products);
+  const [product, setProduct] = useState<Product | undefined>(undefined);
+  const [loading, setLoading] = useState(true);
+  const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(1);
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
@@ -81,6 +81,7 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     if (!params || !params.id) return;
+    setLoading(true);
     fetch(`/api/products/${params.id}`)
       .then((res) => {
         if (res.status === 404) {
@@ -96,8 +97,13 @@ export default function ProductDetailPage() {
           if (data.reviews) setReviews(data.reviews);
           if (data.qnas) setQnas(data.qnas);
         }
+        setLoading(false);
       })
-      .catch((err) => console.error('Failed to load product from DB:', err));
+      .catch((err) => {
+        console.error('Failed to load product from DB:', err);
+        setProduct(undefined);
+        setLoading(false);
+      });
 
     fetch('/api/products')
       .then((res) => res.json())
@@ -246,6 +252,21 @@ export default function ProductDetailPage() {
       setQnaError('Failed to connect to server.');
     }
   };
+
+  if (loading) {
+    return (
+      <>
+        <Navbar />
+        <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-base)' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+            <div className="pc-skeleton" style={{ width: 64, height: 64, borderRadius: '50%' }} />
+            <p style={{ fontSize: 13, color: 'var(--text-muted)' }}>Loading formulation details...</p>
+          </div>
+        </div>
+        <Footer />
+      </>
+    );
+  }
 
   if (!product) {
     return (
@@ -1122,6 +1143,22 @@ export default function ProductDetailPage() {
       <Footer />
 
       <style>{`
+        /* pc-skeleton shimmer animation */
+        .pc-skeleton {
+          background: linear-gradient(
+            90deg,
+            var(--bg-elevated) 25%,
+            rgba(201,149,109,0.06) 50%,
+            var(--bg-elevated) 75%
+          );
+          background-size: 200% 100%;
+          animation: pc-shimmer 1.4s infinite;
+        }
+        @keyframes pc-shimmer {
+          0% { background-position: -200% 0; }
+          100% { background-position: 200% 0; }
+        }
+
         /* ── Product Detail Page Mobile Responsive ──── */
         .pdp-main-grid {
           display: grid;
