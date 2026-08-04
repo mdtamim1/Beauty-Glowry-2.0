@@ -15,6 +15,8 @@ model User {
   role          String          @default("customer")
   avatar        String?
   skin_type     String?
+  allergies     String?
+  current_routine String?
   created_at    DateTime        @default(now())
   
   addresses     Address[]

@@ -8,10 +8,11 @@ import {
   Camera, Edit3, Lock, Check, X, ShoppingBag, Star, Zap, Clock,
   TrendingUp, Gift, ArrowLeft, ChevronDown, ChevronUp, Copy,
   CheckCircle, AlertCircle, Truck, RefreshCw, Plus, Trash2,
-  Shield, Home, CreditCard
+  Shield, Home, CreditCard, Sparkles
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
+import ProductCard from '../../components/ProductCard';
 import { useAuthStore } from '../../store/useAuthStore';
 import { useCartStore } from '../../store/useCartStore';
 import { products as localProducts } from '../../data/products';
@@ -65,7 +66,7 @@ interface Coupon {
   expires: string;
 }
 
-type Tab = 'overview' | 'orders' | 'profile' | 'wishlist' | 'achievements' | 'coupons' | 'addresses';
+type Tab = 'overview' | 'orders' | 'profile' | 'beauty-profile' | 'wishlist' | 'achievements' | 'coupons' | 'addresses';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 function formatDate(iso: string) {
@@ -614,6 +615,364 @@ function ProfileTab({ user, token, onUpdate }: { user: any; token: string; onUpd
   );
 }
 
+// Beauty Profile Tab
+function BeautyProfileTab({ user, token, orders, onUpdate }: { user: any; token: string; orders: Order[]; onUpdate: (u: any) => void }) {
+  const [editing, setEditing] = useState(false);
+  const [skinType, setSkinType] = useState(user?.skin_type || '');
+  const [allergies, setAllergies] = useState(user?.allergies || '');
+  const [currentRoutine, setCurrentRoutine] = useState(user?.current_routine || '');
+  const [saving, setSaving] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const [error, setError] = useState('');
+  const [dbProducts, setDbProducts] = useState<any[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  useEffect(() => {
+    fetch('/api/products')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setDbProducts(data);
+        }
+        setLoadingProducts(false);
+      })
+      .catch((err) => {
+        console.error('Failed to load products for recommendations:', err);
+        setLoadingProducts(false);
+      });
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    setError('');
+    setSuccess(false);
+    try {
+      const res = await fetch('/api/account/profile', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          skin_type: skinType || null,
+          allergies: allergies.trim() || null,
+          current_routine: currentRoutine.trim() || null,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Update failed');
+      }
+      onUpdate(data);
+      setSuccess(true);
+      setEditing(false);
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (e: any) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  // Extract unique products from user's orders
+  const purchasedProducts = React.useMemo(() => {
+    const map: Record<string, any> = {};
+    orders.forEach((order) => {
+      if (Array.isArray(order.items)) {
+        order.items.forEach((item) => {
+          if (item.productId && !map[item.productId]) {
+            map[item.productId] = {
+              id: item.productId,
+              name: item.name,
+              image: item.image,
+              variant: item.variant,
+              price: item.price,
+            };
+          }
+        });
+      }
+    });
+    return Object.values(map);
+  }, [orders]);
+
+  // Compute recommendations based on skin type and filter out allergies
+  const recommendations = React.useMemo(() => {
+    if (!user?.skin_type) return [];
+    
+    const userSkin = user.skin_type.toLowerCase();
+    const userAllergiesList = (user.allergies || '')
+      .toLowerCase()
+      .split(',')
+      .map((s: string) => s.trim())
+      .filter((s: string) => s.length > 0);
+
+    return dbProducts.filter((p: any) => {
+      // 1. Matches skin type
+      const matchesSkin = p.skinTypes?.some((st: string) => 
+        st.toLowerCase().includes(userSkin) || userSkin.includes(st.toLowerCase())
+      );
+      
+      // 2. Exclude allergens
+      const hasAllergen = userAllergiesList.some((allergen: string) => {
+        const inName = p.name.toLowerCase().includes(allergen);
+        const inIngredients = (p.inciList || '').toLowerCase().includes(allergen);
+        return inName || inIngredients;
+      });
+
+      return matchesSkin && !hasAllergen;
+    }).slice(0, 4);
+  }, [dbProducts, user?.skin_type, user?.allergies]);
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* Edit Trigger / Success banner */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: 0 }}>
+          Manage your personalized skin profile and view curated routine recommendations.
+        </p>
+        {!editing ? (
+          <button onClick={() => setEditing(true)} style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            background: 'none', border: '1px solid var(--accent)', color: 'var(--accent)',
+            padding: '6px 14px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            flexShrink: 0,
+          }}>
+            <Edit3 size={12} /> Edit Profile
+          </button>
+        ) : (
+          <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+            <button onClick={() => { setEditing(false); setSkinType(user?.skin_type || ''); setAllergies(user?.allergies || ''); setCurrentRoutine(user?.current_routine || ''); setError(''); }} style={{
+              background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-muted)',
+              padding: '6px 14px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            }}>
+              Cancel
+            </button>
+            <button onClick={handleSave} disabled={saving} style={{
+              background: 'var(--accent)', border: 'none', color: '#fff',
+              padding: '6px 18px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+              opacity: saving ? 0.7 : 1,
+            }}>
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+          </div>
+        )}
+      </div>
+
+      {success && (
+        <div style={{ background: 'rgba(16,185,129,0.1)', color: '#10B981', padding: '12px 16px', borderRadius: 12, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+          <CheckCircle size={16} /> Personal Beauty Profile updated successfully!
+        </div>
+      )}
+
+      {error && (
+        <div style={{ background: 'rgba(239,68,68,0.1)', color: '#EF4444', padding: '12px 16px', borderRadius: 12, fontSize: 13 }}>
+          {error}
+        </div>
+      )}
+
+      {/* Grid for settings */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }} className="pdp-main-grid">
+        {/* Skin Type & Allergies */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+          {/* Skin Type Card */}
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 20 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: 8 }}>
+              Skin Type
+            </label>
+            {editing ? (
+              <select
+                value={skinType}
+                onChange={e => setSkinType(e.target.value)}
+                style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 12,
+                  background: 'var(--bg-base)', border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)', fontSize: 14, outline: 'none',
+                }}
+              >
+                <option value="">Select skin type...</option>
+                <option value="Normal">Normal</option>
+                <option value="Dry">Dry</option>
+                <option value="Oily">Oily</option>
+                <option value="Combination">Combination</option>
+                <option value="Sensitive">Sensitive</option>
+              </select>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'var(--bg-base)', borderRadius: 12 }}>
+                <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {user?.skin_type || 'Not set'}
+                </span>
+                <Link href="/quiz" style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 700, textDecoration: 'none' }}>
+                  Retake Quiz →
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Allergies Card */}
+          <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
+                Allergies & Sensitivities
+              </label>
+              <span style={{ fontSize: 9, color: 'var(--text-muted)', fontStyle: 'italic' }}>Comma separated</span>
+            </div>
+            {editing ? (
+              <textarea
+                value={allergies}
+                onChange={e => setAllergies(e.target.value)}
+                placeholder="e.g. Fragrance, Vitamin C, Salicylic Acid"
+                rows={3}
+                style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 12,
+                  background: 'var(--bg-base)', border: '1px solid var(--border-default)',
+                  color: 'var(--text-primary)', fontSize: 13, outline: 'none', resize: 'none',
+                  fontFamily: 'inherit', boxSizing: 'border-box',
+                }}
+              />
+            ) : (
+              <div style={{ padding: '12px 14px', background: 'var(--bg-base)', borderRadius: 12, minHeight: 68 }}>
+                {user?.allergies ? (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {user.allergies.split(',').map((alg: string, idx: number) => (
+                      <span key={idx} style={{ padding: '3px 8px', borderRadius: 6, background: 'rgba(224,90,90,0.12)', color: 'var(--danger)', fontSize: 11, fontWeight: 600 }}>
+                        ⚠️ {alg.trim()}
+                      </span>
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>No allergies declared.</span>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Current Routine */}
+        <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 20, display: 'flex', flexDirection: 'column' }}>
+          <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: 8 }}>
+            Current Routine
+          </label>
+          {editing ? (
+            <textarea
+              value={currentRoutine}
+              onChange={e => setCurrentRoutine(e.target.value)}
+              placeholder="Describe your current AM/PM routine..."
+              style={{
+                width: '100%', flex: 1, padding: '12px 14px', borderRadius: 12,
+                background: 'var(--bg-base)', border: '1px solid var(--border-default)',
+                color: 'var(--text-primary)', fontSize: 13, outline: 'none', resize: 'none',
+                fontFamily: 'inherit', boxSizing: 'border-box', minHeight: 120,
+              }}
+            />
+          ) : (
+            <div style={{ padding: '12px 14px', background: 'var(--bg-base)', borderRadius: 12, flex: 1, minHeight: 120, fontSize: 13, color: 'var(--text-secondary)', whiteSpace: 'pre-line' }}>
+              {user?.current_routine || 'No routine description set.'}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Previous Purchases */}
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 24 }}>
+        <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: '0 0 16px' }}>
+          Previous Purchases
+        </h3>
+        {purchasedProducts.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '30px 20px', border: '1px dashed var(--border-default)', borderRadius: 12 }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>You haven't purchased any products yet.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }} className="pdp-related-grid">
+            {purchasedProducts.map((p) => {
+              // Check if purchased product contains any allergen declared by user
+              const userAllergiesList = (user?.allergies || '')
+                .toLowerCase()
+                .split(',')
+                .map((s: string) => s.trim())
+                .filter((s: string) => s.length > 0);
+              
+              const localProd = dbProducts.find((dbP) => String(dbP.id) === String(p.id));
+              const hasAllergen = userAllergiesList.some((allergen: string) => {
+                const inName = p.name.toLowerCase().includes(allergen);
+                const inIngredients = (localProd?.inciList || '').toLowerCase().includes(allergen);
+                return inName || inIngredients;
+              });
+
+              return (
+                <div key={p.id} style={{ display: 'flex', gap: 12, padding: 12, background: 'var(--bg-base)', borderRadius: 12, position: 'relative', border: hasAllergen ? '1px solid rgba(224,90,90,0.3)' : '1px solid transparent' }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 8, overflow: 'hidden', background: 'var(--border-default)', flexShrink: 0 }}>
+                    {p.image ? (
+                      <img src={p.image} alt={p.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <ShoppingBag size={16} color="var(--text-muted)" />
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <Link href={`/product/${p.id}`} style={{ textDecoration: 'none' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }}>
+                        {p.name}
+                      </div>
+                    </Link>
+                    {p.variant && <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{p.variant}</div>}
+                    {hasAllergen && (
+                      <div style={{ fontSize: 9, color: 'var(--danger)', fontWeight: 700, marginTop: 4 }}>
+                        ⚠️ Contains allergen
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* Personalized Recommendations */}
+      <div style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-default)', borderRadius: 16, padding: 24 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <h3 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 20, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
+            Personalized Recommendations
+          </h3>
+          {user?.skin_type && (
+            <span style={{ fontSize: 11, color: 'var(--accent)', fontWeight: 600, padding: '2px 10px', background: 'rgba(201,149,109,0.12)', borderRadius: 20 }}>
+              Based on {user.skin_type} Skin
+            </span>
+          )}
+        </div>
+
+        {!user?.skin_type ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px', border: '1px dashed var(--border-default)', borderRadius: 12 }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 16 }}>
+              Please set your Skin Type or complete the quiz to receive personalized skincare recommendations.
+            </p>
+            <Link href="/quiz" className="btn-primary" style={{ display: 'inline-block', fontSize: 12, padding: '10px 24px' }}>
+              Take Skin Quiz
+            </Link>
+          </div>
+        ) : loadingProducts ? (
+          <div style={{ textAlign: 'center', padding: 20 }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>Loading recommendations...</p>
+          </div>
+        ) : recommendations.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '30px 20px', border: '1px dashed var(--border-default)', borderRadius: 12 }}>
+            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+              No recommendations match your skin profile and allergen settings at this time.
+            </p>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14 }} className="pdp-related-grid">
+            {recommendations.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // Wishlist Tab
 function WishlistTab() {
   const { wishlist, removeFromWishlist, addToCart, setBuyNow } = useCartStore();
@@ -1054,6 +1413,7 @@ export default function AccountPage() {
     { id: 'overview',      label: 'Overview',     icon: <Home size={18} /> },
     { id: 'orders',        label: 'Orders',        icon: <Package size={18} />, badge: orders.length },
     { id: 'profile',       label: 'Profile',       icon: <User size={18} /> },
+    { id: 'beauty-profile', label: 'Beauty Profile', icon: <Sparkles size={18} /> },
     { id: 'wishlist',      label: 'Wishlist',      icon: <Heart size={18} /> },
     { id: 'achievements',  label: 'Achievements',  icon: <Trophy size={18} /> },
     { id: 'coupons',       label: 'Coupons',       icon: <Ticket size={18} /> },
@@ -1062,6 +1422,7 @@ export default function AccountPage() {
 
   const tabLabels: Record<Tab, string> = {
     overview: 'Overview', orders: 'My Orders', profile: 'Edit Profile',
+    'beauty-profile': 'Beauty Profile',
     wishlist: 'Wishlist', achievements: 'Achievements', coupons: 'Coupons', addresses: 'Addresses',
   };
 
@@ -1192,6 +1553,9 @@ export default function AccountPage() {
               )}
               {activeTab === 'profile' && (
                 <ProfileTab user={user} token={token || ''} onUpdate={(updated) => updateUser(updated)} />
+              )}
+              {activeTab === 'beauty-profile' && (
+                <BeautyProfileTab user={user} token={token || ''} orders={orders} onUpdate={(updated) => updateUser(updated)} />
               )}
               {activeTab === 'wishlist' && (
                 <WishlistTab />

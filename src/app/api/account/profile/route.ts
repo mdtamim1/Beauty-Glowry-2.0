@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
   try {
     const user = await prisma.user.findUnique({
       where: { id: auth.id },
-      select: { id: true, name: true, email: true, phone: true, avatar: true, skin_type: true, created_at: true, role: true },
+      select: { id: true, name: true, email: true, phone: true, avatar: true, skin_type: true, allergies: true, current_routine: true, created_at: true, role: true },
     });
     if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
     return NextResponse.json(user);
@@ -42,6 +42,8 @@ export async function PATCH(request: NextRequest) {
     if (body.name !== undefined) allowed.name = String(body.name).trim();
     if (body.avatar !== undefined) allowed.avatar = body.avatar ? String(body.avatar).trim() : null;
     if (body.skin_type !== undefined) allowed.skin_type = body.skin_type;
+    if (body.allergies !== undefined) allowed.allergies = body.allergies ? String(body.allergies).trim() : null;
+    if (body.current_routine !== undefined) allowed.current_routine = body.current_routine ? String(body.current_routine).trim() : null;
 
     if (Object.keys(allowed).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });
@@ -50,7 +52,7 @@ export async function PATCH(request: NextRequest) {
     const updated = await prisma.user.update({
       where: { id: auth.id },
       data: allowed,
-      select: { id: true, name: true, email: true, phone: true, avatar: true, skin_type: true, created_at: true, role: true },
+      select: { id: true, name: true, email: true, phone: true, avatar: true, skin_type: true, allergies: true, current_routine: true, created_at: true, role: true },
     });
 
     return NextResponse.json(updated);
