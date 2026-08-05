@@ -22,6 +22,10 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
   const [password, setPassword] = useState('');
   const [agree, setAgree] = useState(false);
 
+  // Forgot Password States
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [forgotEmailSent, setForgotEmailSent] = useState(false);
+
   // OTP Verification States
   const [showOtp, setShowOtp] = useState(false);
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -82,6 +86,45 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+
+    if (isForgotPassword && !forgotEmailSent) {
+      if (!email) { setError('Email address is required'); return; }
+      if (!/\S+@\S+\.\S+/.test(email)) { setError('Please enter a valid email address'); return; }
+
+      setLoading(true);
+
+      try {
+        const response = await fetch('/api/auth/otp/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, isReset: true }),
+        });
+        const data = await response.json();
+
+        setLoading(false);
+
+        if (!response.ok) {
+          setError(data.error || 'Failed to send verification code.');
+          return;
+        }
+
+        setGeneratedCode(data.simulatedCode || 'REAL_EMAIL');
+        setForgotEmailSent(true);
+        setTimer(60);
+        setCanResend(false);
+        setOtp(['', '', '', '', '', '']);
+
+        if (data.simulatedCode) {
+          alert(`[Simulated Reset Code sent to ${email}]: ${data.simulatedCode}\n\n(Please enter this code to reset your password)`);
+        } else {
+          alert(`A verification code has been sent to ${email}. Please check your inbox/spam folder.`);
+        }
+      } catch (err) {
+        setLoading(false);
+        setError('Connection failed. Please check your network connection.');
+      }
+      return;
+    }
 
     if (isSignUp && !name) { setError('Please enter your name'); return; }
     if (!email) { setError('Email address is required'); return; }
@@ -154,7 +197,7 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
     }
   };
 
-  // Verify code -> API call
+  // Verify code / Reset password -> API call
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -162,6 +205,15 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
 
     if (enteredCode.length < 6) {
       setError('Please enter the full 6-digit verification code');
+      return;
+    }
+
+    if (isForgotPassword && !password) {
+      setError('Please enter a new password');
+      return;
+    }
+    if (isForgotPassword && password.length < 6) {
+      setError('Password must be at least 6 characters');
       return;
     }
 
@@ -177,7 +229,8 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
           isSignUp,
           name,
           phone,
-          password
+          password,
+          isReset: isForgotPassword
         }),
       });
       const data = await response.json();
@@ -186,6 +239,14 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
 
       if (!response.ok) {
         setError(data.error || 'Invalid verification code.');
+        return;
+      }
+
+      if (isForgotPassword) {
+        alert('Password reset successful! Please sign in with your new password.');
+        setIsForgotPassword(false);
+        setForgotEmailSent(false);
+        setPassword('');
         return;
       }
 
@@ -217,7 +278,7 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
       const response = await fetch('/api/auth/otp/send', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email, isReset: isForgotPassword }),
       });
       const data = await response.json();
 
@@ -438,26 +499,292 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
               </button>
             </div>
           </div>
-        ) : success ? (
-          /* Success Screen */
-          <div style={{ padding: '48px 30px', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 14 }}>
-            <div style={{
-              width: 56, height: 56, borderRadius: '50%',
-              background: `${c.success}10`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              border: `1px solid ${c.success}30`,
-            }}>
-              <CheckCircle size={28} style={{ color: c.success }} />
+        ) : isForgotPassword ? (
+          /* Forgot Password Flows */
+          forgotEmailSent ? (
+            /* Reset Password Screen (OTP + New Password input) */
+            <div style={{ padding: '32px 28px 28px' }}>
+              <button
+                onClick={() => { setIsForgotPassword(false); setForgotEmailSent(false); setError(''); }}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: 'none', border: 'none', fontSize: 11, fontWeight: 700,
+                  color: c.muted, cursor: 'pointer', padding: 0, textTransform: 'uppercase',
+                  letterSpacing: '0.05em', marginBottom: 16
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = c.text)}
+                onMouseLeave={e => (e.currentTarget.style.color = c.muted)}
+              >
+                <ArrowLeft size={13} /> Cancel
+              </button>
+
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                  <Lock size={12} style={{ color: c.accent }} />
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: c.accent }}>
+                    Verification & Reset
+                  </span>
+                </div>
+                <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 24, fontWeight: 500, color: c.text, marginBottom: 4 }}>
+                  Enter New Credentials
+                </h2>
+                <p style={{ fontSize: 12, color: c.textSec, lineHeight: 1.4 }}>
+                  Please check <strong style={{ color: c.text }}>{email}</strong> for the 6-digit reset code and specify your new password.
+                </p>
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div style={{
+                  padding: '9px 12px',
+                  background: `${c.danger}08`,
+                  borderLeft: `3px solid ${c.danger}`,
+                  borderRadius: 4,
+                  fontSize: 11.5,
+                  color: c.danger,
+                  marginBottom: 16,
+                }}>
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {/* OTP Inputs */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: c.textSec, marginBottom: 8 }}>
+                    Verification Code
+                  </label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: 6 }}>
+                    {otp.map((digit, index) => (
+                      <input
+                        key={index}
+                        ref={(el) => { otpRefs.current[index] = el; }}
+                        type="text"
+                        maxLength={1}
+                        value={digit}
+                        onChange={(e) => handleOtpChange(e.target, index)}
+                        onKeyDown={(e) => handleOtpKeyDown(e, index)}
+                        style={{
+                          width: 44,
+                          height: 44,
+                          background: c.elevated,
+                          border: `1px solid ${c.border}`,
+                          borderRadius: 8,
+                          textAlign: 'center',
+                          fontSize: 18,
+                          fontWeight: 700,
+                          color: c.text,
+                          outline: 'none',
+                          transition: 'all 0.2s ease',
+                        }}
+                        onFocus={(e) => {
+                          e.target.style.borderColor = c.accent;
+                          e.target.style.background = '#FFFFFF';
+                          e.target.style.boxShadow = '0 0 0 2px rgba(201, 149, 109, 0.15)';
+                        }}
+                        onBlur={(e) => {
+                          e.target.style.borderColor = c.border;
+                          e.target.style.background = c.elevated;
+                          e.target.style.boxShadow = 'none';
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* New Password input */}
+                <div>
+                  <label style={{ display: 'block', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: c.textSec, marginBottom: 5 }}>
+                    New Password
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <Lock size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: c.muted }} />
+                    <input
+                      type={showPassword ? 'text' : 'password'}
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      className="premium-input-field"
+                      style={{
+                        width: '100%',
+                        padding: '8px 32px 8px 32px',
+                        background: '#FFFFFF',
+                        border: `1px solid ${c.border}`,
+                        borderRadius: 6,
+                        fontSize: 12.5,
+                        color: c.text,
+                        outline: 'none',
+                        transition: 'all 0.2s ease',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      style={{
+                        position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)',
+                        background: 'none', border: 'none', color: c.muted, cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0
+                      }}
+                    >
+                      {showPassword ? <EyeOff size={13} /> : <Eye size={13} />}
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="premium-submit-btn"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: c.accent,
+                    border: 'none',
+                    borderRadius: 6,
+                    color: '#FFFFFF',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    opacity: loading ? 0.7 : 1,
+                    transition: 'all 0.25s ease',
+                    marginTop: 6,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {loading ? 'Resetting Password...' : 'Reset Password'}
+                </button>
+              </form>
+
+              {/* Resend Code Section */}
+              <div style={{ marginTop: 20, textAlign: 'center', fontSize: 12 }}>
+                {canResend ? (
+                  <button
+                    onClick={handleResendCode}
+                    style={{
+                      background: 'none', border: 'none', color: c.accent,
+                      fontWeight: 700, cursor: 'pointer', padding: 0,
+                      display: 'inline-flex', alignItems: 'center', gap: 4
+                    }}
+                  >
+                    <RefreshCw size={11} /> Resend Verification Code
+                  </button>
+                ) : (
+                  <span style={{ color: c.muted }}>
+                    Resend code in <strong style={{ color: c.text }}>{timer}s</strong>
+                  </span>
+                )}
+              </div>
             </div>
-            <div>
-              <h3 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 22, fontWeight: 600, color: c.text, marginBottom: 6 }}>
-                Verification Complete
-              </h3>
-              <p style={{ fontSize: 12.5, color: c.textSec, lineHeight: 1.5, maxWidth: 280, margin: '0 auto' }}>
-                Your email has been verified. Welcome to your premium skincare dashboard.
-              </p>
+          ) : (
+            /* Forgot Password Enter Email Screen */
+            <div style={{ padding: '32px 28px 28px' }}>
+              <button
+                onClick={() => { setIsForgotPassword(false); setError(''); }}
+                style={{
+                  display: 'inline-flex', alignItems: 'center', gap: 5,
+                  background: 'none', border: 'none', fontSize: 11, fontWeight: 700,
+                  color: c.muted, cursor: 'pointer', padding: 0, textTransform: 'uppercase',
+                  letterSpacing: '0.05em', marginBottom: 16
+                }}
+                onMouseEnter={e => (e.currentTarget.style.color = c.text)}
+                onMouseLeave={e => (e.currentTarget.style.color = c.muted)}
+              >
+                <ArrowLeft size={13} /> Back to Sign In
+              </button>
+
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6 }}>
+                  <Shield size={11} style={{ color: c.accent }} />
+                  <span style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.12em', textTransform: 'uppercase', color: c.accent }}>
+                    Recover Account
+                  </span>
+                </div>
+                <h2 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 26, fontWeight: 500, color: c.text, marginBottom: 4 }}>
+                  Reset Password
+                </h2>
+                <p style={{ fontSize: 12, color: c.textSec }}>
+                  Enter your registered email address to receive a 6-digit verification code.
+                </p>
+              </div>
+
+              {/* Error Message */}
+              {error && (
+                <div style={{
+                  padding: '9px 12px',
+                  background: `${c.danger}08`,
+                  borderLeft: `3px solid ${c.danger}`,
+                  borderRadius: 4,
+                  fontSize: 11.5,
+                  color: c.danger,
+                  marginBottom: 16,
+                }}>
+                  {error}
+                </div>
+              )}
+
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: c.textSec, marginBottom: 5 }}>
+                    Email Address
+                  </label>
+                  <div style={{ position: 'relative' }}>
+                    <Mail size={13} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: c.muted }} />
+                    <input
+                      type="email"
+                      placeholder="e.g. customer@gmail.com"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      className="premium-input-field"
+                      style={{
+                        width: '100%',
+                        padding: '8px 12px 8px 34px',
+                        background: '#FFFFFF',
+                        border: `1px solid ${c.border}`,
+                        borderRadius: 6,
+                        fontSize: 12.5,
+                        color: c.text,
+                        outline: 'none',
+                        transition: 'all 0.2s ease',
+                        boxSizing: 'border-box',
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="premium-submit-btn"
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    background: c.accent,
+                    border: 'none',
+                    borderRadius: 6,
+                    color: '#FFFFFF',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    letterSpacing: '0.05em',
+                    textTransform: 'uppercase',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    opacity: loading ? 0.7 : 1,
+                    transition: 'all 0.25s ease',
+                    marginTop: 6,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  {loading ? 'Sending Code...' : 'Send Reset Code'}
+                </button>
+              </form>
             </div>
-          </div>
+          )
         ) : showOtp ? (
           /* OTP Screen */
           <div style={{ padding: '32px 28px 28px' }}>
@@ -772,6 +1099,7 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
                   {!isSignUp && (
                     <button
                       type="button"
+                      onClick={() => { setIsForgotPassword(true); setError(''); }}
                       style={{
                         background: 'none', border: 'none', color: c.accent,
                         fontSize: 11, fontWeight: 600, cursor: 'pointer', padding: 0,

@@ -5,7 +5,7 @@ import { handleSendOtpJob } from '../../../../../lib/jobs';
 
 export async function POST(request: Request) {
   try {
-    const { email, isSignUp } = await request.json();
+    const { email, isSignUp, isReset } = await request.json();
     if (!email) {
       return NextResponse.json({ error: 'Email is required' }, { status: 400 });
     }
@@ -39,19 +39,19 @@ export async function POST(request: Request) {
       }
     }
 
-    // Check if account already exists on Sign Up, or doesn't exist on Sign In
+    // Check if account already exists on Sign Up, or doesn't exist on Sign In / Reset
     const existingUser = await prisma.user.findUnique({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
-    if (isSignUp && existingUser) {
+    if (isSignUp && !isReset && existingUser) {
       return NextResponse.json(
         { error: 'An account with this email already exists. Please sign in instead.' },
         { status: 400 }
       );
     }
 
-    if (!isSignUp && !existingUser) {
+    if ((!isSignUp || isReset) && !existingUser) {
       return NextResponse.json(
         { error: 'No account found with this email. Please sign up first.' },
         { status: 400 }

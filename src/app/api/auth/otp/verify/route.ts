@@ -13,7 +13,7 @@ import {
 
 export async function POST(request: Request) {
   try {
-    const { email, code, isSignUp, name, phone, password } = await request.json();
+    const { email, code, isSignUp, name, phone, password, isReset } = await request.json();
 
     if (!email || !code) {
       return NextResponse.json({ error: 'Email and verification code are required' }, { status: 400 });
@@ -31,6 +31,36 @@ export async function POST(request: Request) {
 
     // Success - delete OTP after use
     await redis.del(`otp:${email}`);
+
+    // Handle Password Reset Flow
+    if (isReset) {
+      const existingUser = await prisma.user.findUnique({
+        where: { email },
+      });
+
+      if (!existingUser) {
+        return NextResponse.json({ error: 'No account found with this email.' }, { status: 400 });
+      }
+
+      if (!password) {
+        return NextResponse.json({ error: 'New password is required' }, { status: 400 });
+      }
+
+      // Hash password using bcryptjs
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash(password, salt);
+
+      // Update user password
+      await prisma.user.update({
+        where: { id: existingUser.id },
+        data: { password_hash: passwordHash },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: 'Password reset successful. Please sign in with your new password.',
+      });
+    }
 
     let user;
 
