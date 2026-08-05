@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Call real Google Gemini API
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
     const promptText = `You are a professional clinical dermatologist AI.
 First, verify if the image contains a clear human face. If the image does not contain a human face, or if the face is not clearly visible, you MUST return a JSON object containing ONLY the field "error" explaining the problem:
