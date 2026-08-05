@@ -63,13 +63,16 @@ First, verify if the image contains a clear human face. If the image does not co
 If a human face is present, analyze the face and diagnose these skin concerns: Acne, Dark spots, Oiliness, Redness, Fine lines, Pores visibility, Skin Hydration, Dark Circles, and Skin Barrier.
 
 For each skin concern, provide:
-1. A severity score (0 to 100). If the skin looks healthy and has no visible issues for a particular concern, assign a low score (e.g., under 15-20). Be realistic and fair. Do not exaggerate issues if the skin looks smooth and clear.
+1. A severity score (0 to 100).
+   - IMPORTANT: If the skin looks healthy, clean, smooth, and clear, assign a very low score (e.g., 0 to 12) for negative concerns (Acne, Redness, Fine Lines, Dark Spots, Dark Circles, Pores Visibility, and Oiliness). Be realistic and fair. Do not exaggerate issues if the skin is smooth.
+   - For positive concerns like Skin Hydration and Skin Barrier, a higher score is better. If the skin looks healthy, assign a high score (e.g., 85 to 98) representing excellent hydration and a strong barrier.
 2. A short description of your findings.
 3. Relative coordinates [x, y] (both integers between 0 and 100, where [0, 0] is left/top and [100, 100] is right/bottom) indicating where on the image this concern is visible, so the UI can draw pointers.
 
 CRITICAL COORDINATES RULES:
-- If a concern is not present or has a low severity score (e.g., under 25-30), you MUST set "coords" to null.
-- For "hydration" and "barrier", since they are global skin properties rather than localized spots, always set "coords" to null unless there is a highly localized patch of severe dryness, flaking, or irritation.
+- Localized markers on the face should ONLY be used for: "acne", "darkSpots", "fineLines", and "darkCircles".
+- For all other concerns ("oiliness", "redness", "pores", "hydration", and "barrier"), you MUST always set "coords" to null because they are diffuse, general, or global skin properties.
+- Even for "acne", "darkSpots", "fineLines", and "darkCircles", you MUST set "coords" to null if the severity score is below 45 (representing mild or healthy state). Only show a pointer if there is a distinct, localized, and prominent issue.
 - Never output generic placeholder coordinates or stack multiple markers vertically (e.g., putting all points at [50, 30], [50, 35], [50, 40], etc.).
 - If you do provide a coordinate, it must map to the actual anatomical location on the face where the concern is observed:
   * Forehead: near [50, 20]
