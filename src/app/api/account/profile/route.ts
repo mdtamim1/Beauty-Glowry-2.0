@@ -37,13 +37,43 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = await request.json();
-    // Only allow safe fields — email and phone are immutable
+    // Allow safe fields, including email and phone updates if valid
     const allowed: Record<string, any> = {};
     if (body.name !== undefined) allowed.name = String(body.name).trim();
     if (body.avatar !== undefined) allowed.avatar = body.avatar ? String(body.avatar).trim() : null;
     if (body.skin_type !== undefined) allowed.skin_type = body.skin_type;
     if (body.allergies !== undefined) allowed.allergies = body.allergies ? String(body.allergies).trim() : null;
     if (body.current_routine !== undefined) allowed.current_routine = body.current_routine ? String(body.current_routine).trim() : null;
+
+    if (body.phone !== undefined) {
+      const phoneVal = body.phone ? String(body.phone).trim() : null;
+      if (phoneVal) {
+        if (phoneVal.length < 11) {
+          return NextResponse.json({ error: 'Please enter a valid phone number (at least 11 digits).' }, { status: 400 });
+        }
+        allowed.phone = phoneVal;
+      } else {
+        allowed.phone = null;
+      }
+    }
+
+    if (body.email !== undefined) {
+      const emailVal = String(body.email).trim().toLowerCase();
+      if (!emailVal || !/\S+@\S+\.\S+/.test(emailVal)) {
+        return NextResponse.json({ error: 'Please enter a valid email address.' }, { status: 400 });
+      }
+
+      // Ensure uniqueness
+      const existingUser = await prisma.user.findUnique({
+        where: { email: emailVal },
+      });
+
+      if (existingUser && existingUser.id !== auth.id) {
+        return NextResponse.json({ error: 'This email address is already in use by another account.' }, { status: 400 });
+      }
+
+      allowed.email = emailVal;
+    }
 
     if (Object.keys(allowed).length === 0) {
       return NextResponse.json({ error: 'No valid fields to update' }, { status: 400 });

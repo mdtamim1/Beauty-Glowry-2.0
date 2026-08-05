@@ -20,12 +20,14 @@ export const authOptions: NextAuthOptions = {
       if (account) {
         token.accessToken = account.access_token;
         token.provider = account.provider;
+        token.providerAccountId = account.providerAccountId;
       }
       return token;
     },
     async session({ session, token }) {
       (session as any).accessToken = token.accessToken;
       (session as any).provider = token.provider;
+      (session as any).providerAccountId = token.providerAccountId;
       return session;
     },
   },

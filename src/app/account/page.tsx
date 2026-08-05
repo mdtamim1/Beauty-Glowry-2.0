@@ -433,17 +433,37 @@ function ProfileTab({ user, token, onUpdate }: { user: any; token: string; onUpd
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(user?.name || '');
   const [avatar, setAvatar] = useState(user?.avatar || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [email, setEmail] = useState(user?.email || '');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [error, setError] = useState('');
 
+  // Sync state if user prop changes
+  useEffect(() => {
+    setName(user?.name || '');
+    setAvatar(user?.avatar || '');
+    setPhone(user?.phone || '');
+    setEmail(user?.email || '');
+  }, [user]);
+
+  const isTempEmail = user?.email?.includes('@facebook-temp.com') || false;
+  const isPhoneMissing = !user?.phone;
+
   const handleSave = async () => {
     setSaving(true); setError('');
     try {
+      const payload: any = {
+        name: name.trim(),
+        avatar: avatar.trim() || null,
+        phone: phone.trim() || null,
+        email: email.trim().toLowerCase()
+      };
+
       const res = await fetch('/api/account/profile', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ name: name.trim(), avatar: avatar.trim() || null }),
+        body: JSON.stringify(payload),
       });
       const data = await res.json();
       if (!res.ok) { setError(data.error || 'Update failed'); return; }
@@ -461,6 +481,28 @@ function ProfileTab({ user, token, onUpdate }: { user: any; token: string; onUpd
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Warning/Alert banners */}
+      {isTempEmail && (
+        <div style={{
+          background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)',
+          borderRadius: 12, padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'center',
+          color: '#D97706', fontSize: 13, fontWeight: 500
+        }}>
+          <AlertCircle size={16} />
+          <span>Please update your temporary email address with your real email address.</span>
+        </div>
+      )}
+      {isPhoneMissing && (
+        <div style={{
+          background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)',
+          borderRadius: 12, padding: '12px 16px', display: 'flex', gap: 10, alignItems: 'center',
+          color: '#D97706', fontSize: 13, fontWeight: 500
+        }}>
+          <AlertCircle size={16} />
+          <span>Please add a phone number to complete your profile registration.</span>
+        </div>
+      )}
+
       {/* Avatar Card */}
       <div style={{
         background: 'var(--bg-surface)', border: '1px solid var(--border-default)',
@@ -528,7 +570,7 @@ function ProfileTab({ user, token, onUpdate }: { user: any; token: string; onUpd
             </button>
           ) : (
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => { setEditing(false); setName(user?.name || ''); setAvatar(user?.avatar || ''); }} style={{
+              <button onClick={() => { setEditing(false); setName(user?.name || ''); setAvatar(user?.avatar || ''); setPhone(user?.phone || ''); setEmail(user?.email || ''); }} style={{
                 background: 'none', border: '1px solid var(--border-default)', color: 'var(--text-muted)',
                 padding: '6px 14px', borderRadius: 10, fontSize: 12, fontWeight: 700, cursor: 'pointer',
               }}>
@@ -575,27 +617,69 @@ function ProfileTab({ user, token, onUpdate }: { user: any; token: string; onUpd
             )}
           </div>
 
-          {/* Email — locked */}
-          {[
-            { label: 'Email Address', value: user?.email, icon: <Lock size={12} /> },
-            { label: 'Phone Number', value: user?.phone || 'Not set', icon: <Lock size={12} /> },
-          ].map((field) => (
-            <div key={field.label}>
-              <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
-                {field.label}
-              </label>
+          {/* Email Address */}
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
+              Email Address
+            </label>
+            {editing && (isTempEmail || !user?.email) ? (
+              <input
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="Enter your email address"
+                style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 12,
+                  background: 'var(--bg-base)', border: '1px solid var(--accent)',
+                  color: 'var(--text-primary)', fontSize: 14, boxSizing: 'border-box',
+                  outline: 'none',
+                }}
+              />
+            ) : (
               <div style={{
                 padding: '12px 14px', borderRadius: 12, background: 'var(--bg-base)',
                 border: '1px solid var(--border-default)', fontSize: 14, color: 'var(--text-secondary)',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
               }}>
-                <span>{field.value}</span>
+                <span>{user?.email}</span>
                 <span style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}>
-                  {field.icon} Locked
+                  <Lock size={12} /> Locked
                 </span>
               </div>
-            </div>
-          ))}
+            )}
+          </div>
+
+          {/* Phone Number */}
+          <div>
+            <label style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>
+              Phone Number
+            </label>
+            {editing ? (
+              <input
+                value={phone}
+                onChange={e => setPhone(e.target.value)}
+                placeholder="Enter phone number (e.g., 01712345678)"
+                style={{
+                  width: '100%', padding: '12px 14px', borderRadius: 12,
+                  background: 'var(--bg-base)', border: '1px solid var(--accent)',
+                  color: 'var(--text-primary)', fontSize: 14, boxSizing: 'border-box',
+                  outline: 'none',
+                }}
+              />
+            ) : (
+              <div style={{
+                padding: '12px 14px', borderRadius: 12, background: 'var(--bg-base)',
+                border: '1px solid var(--border-default)', fontSize: 14, color: user?.phone ? 'var(--text-primary)' : 'var(--text-muted)',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              }}>
+                <span>{user?.phone || 'Not set'}</span>
+                {!user?.phone && (
+                  <span style={{ color: '#D97706', fontSize: 11, fontWeight: 600 }}>
+                    Required
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Skin Type */}
           <div>

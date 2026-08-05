@@ -12,11 +12,19 @@ import {
 export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user || !session.user.email) {
+    if (!session || !session.user) {
       return NextResponse.json({ error: 'No active session found' }, { status: 401 });
     }
 
-    const { email, name, image } = session.user;
+    const provider = (session as any).provider || 'social';
+    const providerAccountId = (session as any).providerAccountId || 'unknown';
+
+    // Fallback email if session.user.email is not set
+    const email = session.user.email
+      ? session.user.email.trim().toLowerCase()
+      : `${providerAccountId}@facebook-temp.com`;
+
+    const { name, image } = session.user;
 
     // Check if user exists
     let user = await prisma.user.findUnique({
