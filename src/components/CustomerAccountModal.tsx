@@ -49,6 +49,17 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
     return () => clearInterval(interval);
   }, [showOtp, timer]);
 
+  // Check for NextAuth redirect error params
+  useEffect(() => {
+    if (isOpen && typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const err = params.get('error');
+      if (err) {
+        setError(`Authentication failed: ${err}. Please verify that your Google/Facebook API credentials and NEXTAUTH_SECRET/NEXTAUTH_URL are correctly configured in your hosting environment variables.`);
+      }
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const getPasswordStrength = (pass: string) => {
@@ -903,7 +914,7 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
               <button
                 type="button"
                 className="social-btn-premium"
-                onClick={() => signIn('google')}
+                onClick={() => signIn('google', { callbackUrl: '/account' })}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   padding: '8px 12px', background: '#FFFFFF',
@@ -921,7 +932,7 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
               <button
                 type="button"
                 className="social-btn-premium"
-                onClick={() => signIn('facebook')}
+                onClick={() => signIn('facebook', { callbackUrl: '/account' })}
                 style={{
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
                   padding: '8px 12px', background: '#FFFFFF',
