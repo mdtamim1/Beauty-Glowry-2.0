@@ -63,9 +63,22 @@ First, verify if the image contains a clear human face. If the image does not co
 If a human face is present, analyze the face and diagnose these skin concerns: Acne, Dark spots, Oiliness, Redness, Fine lines, Pores visibility, Skin Hydration, Dark Circles, and Skin Barrier.
 
 For each skin concern, provide:
-1. A severity score (0 to 100).
+1. A severity score (0 to 100). If the skin looks healthy and has no visible issues for a particular concern, assign a low score (e.g., under 15-20). Be realistic and fair. Do not exaggerate issues if the skin looks smooth and clear.
 2. A short description of your findings.
-3. Relative coordinates [x, y] (both integers between 0 and 100, where [0, 0] is left/top and [100, 100] is right/bottom) indicating where on the image this concern is visible, so the UI can draw pointers. For example, if oiliness is visible on the forehead, the coordinate might be [50, 20]. If no concerns are found for that category, return null for coords.
+3. Relative coordinates [x, y] (both integers between 0 and 100, where [0, 0] is left/top and [100, 100] is right/bottom) indicating where on the image this concern is visible, so the UI can draw pointers.
+
+CRITICAL COORDINATES RULES:
+- If a concern is not present or has a low severity score (e.g., under 25-30), you MUST set "coords" to null.
+- For "hydration" and "barrier", since they are global skin properties rather than localized spots, always set "coords" to null unless there is a highly localized patch of severe dryness, flaking, or irritation.
+- Never output generic placeholder coordinates or stack multiple markers vertically (e.g., putting all points at [50, 30], [50, 35], [50, 40], etc.).
+- If you do provide a coordinate, it must map to the actual anatomical location on the face where the concern is observed:
+  * Forehead: near [50, 20]
+  * Left Cheek: near [35, 50]
+  * Right Cheek: near [65, 50]
+  * Nose: near [50, 45]
+  * Chin: near [50, 75]
+  * Under Left Eye: near [40, 38]
+  * Under Right Eye: near [60, 38]
 
 Also, recommend an AM and PM routine using general product categories: 'Cleansers & Washes', 'Toners & Essences', 'Serums & Elixirs', 'Moisturizers & Creams', 'Sun Protection'.
 
