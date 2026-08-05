@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAuthStore } from '../store/useAuthStore';
 
 export default function AuthInterceptor() {
   const isRefreshing = useRef(false);
   const refreshSubscribers = useRef<((token: string) => void)[]>([]);
+  const [hasHydrated, setHasHydrated] = useState(false);
 
   const addRefreshSubscriber = (callback: (token: string) => void) => {
     refreshSubscribers.current.push(callback);
@@ -15,6 +16,10 @@ export default function AuthInterceptor() {
     refreshSubscribers.current.forEach((cb) => cb(token));
     refreshSubscribers.current = [];
   };
+
+  useEffect(() => {
+    setHasHydrated(true);
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -55,9 +60,12 @@ export default function AuthInterceptor() {
                 useAuthStore.getState().logout();
                 return response;
               }
-            } catch (err) {
+            } catch (err: any) {
               isRefreshing.current = false;
-              useAuthStore.getState().logout();
+              // Do NOT logout on network failures or aborts (e.g. during page transition)
+              if (err && err.name !== 'AbortError' && err.message !== 'Failed to fetch') {
+                useAuthStore.getState().logout();
+              }
               return response;
             }
           }
@@ -83,7 +91,7 @@ export default function AuthInterceptor() {
 
   // Synchronize social login session if available
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    if (typeof window === 'undefined' || !hasHydrated) return;
 
     const syncSocialSession = async () => {
       // Only sync if there is no user in the Zustand store
@@ -117,7 +125,7 @@ export default function AuthInterceptor() {
     };
 
     syncSocialSession();
-  }, []);
+  }, [hasHydrated]);
 
   return null;
 }

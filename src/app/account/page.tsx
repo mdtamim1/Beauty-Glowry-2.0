@@ -1469,8 +1469,16 @@ export default function AccountPage() {
   const [dataLoaded, setDataLoaded] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
 
+  const [hasHydrated, setHasHydrated] = useState(false);
+
+  useEffect(() => {
+    setHasHydrated(true);
+  }, []);
+
   // Redirect if not logged in, but wait for NextAuth session sync if active
   useEffect(() => {
+    if (!hasHydrated) return;
+
     let interval: NodeJS.Timeout;
     const checkSession = async () => {
       if (user && token) {
@@ -1506,7 +1514,7 @@ export default function AccountPage() {
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [user, token, router]);
+  }, [hasHydrated, user, token, router]);
 
   // Fetch data
   useEffect(() => {
