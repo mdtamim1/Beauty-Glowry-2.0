@@ -62,7 +62,7 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll, { passive: true });
     
     // Fetch dynamic store name
-    fetch('/api/admin/store-config')
+    fetch('/api/admin/store-config?t=' + Date.now(), { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
         if (data && data.storeName) {
@@ -71,7 +71,7 @@ export default function Navbar() {
       })
       .catch((err) => console.error('Failed to load store config in Navbar:', err));
 
-    fetch('/api/categories')
+    fetch('/api/categories?t=' + Date.now(), { cache: 'no-store' })
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
@@ -99,16 +99,6 @@ export default function Navbar() {
 
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  // Group categories alphabetically by first letter for "letter wise serial"
-  const groupedCategories = mobileCategories.reduce((acc, cat) => {
-    const letter = cat.name.charAt(0).toUpperCase();
-    if (!acc[letter]) acc[letter] = [];
-    acc[letter].push(cat);
-    return acc;
-  }, {} as Record<string, any[]>);
-
-  const sortedLetters = Object.keys(groupedCategories).sort();
 
   // Close mega on outside click
   useEffect(() => {
@@ -482,37 +472,33 @@ export default function Navbar() {
                 </Link>
               </div>
 
-              {/* Part 2: Formulations (Alphabetical letter groups) */}
-              {sortedLetters.length > 0 && (
+              {/* Part 2: Formulations (Clean Sorted A-Z list without cluttered header dividers) */}
+              {mobileCategories.length > 0 && (
                 <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
                   <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 12 }}>
                     Formulations (A-Z)
                   </span>
                   
-                  {sortedLetters.map((letter) => (
-                    <div key={letter} style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', marginBottom: 4, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 2 }}>
-                        {letter}
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingLeft: 4 }}>
-                        {groupedCategories[letter].map((cat: any) => (
-                          <Link
-                            key={cat.name}
-                            href={`/products?category=${encodeURIComponent(cat.name)}`}
-                            onClick={() => setMobileOpen(false)}
-                            style={{
-                              fontSize: 12,
-                              fontWeight: 500,
-                              color: 'var(--text-secondary)',
-                              textDecoration: 'none',
-                            }}
-                          >
-                            {cat.name}
-                          </Link>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10, paddingLeft: 4 }}>
+                    {mobileCategories.map((cat: any) => (
+                      <Link
+                        key={cat.name}
+                        href={`/products?category=${encodeURIComponent(cat.name)}`}
+                        onClick={() => setMobileOpen(false)}
+                        style={{
+                          fontSize: 13,
+                          fontWeight: 500,
+                          color: 'var(--text-secondary)',
+                          textDecoration: 'none',
+                          transition: 'color 0.2s',
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.color = 'var(--accent)'}
+                        onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+                      >
+                        {cat.name}
+                      </Link>
+                    ))}
+                  </div>
                 </div>
               )}
 
