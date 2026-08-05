@@ -11,7 +11,6 @@ import LiveSearch from './LiveSearch';
 import CustomerAccountModal from './CustomerAccountModal';
 
 const navLinks = [
-  { label: 'Home', href: '/' },
   {
     label: 'Shop',
     href: '/products',
@@ -35,11 +34,9 @@ const navLinks = [
       { label: 'Luminos', href: '/brands/luminos', desc: 'Radiance & brightening experts' },
     ],
   },
-  { label: 'Skin Quiz', href: '/quiz' },
   { label: 'AI Skin Analyzer', href: '/skin-analyzer' },
-  { label: 'Compare Products', href: '/compare' },
+  { label: 'Skin Quiz', href: '/quiz' },
   { label: 'Blog', href: '/blog' },
-  { label: 'Acne Care', href: '/products?concern=Acne+%26+Blemishes' },
 ];
 
 export default function Navbar() {
@@ -129,161 +126,174 @@ export default function Navbar() {
           left: 0,
           right: 0,
           zIndex: 50,
-          transition: 'all 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
-          background: scrolled ? 'rgba(250, 247, 242, 0.96)' : 'transparent',
-          backdropFilter: scrolled ? 'blur(20px)' : 'none',
-          WebkitBackdropFilter: scrolled ? 'blur(20px)' : 'none',
+          transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+          background: scrolled ? 'rgba(250, 247, 242, 0.95)' : 'rgba(250, 247, 242, 0.5)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
           borderBottom: scrolled ? '1px solid var(--border-default)' : '1px solid transparent',
         }}
       >
-        <div className="container-lg navbar-container" style={{ display: 'flex', alignItems: 'center', height: 64 }}>
-          {/* Left: Mobile Menu Trigger (when hamburger on left is wanted) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1 }}>
-            {/* Desktop nav */}
-            <nav
-              className="desktop-nav"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 32,
-              }}
-            >
-              {links.map((link) => (
-                <div
-                  key={link.label}
-                  style={{ position: 'relative' }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (link.mega) setMegaOpen(megaOpen === link.label ? null : link.label);
-                  }}
-                >
-                  <button
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      fontSize: '13px',
-                      fontWeight: 500,
-                      letterSpacing: '0.05em',
-                      color: 'var(--text-primary)',
-                      padding: '4px 0',
-                    }}
-                  >
-                    {link.mega ? (
-                      <>
-                        {link.label}
-                        <ChevronDown
-                          size={14}
-                          style={{
-                            transform: megaOpen === link.label ? 'rotate(180deg)' : 'rotate(0)',
-                            transition: 'transform 0.2s',
-                          }}
-                        />
-                      </>
-                    ) : (
-                      <Link
-                        href={link.href}
-                        style={{
-                          color: link.label === 'Skin Quiz' ? 'var(--sage)' : 'var(--text-primary)',
-                          fontWeight: link.label === 'Skin Quiz' ? 600 : 500,
-                          textDecoration: 'none',
-                        }}
-                        className="link-underline"
-                      >
-                        {link.label}
-                      </Link>
-                    )}
-                  </button>
+        <div className="container-lg navbar-container" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', height: 64 }}>
+          {/* Left: Mobile menu button (Only displayed on mobile) */}
+          <button
+            onClick={() => setMobileOpen(true)}
+            aria-label="Menu"
+            className="navbar-mobile-menu-btn"
+            style={{ display: 'none', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', padding: 6 }}
+          >
+            <Menu size={22} />
+          </button>
 
-                  {/* Mega Dropdown */}
-                  {link.mega && megaOpen === link.label && (
-                    <div
-                      className="animate-fade-up"
-                      style={{
-                        position: 'absolute',
-                        top: 'calc(100% + 12px)',
-                        left: '-20px',
-                        width: 440,
-                        background: 'var(--bg-surface)',
-                        border: '1px solid var(--border-default)',
-                        borderRadius: 4,
-                        padding: 24,
-                        boxShadow: '0 24px 60px rgba(26,26,24,0.12)',
-                        display: 'grid',
-                        gridTemplateColumns: '1fr 1fr',
-                        gap: 4,
-                      }}
-                    >
-                      {link.mega.map((item) => (
-                        <Link
-                          key={item.label}
-                          href={item.href}
-                          onClick={() => setMegaOpen(null)}
-                          style={{
-                            display: 'block',
-                            padding: '10px 14px',
-                            borderRadius: 3,
-                            textDecoration: 'none',
-                            transition: 'background 0.15s',
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-elevated)')}
-                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-                        >
-                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{item.label}</div>
-                          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.desc}</div>
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </nav>
-          </div>
-
-          {/* Center: Logo */}
+          {/* Left: Logo */}
           <Link
             href="/"
             className="navbar-logo"
             style={{
               fontFamily: "'Cormorant Garamond', Georgia, serif",
-              fontSize: 22,
+              fontSize: 20,
               fontWeight: 600,
-              letterSpacing: '0.18em',
+              letterSpacing: '0.15em',
               textTransform: 'uppercase',
               color: 'var(--text-primary)',
               textDecoration: 'none',
               whiteSpace: 'nowrap',
-              flex: '0 0 auto',
             }}
           >
             {storeName}
           </Link>
 
-          {/* Right: Icons (Premium Circle Outline Styling) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, justifyContent: 'flex-end' }}>
+          {/* Center: Desktop Navigation Links (Uppercase, minimalist) */}
+          <nav
+            className="desktop-nav"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 28,
+              flex: 1,
+            }}
+          >
+            {links.map((link) => (
+              <div
+                key={link.label}
+                style={{ position: 'relative' }}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  if (link.mega) setMegaOpen(megaOpen === link.label ? null : link.label);
+                }}
+              >
+                <button
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    letterSpacing: '0.12em',
+                    textTransform: 'uppercase',
+                    color: 'var(--text-secondary)',
+                    padding: '8px 0',
+                    transition: 'color 0.2s ease',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.color = 'var(--text-primary)'}
+                  onMouseLeave={(e) => e.currentTarget.style.color = 'var(--text-secondary)'}
+                >
+                  {link.label}
+                  {link.mega && (
+                    <ChevronDown
+                      size={12}
+                      style={{
+                        transform: megaOpen === link.label ? 'rotate(180deg)' : 'rotate(0)',
+                        transition: 'transform 0.2s',
+                      }}
+                    />
+                  )}
+                </button>
+
+                {/* Mega Dropdown */}
+                {link.mega && megaOpen === link.label && (
+                  <div
+                    className="animate-fade-up"
+                    style={{
+                      position: 'absolute',
+                      top: 'calc(100% + 8px)',
+                      left: '50%',
+                      transform: 'translateX(-50%)',
+                      width: 460,
+                      background: 'var(--bg-surface)',
+                      border: '1px solid var(--border-default)',
+                      borderRadius: 4,
+                      padding: 20,
+                      boxShadow: '0 20px 50px rgba(0,0,0,0.08)',
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: 4,
+                      zIndex: 100,
+                    }}
+                  >
+                    {link.mega.map((item) => (
+                      <Link
+                        key={item.label}
+                        href={item.href}
+                        onClick={() => setMegaOpen(null)}
+                        style={{
+                          display: 'block',
+                          padding: '10px 14px',
+                          borderRadius: 4,
+                          textDecoration: 'none',
+                          transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-elevated)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 2 }}>{item.label}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.desc}</div>
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </nav>
+
+          {/* Right: Action Icons (Borderless, Clean, Aesthetic) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, justifyContent: 'flex-end' }}>
+            {/* Account Icon */}
             <button
               onClick={() => user ? router.push('/account') : setAccountOpen(true)}
               aria-label="Account"
-              className="navbar-icon-btn hide-on-mobile"
+              className="navbar-clean-icon-btn hide-on-mobile"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-primary)',
+                padding: 6,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'color 0.2s ease',
+              }}
             >
               {user ? (
                 <div style={{
-                  width: '100%',
-                  height: '100%',
+                  width: 24,
+                  height: 24,
                   borderRadius: '50%',
                   overflow: 'hidden',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   background: user.avatar ? 'transparent' : 'var(--accent)',
+                  border: '1.5px solid var(--accent)',
                 }}>
                   {user.avatar ? (
                     <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#FFF', textTransform: 'uppercase' }}>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: '#FFF', textTransform: 'uppercase' }}>
                       {user.name.charAt(0)}
                     </span>
                   )}
@@ -293,10 +303,22 @@ export default function Navbar() {
               )}
             </button>
 
+            {/* Search Icon */}
             <button
               onClick={() => setSearchOpen(true)}
               aria-label="Search"
-              className="navbar-icon-btn"
+              className="navbar-clean-icon-btn"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-primary)',
+                padding: 6,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                transition: 'color 0.2s ease',
+              }}
             >
               <Search size={18} />
             </button>
@@ -305,48 +327,63 @@ export default function Navbar() {
             <Link
               href="/wishlist"
               aria-label="Wishlist"
-              className="navbar-icon-btn hide-on-mobile"
+              className="navbar-clean-icon-btn hide-on-mobile"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-primary)',
+                padding: 6,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                transition: 'color 0.2s ease',
+              }}
             >
               <Heart size={18} />
               {wishlistCount > 0 && (
                 <span
                   style={{
                     position: 'absolute',
-                    top: -2,
-                    right: -2,
-                    minWidth: 16,
-                    height: 16,
+                    top: 2,
+                    right: 2,
+                    width: 6,
+                    height: 6,
                     background: '#ef4444',
-                    color: '#FFF',
-                    fontSize: 8,
-                    fontWeight: 700,
                     borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '0 4px',
                   }}
-                >
-                  {wishlistCount > 9 ? '9+' : wishlistCount}
-                </span>
+                />
               )}
             </Link>
 
-            {/* Cart Button */}
+            {/* Cart Icon */}
             <button
               onClick={() => setCartOpen(true)}
               aria-label="Cart"
-              className="navbar-icon-btn"
+              className="navbar-clean-icon-btn"
+              style={{
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                color: 'var(--text-primary)',
+                padding: 6,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                position: 'relative',
+                transition: 'color 0.2s ease',
+              }}
             >
               <ShoppingBag size={18} />
               {totalCount > 0 && (
                 <span
                   style={{
                     position: 'absolute',
-                    top: -2,
-                    right: -2,
-                    minWidth: 16,
-                    height: 16,
+                    top: 0,
+                    right: 0,
+                    minWidth: 14,
+                    height: 14,
                     background: 'var(--accent)',
                     color: '#FFF',
                     fontSize: 8,
@@ -355,23 +392,12 @@ export default function Navbar() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    padding: '0 4px',
+                    padding: '0 2px',
                   }}
                 >
-                  {totalCount > 9 ? '9+' : totalCount}
+                  {totalCount}
                 </span>
               )}
-            </button>
-
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setMobileOpen(true)}
-              aria-label="Menu"
-              className="navbar-icon-btn"
-              id="mobile-menu-btn"
-              style={{ display: 'none' }}
-            >
-              <Menu size={18} />
             </button>
           </div>
         </div>
@@ -387,7 +413,7 @@ export default function Navbar() {
               position: 'fixed',
               inset: 0,
               zIndex: 60,
-              background: 'rgba(26,26,24,0.5)',
+              background: 'rgba(26,26,24,0.4)',
             }}
           />
           <div
@@ -397,8 +423,8 @@ export default function Navbar() {
               top: 0,
               left: 0,
               bottom: 0,
-              width: '85vw',
-              maxWidth: 320,
+              width: '80vw',
+              maxWidth: 300,
               zIndex: 70,
               background: 'var(--bg-surface)',
               display: 'flex',
@@ -407,13 +433,14 @@ export default function Navbar() {
               borderRight: '1px solid var(--border-default)',
             }}
           >
+            {/* Drawer Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
               <span
                 style={{
                   fontFamily: "'Cormorant Garamond', Georgia, serif",
                   fontSize: 18,
                   fontWeight: 600,
-                  letterSpacing: '0.15em',
+                  letterSpacing: '0.12em',
                   textTransform: 'uppercase',
                   color: 'var(--text-primary)',
                 }}
@@ -430,51 +457,51 @@ export default function Navbar() {
 
             {/* Scrollable Navigation Area */}
             <nav style={{ display: 'flex', flexDirection: 'column', gap: 20, overflowY: 'auto', flex: 1, paddingRight: 4 }}>
-              {/* Part 1: Main Links */}
+              {/* Part 1: Main Pages */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <Link
                   href="/"
                   onClick={() => setMobileOpen(false)}
-                  style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', padding: '8px 0' }}
+                  style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', padding: '6px 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}
                 >
                   Home
                 </Link>
                 <Link
                   href="/products"
                   onClick={() => setMobileOpen(false)}
-                  style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', padding: '8px 0' }}
+                  style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', padding: '6px 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}
                 >
                   Shop All Products
                 </Link>
                 <Link
                   href="/brands"
                   onClick={() => setMobileOpen(false)}
-                  style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', padding: '8px 0' }}
+                  style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', padding: '6px 0', textTransform: 'uppercase', letterSpacing: '0.08em' }}
                 >
                   Brands
                 </Link>
               </div>
 
-              {/* Part 2: Categories (Letter-Wise Alphabetical Headings) */}
+              {/* Part 2: Formulations (Alphabetical letter groups) */}
               {sortedLetters.length > 0 && (
                 <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 12 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 12 }}>
                     Formulations (A-Z)
                   </span>
                   
                   {sortedLetters.map((letter) => (
-                    <div key={letter} style={{ marginBottom: 16 }}>
-                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', marginBottom: 6, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 2 }}>
+                    <div key={letter} style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', marginBottom: 4, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 2 }}>
                         {letter}
                       </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 4 }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingLeft: 4 }}>
                         {groupedCategories[letter].map((cat: any) => (
                           <Link
                             key={cat.name}
                             href={`/products?category=${encodeURIComponent(cat.name)}`}
                             onClick={() => setMobileOpen(false)}
                             style={{
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: 500,
                               color: 'var(--text-secondary)',
                               textDecoration: 'none',
@@ -489,47 +516,47 @@ export default function Navbar() {
                 </div>
               )}
 
-              {/* Part 3: Clinical Tools & Features */}
+              {/* Part 3: Clinical Tools */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 8 }}>
+                <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 8 }}>
                   Clinical Tools
                 </span>
                 <Link
                   href="/skin-analyzer"
                   onClick={() => setMobileOpen(false)}
-                  style={{ fontSize: 14, fontWeight: 600, color: 'var(--sage)', textDecoration: 'none', padding: '6px 0' }}
+                  style={{ fontSize: 13, fontWeight: 600, color: 'var(--sage)', textDecoration: 'none', padding: '5px 0' }}
                 >
                   AI Skin Analyzer
                 </Link>
                 <Link
                   href="/quiz"
                   onClick={() => setMobileOpen(false)}
-                  style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', padding: '6px 0' }}
+                  style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', padding: '5px 0' }}
                 >
                   Skin Quiz
                 </Link>
                 <Link
                   href="/compare"
                   onClick={() => setMobileOpen(false)}
-                  style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', textDecoration: 'none', padding: '6px 0' }}
+                  style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', textDecoration: 'none', padding: '5px 0' }}
                 >
                   Compare Products
                 </Link>
                 <Link
                   href="/blog"
                   onClick={() => setMobileOpen(false)}
-                  style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', textDecoration: 'none', padding: '6px 0' }}
+                  style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', textDecoration: 'none', padding: '5px 0' }}
                 >
                   Blog
                 </Link>
               </div>
 
-              {/* Part 4: User Profile Area */}
+              {/* Part 4: Personal Area */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 4, borderTop: '1px solid var(--border-subtle)', paddingTop: 16, marginBottom: 20 }}>
                 <Link
                   href="/wishlist"
                   onClick={() => setMobileOpen(false)}
-                  style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', textDecoration: 'none', padding: '6px 0' }}
+                  style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)', textDecoration: 'none', padding: '5px 0' }}
                 >
                   My Wishlist ({wishlistCount})
                 </Link>
@@ -539,10 +566,10 @@ export default function Navbar() {
                     background: 'none',
                     border: 'none',
                     textAlign: 'left',
-                    fontSize: 14,
+                    fontSize: 13,
                     fontWeight: 500,
                     color: 'var(--text-primary)',
-                    padding: '6px 0',
+                    padding: '5px 0',
                     cursor: 'pointer',
                     width: '100%',
                   }}
@@ -552,7 +579,7 @@ export default function Navbar() {
               </div>
             </nav>
 
-            <div style={{ marginTop: 'auto', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
+            <div style={{ marginTop: 'auto', fontSize: 10, color: 'var(--text-muted)', letterSpacing: '0.08em', borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
               © 2026 Beauty Glowry
             </div>
           </div>
@@ -567,38 +594,20 @@ export default function Navbar() {
       <CustomerAccountModal isOpen={accountOpen} onClose={() => setAccountOpen(false)} />
 
       <style>{`
-        /* Cohesive Outline Circular Icon Buttons */
-        .navbar-icon-btn {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 38px;
-          height: 38px;
-          border-radius: 50%;
-          border: 1px solid var(--border-default);
-          background: rgba(255, 255, 255, 0.4);
-          color: var(--text-primary);
-          cursor: pointer;
-          position: relative;
-          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-        .navbar-icon-btn:hover {
-          border-color: var(--accent);
-          color: var(--accent);
-          background: var(--bg-surface);
-          transform: translateY(-1px);
-          box-shadow: 0 4px 12px rgba(201,149,109,0.12);
+        /* Smooth Icon Hovers */
+        .navbar-clean-icon-btn:hover {
+          color: var(--accent) !important;
         }
 
-        /* Responsive styling for Mobile Menu Button */
+        /* Responsive spacing for Mobile Menu */
         @media (max-width: 768px) {
-          #mobile-menu-btn { display: flex !important; }
+          .navbar-mobile-menu-btn { display: block !important; }
           .desktop-nav { display: none !important; }
           .navbar-container { padding: 0 16px !important; }
           header {
-            background: rgba(250, 247, 242, 0.97) !important;
-            backdrop-filter: blur(20px) !important;
-            -webkit-backdrop-filter: blur(20px) !important;
+            background: rgba(250, 247, 242, 0.96) !important;
+            backdrop-filter: blur(16px) !important;
+            -webkit-backdrop-filter: blur(16px) !important;
             border-bottom: 1px solid var(--border-default) !important;
           }
         }
