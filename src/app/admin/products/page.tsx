@@ -1245,7 +1245,8 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit, categoriesList, 
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function AdminProducts() {
-  const [items, setItems] = useState<Product[]>(initialProducts);
+  const [items, setItems] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [catFilter, setCatFilter] = useState('All');
   const [showModal, setShowModal] = useState(false);
@@ -1256,6 +1257,7 @@ export default function AdminProducts() {
   const [dbCategories, setDbCategories] = useState<{ id: string, name: string }[]>([]);
 
   useEffect(() => {
+    setLoading(true);
     fetch('/api/products?includeInactive=true')
       .then((res) => res.json())
       .then((data) => {
@@ -1263,7 +1265,8 @@ export default function AdminProducts() {
           setItems(data);
         }
       })
-      .catch((err) => console.error('Failed to load products from live database:', err));
+      .catch((err) => console.error('Failed to load products from live database:', err))
+      .finally(() => setLoading(false));
 
     fetch('/api/categories')
       .then((res) => res.json())
@@ -1402,10 +1405,25 @@ export default function AdminProducts() {
     }
   };
 
-  const handleBulkDelete = () => {
-    setItems((prev) => prev.filter((p) => !selected.includes(p.id)));
-    logActivity('Bulk products deleted', `Removed ${selected.length} products in bulk operation`);
-    setSelected([]);
+  const handleBulkDelete = async () => {
+    if (!confirm(`Are you sure you want to delete ${selected.length} selected products? This cannot be undone.`)) return;
+    const toDelete = [...selected];
+    try {
+      await Promise.all(
+        toDelete.map((id) =>
+          fetch(`/api/products/${id}`, {
+            method: 'DELETE',
+            headers: getAuthHeaders(),
+          })
+        )
+      );
+      setItems((prev) => prev.filter((p) => !toDelete.includes(p.id)));
+      logActivity('Bulk products deleted', `Removed ${toDelete.length} products in bulk operation`);
+      setSelected([]);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete some products. Please refresh and try again.');
+    }
   };
 
   const toggleSelect = (id: number | string) =>
@@ -1413,6 +1431,16 @@ export default function AdminProducts() {
 
   const selectAll = () =>
     setSelected(filtered.length === selected.length ? [] : filtered.map((p) => p.id));
+
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: 300, gap: 12, color: C.muted, fontSize: 14 }}>
+        <div style={{ width: 20, height: 20, border: `2px solid ${C.border}`, borderTopColor: C.accent, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+        Loading products from database...
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>

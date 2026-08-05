@@ -74,7 +74,7 @@ function ProductsContent() {
     }
 
     return result;
-  }, [selectedCategories, selectedConcerns, selectedSkinTypes, maxPrice, sortBy]);
+  }, [displayProducts, selectedCategories, selectedConcerns, selectedSkinTypes, maxPrice, sortBy]);
 
   const totalPages = Math.ceil(filteredProducts.length / PER_PAGE);
   const paginated = filteredProducts.slice((page - 1) * PER_PAGE, page * PER_PAGE);
