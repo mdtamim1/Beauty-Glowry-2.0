@@ -1467,12 +1467,45 @@ export default function AccountPage() {
   const [badges, setBadges] = useState<Badge[]>([]);
   const [achievementStats, setAchievementStats] = useState<any>({});
   const [dataLoaded, setDataLoaded] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
 
-  // Redirect if not logged in
+  // Redirect if not logged in, but wait for NextAuth session sync if active
   useEffect(() => {
-    if (!user || !token) {
-      router.replace('/');
-    }
+    let interval: NodeJS.Timeout;
+    const checkSession = async () => {
+      if (user && token) {
+        setCheckingAuth(false);
+        return;
+      }
+      try {
+        const res = await fetch('/api/auth/session');
+        const session = await res.json();
+        if (session && session.user) {
+          // A social session exists. Let's wait for AuthInterceptor to sync it into Zustand.
+          let attempts = 0;
+          interval = setInterval(() => {
+            const state = useAuthStore.getState();
+            if (state.user && state.token) {
+              clearInterval(interval);
+              setCheckingAuth(false);
+            }
+            attempts++;
+            if (attempts > 30) { // 3 seconds timeout
+              clearInterval(interval);
+              router.replace('/');
+            }
+          }, 100);
+        } else {
+          router.replace('/');
+        }
+      } catch (e) {
+        router.replace('/');
+      }
+    };
+    checkSession();
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [user, token, router]);
 
   // Fetch data
@@ -1490,6 +1523,27 @@ export default function AccountPage() {
       setDataLoaded(true);
     });
   }, [token, dataLoaded]);
+
+  if (checkingAuth) {
+    return (
+      <div style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+        minHeight: '100vh', background: 'var(--bg-base)', color: 'var(--text-primary)', gap: 16
+      }}>
+        <div style={{
+          width: 40, height: 40, borderRadius: '50%',
+          border: '3px solid var(--border-default)', borderTopColor: 'var(--accent)',
+          animation: 'spin 1s linear infinite'
+        }} />
+        <span style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-secondary)', fontFamily: "'DM Sans', sans-serif" }}>Loading your profile...</span>
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
 
   if (!user) return null;
 
