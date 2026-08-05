@@ -326,7 +326,7 @@ export default function HomePage() {
       )}
 
       {/* ═══ BESTSELLERS ════════════════════════════════════════════════════════ */}
-      {sectionVisibility.bestsellers !== false && (
+      {sectionVisibility.bestsellers !== false && loaded && bestsellers.length > 0 && (
         <section className="section-lg" style={{ background: 'var(--bg-elevated)' }}>
           <div className="container-lg">
             <div className="section-header" style={{ marginBottom: 48 }}>
@@ -352,29 +352,9 @@ export default function HomePage() {
             </div>
 
             <div className="bestsellers-grid">
-              {!loaded ? (
-                Array.from({ length: 4 }).map((_, idx) => (
-                  <div key={idx} style={{
-                    height: 380,
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 10,
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}>
-                    <div className="pc-skeleton" style={{ height: '70%' }} />
-                    <div style={{ padding: 15 }}>
-                      <div className="pc-skeleton" style={{ height: 15, width: '40%', marginBottom: 10 }} />
-                      <div className="pc-skeleton" style={{ height: 20, width: '90%', marginBottom: 10 }} />
-                      <div className="pc-skeleton" style={{ height: 15, width: '60%' }} />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                bestsellers.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))
-              )}
+              {bestsellers.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
             </div>
           </div>
         </section>
@@ -448,7 +428,7 @@ export default function HomePage() {
       )}
 
       {/* ═══ NEW ARRIVALS ════════════════════════════════════════════════════════ */}
-      {sectionVisibility.new_arrivals !== false && newArrivals.length > 0 && (
+      {sectionVisibility.new_arrivals !== false && loaded && newArrivals.length > 0 && (
         <section className="section-lg" style={{ background: 'var(--bg-base)' }}>
           <div className="container-lg">
             <div style={{ textAlign: 'center', marginBottom: 52 }}>
@@ -476,29 +456,9 @@ export default function HomePage() {
               </h2>
             </div>
             <div className="new-arrivals-grid">
-              {!loaded ? (
-                Array.from({ length: 3 }).map((_, idx) => (
-                  <div key={idx} style={{
-                    height: 380,
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 10,
-                    position: 'relative',
-                    overflow: 'hidden'
-                  }}>
-                    <div className="pc-skeleton" style={{ height: '70%' }} />
-                    <div style={{ padding: 15 }}>
-                      <div className="pc-skeleton" style={{ height: 15, width: '40%', marginBottom: 10 }} />
-                      <div className="pc-skeleton" style={{ height: 20, width: '90%', marginBottom: 10 }} />
-                      <div className="pc-skeleton" style={{ height: 15, width: '60%' }} />
-                    </div>
-                  </div>
-                ))
-              ) : (
-                newArrivals.map((product) => (
-                  <ProductCard key={product.id} product={product} />
-                ))
-              )}
+              {newArrivals.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
             </div>
           </div>
         </section>
