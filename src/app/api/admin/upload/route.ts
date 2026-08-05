@@ -35,6 +35,13 @@ export async function POST(request: Request) {
 
     const isS3Configured = s3AccessKeyId && s3SecretAccessKey && s3BucketName;
 
+    // Read Supabase configuration
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.VITE_SUPABASE_ANON_KEY;
+    const supabaseBucketName = process.env.SUPABASE_BUCKET_NAME || 'beautyglowry-uploads';
+
+    const isSupabaseConfigured = supabaseUrl && supabaseKey;
+
     let imageUrl = '';
 
     if (isS3Configured) {
@@ -70,8 +77,31 @@ export async function POST(request: Request) {
       }
 
       console.log(`[Upload API] Successfully uploaded to S3: ${imageUrl}`);
+    } else if (isSupabaseConfigured) {
+      console.log(`[Upload API] Supabase storage configuration detected. Uploading "${file.name}" to Supabase bucket "${supabaseBucketName}"...`);
+      
+      const cleanSupabaseUrl = supabaseUrl.replace(/\/$/, '');
+      const uploadUrl = `${cleanSupabaseUrl}/storage/v1/object/${supabaseBucketName}/${filename}`;
+      
+      const uploadResponse = await fetch(uploadUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${supabaseKey}`,
+          'Content-Type': file.type || 'image/jpeg',
+        },
+        body: buffer,
+      });
+
+      if (!uploadResponse.ok) {
+        const errorText = await uploadResponse.text();
+        throw new Error(`Supabase Storage upload failed: ${uploadResponse.status} ${uploadResponse.statusText} - ${errorText}`);
+      }
+
+      // Supabase public URL format
+      imageUrl = `${cleanSupabaseUrl}/storage/v1/object/public/${supabaseBucketName}/${filename}`;
+      console.log(`[Upload API] Successfully uploaded to Supabase Storage: ${imageUrl}`);
     } else {
-      console.log(`[Upload API] S3 config missing. Falling back to local filesystem storage for "${file.name}"...`);
+      console.log(`[Upload API] S3 and Supabase configs missing. Falling back to local filesystem storage for "${file.name}"...`);
       // Target upload directory: public/uploads
       const uploadDir = path.join(process.cwd(), 'public', 'uploads');
       

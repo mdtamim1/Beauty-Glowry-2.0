@@ -6,9 +6,11 @@ import { useRouter } from 'next/navigation';
 import { ShoppingBag, Search, Menu, X, ChevronDown, Heart, User } from 'lucide-react';
 import { useCartStore } from '../store/useCartStore';
 import { useAuthStore } from '../store/useAuthStore';
-import CartDrawer from './CartDrawer';
-import LiveSearch from './LiveSearch';
-import CustomerAccountModal from './CustomerAccountModal';
+import dynamic from 'next/dynamic';
+
+const CartDrawer = dynamic(() => import('./CartDrawer'), { ssr: false });
+const LiveSearch = dynamic(() => import('./LiveSearch'), { ssr: false });
+const CustomerAccountModal = dynamic(() => import('./CustomerAccountModal'), { ssr: false });
 
 const navLinks = [
   {
@@ -250,12 +252,12 @@ export default function Navbar() {
           </nav>
 
           {/* Right: Action Icons (Borderless, Clean, Aesthetic) */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, justifyContent: 'flex-end' }}>
+          <div className="navbar-actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end' }}>
             {/* Account Icon */}
             <button
               onClick={() => user ? router.push('/account') : setAccountOpen(true)}
               aria-label="Account"
-              className="navbar-clean-icon-btn hide-on-mobile"
+              className="navbar-clean-icon-btn"
               style={{
                 background: 'none',
                 border: 'none',
@@ -317,7 +319,7 @@ export default function Navbar() {
             <Link
               href="/wishlist"
               aria-label="Wishlist"
-              className="navbar-clean-icon-btn hide-on-mobile"
+              className="navbar-clean-icon-btn"
               style={{
                 background: 'none',
                 border: 'none',
@@ -585,6 +587,11 @@ export default function Navbar() {
           color: var(--accent) !important;
         }
 
+        /* Action icons container gap */
+        .navbar-actions {
+          gap: 14px;
+        }
+
         /* Responsive spacing for Mobile Menu */
         @media (max-width: 768px) {
           .navbar-mobile-menu-btn { display: block !important; }
@@ -596,6 +603,9 @@ export default function Navbar() {
             -webkit-backdrop-filter: blur(16px) !important;
             border-bottom: 1px solid var(--border-default) !important;
           }
+          .navbar-actions {
+            gap: 10px !important;
+          }
         }
 
         /* Hide non-essential icons on Mobile to prevent clutter */
@@ -603,9 +613,12 @@ export default function Navbar() {
           .hide-on-mobile { display: none !important; }
         }
 
-        /* Logo size on small screens */
+        /* Logo size and action icon gap on small screens */
         @media (max-width: 400px) {
           .navbar-logo { font-size: 17px !important; letter-spacing: 0.12em !important; }
+          .navbar-actions {
+            gap: 8px !important;
+          }
         }
       `}</style>
     </>

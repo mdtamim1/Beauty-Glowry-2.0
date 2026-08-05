@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { logAdminAction } from '../../../../lib/audit';
+import { revalidatePath } from 'next/cache';
+
+export const revalidate = 3600; // Cache product GET responses for 1 hour (ISR)
 
 export async function GET(
   request: Request,
@@ -222,6 +225,10 @@ export async function PUT(
       `Product "${updatedProduct.name}" was modified.`
     );
 
+    // Purge caches for this product
+    revalidatePath(`/api/products/${id}`);
+    revalidatePath(`/product/${id}`);
+
     return NextResponse.json({ success: true, product: updatedProduct });
   } catch (error: any) {
     console.error('[API Product PUT Error]:', error);
@@ -257,6 +264,10 @@ export async function DELETE(
       'DELETE_PRODUCT',
       `Product "${p.name}" (SKU: ${p.sku}) was deleted.`
     );
+
+    // Purge caches for this product
+    revalidatePath(`/api/products/${id}`);
+    revalidatePath(`/product/${id}`);
 
     return NextResponse.json({ success: true, message: 'Product deleted successfully' });
   } catch (error: any) {
