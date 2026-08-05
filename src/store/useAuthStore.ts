@@ -34,6 +34,15 @@ export const useAuthStore = create<AuthState>()(
         fetch('/api/auth/logout', { method: 'POST' }).catch((err) =>
           console.error('Logout error:', err)
         );
+        // Clear NextAuth session if active
+        if (typeof window !== 'undefined') {
+          try {
+            const { signOut } = require('next-auth/react');
+            signOut({ redirect: false });
+          } catch (e) {
+            console.error('Failed to call NextAuth signOut:', e);
+          }
+        }
       },
       updateSkinProfile: (skinType) => {
         const u = get().user;

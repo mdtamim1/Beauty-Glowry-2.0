@@ -81,5 +81,43 @@ export default function AuthInterceptor() {
     };
   }, []);
 
+  // Synchronize social login session if available
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const syncSocialSession = async () => {
+      // Only sync if there is no user in the Zustand store
+      const currentUser = useAuthStore.getState().user;
+      if (currentUser) return;
+
+      try {
+        const sessionRes = await fetch('/api/auth/session');
+        if (!sessionRes.ok) return;
+
+        const session = await sessionRes.json();
+        if (session && session.user) {
+          // Trigger sync endpoint to get custom JWT and register/login in local DB
+          const syncRes = await fetch('/api/auth/social-sync', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+          });
+
+          if (syncRes.ok) {
+            const data = await syncRes.json();
+            if (data.success && data.user && data.token) {
+              useAuthStore.getState().login(data.user, data.token);
+              // Force page reload to refresh cart/wishlist sync and clean login state globally
+              window.location.reload();
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error synchronizing social login session:', err);
+      }
+    };
+
+    syncSocialSession();
+  }, []);
+
   return null;
 }

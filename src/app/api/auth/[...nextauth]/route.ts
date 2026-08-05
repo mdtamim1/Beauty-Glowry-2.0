@@ -1,8 +1,8 @@
-import NextAuth from "next-auth";
+import NextAuth, { NextAuthOptions } from "next-auth";
 import FacebookProvider from "next-auth/providers/facebook";
 import GoogleProvider from "next-auth/providers/google";
 
-const handler = NextAuth({
+export const authOptions: NextAuthOptions = {
   providers: [
     FacebookProvider({
       clientId: (process.env.FACEBOOK_CLIENT_ID || "").trim(),
@@ -33,6 +33,8 @@ const handler = NextAuth({
     signIn: "/",
     error: "/",
   },
-});
+};
+
+const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
