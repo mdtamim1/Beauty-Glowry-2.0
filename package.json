@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "node -e \"const url = process.env.DATABASE_URL; if (url) { process.env.DATABASE_URL = url.includes('?') ? (url.includes('pgbouncer') ? url : url + '&pgbouncer=true') : url + '?pgbouncer=true'; } require('child_process').execSync('npx prisma db push --accept-data-loss', {stdio: 'inherit'});\" && next build",
+    "build": "next build",
     "start": "next start",
     "lint": "eslint",
     "postinstall": "prisma generate",
