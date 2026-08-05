@@ -1,8 +1,8 @@
 'use client';
-
 import React, { useState, useEffect, useRef } from 'react';
-import { Search, X, ArrowRight, Loader2 } from 'lucide-react';
+import { Search, X, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { products } from '../data/products';
 
 interface LiveSearchProps {
@@ -14,7 +14,9 @@ export default function LiveSearch({ isOpen, onClose }: LiveSearchProps) {
   const [query, setQuery] = useState('');
   const [dbProducts, setDbProducts] = useState<typeof products>([]);
   const [results, setResults] = useState<typeof products>([]);
+  const [activeIndex, setActiveIndex] = useState(-1);
   const inputRef = useRef<HTMLInputElement>(null);
+  const router = useRouter();
 
   useEffect(() => {
     fetch('/api/products')
@@ -50,10 +52,43 @@ export default function LiveSearch({ isOpen, onClose }: LiveSearchProps) {
         (p) =>
           p.name.toLowerCase().includes(q) ||
           p.category.toLowerCase().includes(q) ||
-          p.actives.some((a) => a.name.toLowerCase().includes(q))
+          (p.description && p.description.toLowerCase().includes(q))
       ).slice(0, 6)
     );
   }, [query, dbProducts]);
+
+  useEffect(() => {
+    setActiveIndex(-1);
+  }, [query, results]);
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (query.trim()) {
+      router.push(`/products?search=${encodeURIComponent(query.trim())}`);
+      onClose();
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev < results.length - 1 ? prev + 1 : 0));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActiveIndex((prev) => (prev > 0 ? prev - 1 : results.length - 1));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (activeIndex >= 0 && activeIndex < results.length) {
+        router.push(`/product/${results[activeIndex].id}`);
+        onClose();
+      } else if (query.trim()) {
+        router.push(`/products?search=${encodeURIComponent(query.trim())}`);
+        onClose();
+      }
+    } else if (e.key === 'Escape') {
+      onClose();
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -65,7 +100,7 @@ export default function LiveSearch({ isOpen, onClose }: LiveSearchProps) {
         style={{ position: 'fixed', inset: 0, zIndex: 80, background: 'rgba(26,26,24,0.5)', backdropFilter: 'blur(6px)' }}
       />
       <div
-        className="animate-scale-in"
+        className="animate-scale-in live-search-modal"
         style={{
           position: 'fixed',
           top: '10%',
@@ -81,8 +116,9 @@ export default function LiveSearch({ isOpen, onClose }: LiveSearchProps) {
           boxShadow: '0 40px 100px rgba(26,26,24,0.2)',
         }}
       >
-        {/* Search Input */}
-        <div
+        {/* Search Input Form */}
+        <form
+          onSubmit={handleSearchSubmit}
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -91,13 +127,30 @@ export default function LiveSearch({ isOpen, onClose }: LiveSearchProps) {
             borderBottom: '1px solid var(--border-default)',
           }}
         >
-          <Search size={20} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+          <button
+            type="submit"
+            aria-label="Search"
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              cursor: 'pointer',
+              color: 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            <Search size={20} />
+          </button>
           <input
             ref={inputRef}
             type="text"
             placeholder="Search formulations, actives, concerns..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={handleKeyDown}
             style={{
               flex: 1,
               border: 'none',
@@ -109,15 +162,16 @@ export default function LiveSearch({ isOpen, onClose }: LiveSearchProps) {
             }}
           />
           <button
+            type="button"
             onClick={onClose}
             style={{ padding: 4, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
           >
             <X size={18} />
           </button>
-        </div>
+        </form>
 
         {/* Results */}
-        <div style={{ maxHeight: 480, overflowY: 'auto' }}>
+        <div className="live-search-results-container" style={{ maxHeight: 480, overflowY: 'auto' }}>
           {results.length === 0 ? (
             <div style={{ padding: 40, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
               No results found for "{query}"
@@ -136,7 +190,7 @@ export default function LiveSearch({ isOpen, onClose }: LiveSearchProps) {
               >
                 {query ? `Results for "${query}"` : 'Popular Formulations'}
               </div>
-              {results.map((product) => (
+              {results.map((product, idx) => (
                 <Link
                   key={product.id}
                   href={`/product/${product.id}`}
@@ -149,9 +203,9 @@ export default function LiveSearch({ isOpen, onClose }: LiveSearchProps) {
                     textDecoration: 'none',
                     transition: 'background 0.15s',
                     borderBottom: '1px solid var(--border-subtle)',
+                    background: idx === activeIndex ? 'var(--bg-elevated)' : 'transparent',
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-elevated)')}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                  onMouseEnter={() => setActiveIndex(idx)}
                 >
                   <div
                     style={{
@@ -196,7 +250,7 @@ export default function LiveSearch({ isOpen, onClose }: LiveSearchProps) {
             alignItems: 'center',
           }}
         >
-          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Press ESC to close</span>
+          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Use ↑↓ to navigate, Enter to select</span>
           <Link
             href={query ? `/products?search=${encodeURIComponent(query)}` : '/products'}
             onClick={onClose}
@@ -214,6 +268,29 @@ export default function LiveSearch({ isOpen, onClose }: LiveSearchProps) {
           </Link>
         </div>
       </div>
+
+      <style>{`
+        @media (max-width: 640px) {
+          .live-search-modal {
+            top: 0 !important;
+            left: 0 !important;
+            bottom: 0 !important;
+            right: 0 !important;
+            transform: none !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            height: 100vh !important;
+            border-radius: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+          }
+          .live-search-results-container {
+            max-height: none !important;
+            flex: 1 !important;
+            overflow-y: auto !important;
+          }
+        }
+      `}</style>
     </>
   );
 }

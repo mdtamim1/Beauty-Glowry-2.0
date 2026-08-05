@@ -56,3 +56,6 @@ next-env.d.ts
 # Legacy & Backups
 /_backup_vite/
 /ADMIN DASHBOARD/
+
+.vercel
+.env*

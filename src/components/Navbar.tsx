@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ShoppingBag, Search, Menu, X, ChevronDown, Heart, User } from 'lucide-react';
@@ -78,10 +78,13 @@ export default function Navbar() {
       .then((res) => res.json())
       .then((data) => {
         if (Array.isArray(data) && data.length > 0) {
-          setMobileCategories(data);
+          // Sort categories alphabetically
+          const sortedCategories = [...data].sort((a, b) => a.name.localeCompare(b.name));
+          setMobileCategories(sortedCategories);
+          
           const dynamicMega = [
             { label: 'All Formulations', href: '/products', desc: 'Browse the full collection' },
-            ...data.map((c) => ({
+            ...sortedCategories.map((c) => ({
               label: c.name,
               href: `/products?category=${encodeURIComponent(c.name)}`,
               desc: c.description || 'Clinical formulation'
@@ -100,23 +103,15 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const mobileList = [
-    { label: 'Home', href: '/' },
-    { label: 'All Products', href: '/products' },
-    { label: 'Brands', href: '/brands' },
-    ...(mobileCategories.length > 0
-      ? mobileCategories.map((c) => ({
-          label: c.name,
-          href: `/products?category=${encodeURIComponent(c.name)}`,
-        }))
-      : [{ label: 'Serums & Elixirs', href: '/products?category=Serums+%26+Elixirs' }]),
-    { label: 'Skin Quiz', href: '/quiz' },
-    { label: 'AI Skin Analyzer', href: '/skin-analyzer' },
-    { label: 'Compare Products', href: '/compare' },
-    { label: 'Blog', href: '/blog' },
-    { label: 'Acne Care', href: '/products?concern=Acne+%26+Blemishes' },
-    { label: 'My Wishlist', href: '/wishlist' },
-  ];
+  // Group categories alphabetically by first letter for "letter wise serial"
+  const groupedCategories = mobileCategories.reduce((acc, cat) => {
+    const letter = cat.name.charAt(0).toUpperCase();
+    if (!acc[letter]) acc[letter] = [];
+    acc[letter].push(cat);
+    return acc;
+  }, {} as Record<string, any[]>);
+
+  const sortedLetters = Object.keys(groupedCategories).sort();
 
   // Close mega on outside click
   useEffect(() => {
@@ -141,27 +136,9 @@ export default function Navbar() {
           borderBottom: scrolled ? '1px solid var(--border-default)' : '1px solid transparent',
         }}
       >
-
-
         <div className="container-lg navbar-container" style={{ display: 'flex', alignItems: 'center', height: 64 }}>
-          {/* Left: mobile menu */}
+          {/* Left: Mobile Menu Trigger (when hamburger on left is wanted) */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, flex: 1 }}>
-            <button
-              onClick={() => setMobileOpen(true)}
-              aria-label="Open menu"
-              className="hide-mobile"
-              style={{
-                display: 'none',
-                padding: 8,
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--text-primary)',
-              }}
-            >
-              <Menu size={22} />
-            </button>
-
             {/* Desktop nav */}
             <nav
               className="desktop-nav"
@@ -285,35 +262,30 @@ export default function Navbar() {
             {storeName}
           </Link>
 
-          {/* Right: Icons */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, flex: 1, justifyContent: 'flex-end' }}>
+          {/* Right: Icons (Premium Circle Outline Styling) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, justifyContent: 'flex-end' }}>
             <button
               onClick={() => user ? router.push('/account') : setAccountOpen(true)}
               aria-label="Account"
-              style={{ padding: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-              className="btn-ghost"
+              className="navbar-icon-btn hide-on-mobile"
             >
               {user ? (
                 <div style={{
-                  width: 28,
-                  height: 28,
+                  width: '100%',
+                  height: '100%',
                   borderRadius: '50%',
-                  background: user.avatar ? 'transparent' : 'var(--accent, #C9956D)',
-                  color: '#FFFFFF',
-                  fontSize: 10,
-                  fontWeight: 700,
+                  overflow: 'hidden',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  textTransform: 'uppercase',
-                  fontFamily: "'DM Sans', sans-serif",
-                  overflow: 'hidden',
-                  border: '2px solid var(--accent)',
+                  background: user.avatar ? 'transparent' : 'var(--accent)',
                 }}>
                   {user.avatar ? (
                     <img src={user.avatar} alt={user.name} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                   ) : (
-                    user.name.charAt(0)
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#FFF', textTransform: 'uppercase' }}>
+                      {user.name.charAt(0)}
+                    </span>
                   )}
                 </div>
               ) : (
@@ -324,8 +296,7 @@ export default function Navbar() {
             <button
               onClick={() => setSearchOpen(true)}
               aria-label="Search"
-              style={{ padding: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-primary)', borderRadius: 2 }}
-              className="btn-ghost"
+              className="navbar-icon-btn"
             >
               <Search size={18} />
             </button>
@@ -334,27 +305,17 @@ export default function Navbar() {
             <Link
               href="/wishlist"
               aria-label="Wishlist"
-              className="btn-ghost navbar-wishlist-btn"
-              style={{
-                position: 'relative',
-                padding: 10,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: 'var(--text-primary)',
-                textDecoration: 'none',
-                borderRadius: 2,
-              }}
+              className="navbar-icon-btn hide-on-mobile"
             >
               <Heart size={18} />
               {wishlistCount > 0 && (
                 <span
                   style={{
                     position: 'absolute',
-                    top: 6,
-                    right: 6,
-                    width: 15,
-                    height: 15,
+                    top: -2,
+                    right: -2,
+                    minWidth: 16,
+                    height: 16,
                     background: '#ef4444',
                     color: '#FFF',
                     fontSize: 8,
@@ -363,6 +324,7 @@ export default function Navbar() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
+                    padding: '0 4px',
                   }}
                 >
                   {wishlistCount > 9 ? '9+' : wishlistCount}
@@ -370,16 +332,32 @@ export default function Navbar() {
               )}
             </Link>
 
-            {/* Cart Button — premium pill style */}
+            {/* Cart Button */}
             <button
               onClick={() => setCartOpen(true)}
               aria-label="Cart"
-              className="navbar-cart-btn"
+              className="navbar-icon-btn"
             >
-              <ShoppingBag size={15} />
-              <span className="navbar-cart-label">Cart</span>
+              <ShoppingBag size={18} />
               {totalCount > 0 && (
-                <span className="navbar-cart-badge">
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: -2,
+                    right: -2,
+                    minWidth: 16,
+                    height: 16,
+                    background: 'var(--accent)',
+                    color: '#FFF',
+                    fontSize: 8,
+                    fontWeight: 700,
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 4px',
+                  }}
+                >
                   {totalCount > 9 ? '9+' : totalCount}
                 </span>
               )}
@@ -389,17 +367,11 @@ export default function Navbar() {
             <button
               onClick={() => setMobileOpen(true)}
               aria-label="Menu"
-              style={{
-                display: 'none',
-                padding: 10,
-                background: 'none',
-                border: 'none',
-                cursor: 'pointer',
-                color: 'var(--text-primary)',
-              }}
+              className="navbar-icon-btn"
               id="mobile-menu-btn"
+              style={{ display: 'none' }}
             >
-              <Menu size={20} />
+              <Menu size={18} />
             </button>
           </div>
         </div>
@@ -425,16 +397,17 @@ export default function Navbar() {
               top: 0,
               left: 0,
               bottom: 0,
-              width: 300,
+              width: '85vw',
+              maxWidth: 320,
               zIndex: 70,
               background: 'var(--bg-surface)',
               display: 'flex',
               flexDirection: 'column',
-              padding: 28,
+              padding: 24,
               borderRight: '1px solid var(--border-default)',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 40 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
               <span
                 style={{
                   fontFamily: "'Cormorant Garamond', Georgia, serif",
@@ -455,47 +428,132 @@ export default function Navbar() {
               </button>
             </div>
 
-            <nav style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-              {mobileList.map((item) => (
+            {/* Scrollable Navigation Area */}
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: 20, overflowY: 'auto', flex: 1, paddingRight: 4 }}>
+              {/* Part 1: Main Links */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                 <Link
-                  key={item.label}
-                  href={item.href}
+                  href="/"
                   onClick={() => setMobileOpen(false)}
+                  style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', padding: '8px 0' }}
+                >
+                  Home
+                </Link>
+                <Link
+                  href="/products"
+                  onClick={() => setMobileOpen(false)}
+                  style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', padding: '8px 0' }}
+                >
+                  Shop All Products
+                </Link>
+                <Link
+                  href="/brands"
+                  onClick={() => setMobileOpen(false)}
+                  style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', padding: '8px 0' }}
+                >
+                  Brands
+                </Link>
+              </div>
+
+              {/* Part 2: Categories (Letter-Wise Alphabetical Headings) */}
+              {sortedLetters.length > 0 && (
+                <div style={{ borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 12 }}>
+                    Formulations (A-Z)
+                  </span>
+                  
+                  {sortedLetters.map((letter) => (
+                    <div key={letter} style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', marginBottom: 6, borderBottom: '1px solid var(--border-subtle)', paddingBottom: 2 }}>
+                        {letter}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 4 }}>
+                        {groupedCategories[letter].map((cat: any) => (
+                          <Link
+                            key={cat.name}
+                            href={`/products?category=${encodeURIComponent(cat.name)}`}
+                            onClick={() => setMobileOpen(false)}
+                            style={{
+                              fontSize: 13,
+                              fontWeight: 500,
+                              color: 'var(--text-secondary)',
+                              textDecoration: 'none',
+                            }}
+                          >
+                            {cat.name}
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Part 3: Clinical Tools & Features */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'block', marginBottom: 8 }}>
+                  Clinical Tools
+                </span>
+                <Link
+                  href="/skin-analyzer"
+                  onClick={() => setMobileOpen(false)}
+                  style={{ fontSize: 14, fontWeight: 600, color: 'var(--sage)', textDecoration: 'none', padding: '6px 0' }}
+                >
+                  AI Skin Analyzer
+                </Link>
+                <Link
+                  href="/quiz"
+                  onClick={() => setMobileOpen(false)}
+                  style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', textDecoration: 'none', padding: '6px 0' }}
+                >
+                  Skin Quiz
+                </Link>
+                <Link
+                  href="/compare"
+                  onClick={() => setMobileOpen(false)}
+                  style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', textDecoration: 'none', padding: '6px 0' }}
+                >
+                  Compare Products
+                </Link>
+                <Link
+                  href="/blog"
+                  onClick={() => setMobileOpen(false)}
+                  style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', textDecoration: 'none', padding: '6px 0' }}
+                >
+                  Blog
+                </Link>
+              </div>
+
+              {/* Part 4: User Profile Area */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4, borderTop: '1px solid var(--border-subtle)', paddingTop: 16, marginBottom: 20 }}>
+                <Link
+                  href="/wishlist"
+                  onClick={() => setMobileOpen(false)}
+                  style={{ fontSize: 14, fontWeight: 500, color: 'var(--text-primary)', textDecoration: 'none', padding: '6px 0' }}
+                >
+                  My Wishlist ({wishlistCount})
+                </Link>
+                <button
+                  onClick={() => { setMobileOpen(false); user ? router.push('/account') : setAccountOpen(true); }}
                   style={{
-                    fontSize: 15,
+                    background: 'none',
+                    border: 'none',
+                    textAlign: 'left',
+                    fontSize: 14,
                     fontWeight: 500,
                     color: 'var(--text-primary)',
-                    textDecoration: 'none',
-                    padding: '12px 0',
-                    borderBottom: '1px solid var(--border-subtle)',
-                    letterSpacing: '0.02em',
+                    padding: '6px 0',
+                    cursor: 'pointer',
+                    width: '100%',
                   }}
                 >
-                  {item.label}
-                </Link>
-              ))}
-              <button
-                onClick={() => { setMobileOpen(false); setAccountOpen(true); }}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  textAlign: 'left',
-                  fontSize: 15,
-                  fontWeight: 500,
-                  color: 'var(--text-primary)',
-                  padding: '12px 0',
-                  borderBottom: '1px solid var(--border-subtle)',
-                  letterSpacing: '0.02em',
-                  cursor: 'pointer',
-                  width: '100%',
-                }}
-              >
-                Account / Sign Up
-              </button>
+                  {user ? 'My Profile' : 'Sign In / Register'}
+                </button>
+              </div>
             </nav>
 
-            <div style={{ marginTop: 'auto', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-              © 2024 Beauty Glowry
+            <div style={{ marginTop: 'auto', fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em', borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
+              © 2026 Beauty Glowry
             </div>
           </div>
         </>
@@ -509,31 +567,34 @@ export default function Navbar() {
       <CustomerAccountModal isOpen={accountOpen} onClose={() => setAccountOpen(false)} />
 
       <style>{`
-        /* Show mobile menu btn on small screens */
+        /* Cohesive Outline Circular Icon Buttons */
+        .navbar-icon-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 38px;
+          height: 38px;
+          border-radius: 50%;
+          border: 1px solid var(--border-default);
+          background: rgba(255, 255, 255, 0.4);
+          color: var(--text-primary);
+          cursor: pointer;
+          position: relative;
+          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .navbar-icon-btn:hover {
+          border-color: var(--accent);
+          color: var(--accent);
+          background: var(--bg-surface);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 12px rgba(201,149,109,0.12);
+        }
+
+        /* Responsive styling for Mobile Menu Button */
         @media (max-width: 768px) {
           #mobile-menu-btn { display: flex !important; }
-        }
-
-        /* Hide desktop nav on mobile */
-        @media (max-width: 768px) {
           .desktop-nav { display: none !important; }
-        }
-
-        /* Logo size on small screens */
-        @media (max-width: 400px) {
-          .navbar-logo { font-size: 17px !important; letter-spacing: 0.12em !important; }
-        }
-
-        /* Ensure container fits on mobile */
-        @media (max-width: 768px) {
           .navbar-container { padding: 0 16px !important; }
-        }
-
-        /* ── MOBILE: Always show solid navbar background ────────────
-           On mobile, transparent header causes content bleed-through.
-           Force a solid frosted background at all scroll positions.
-        ────────────────────────────────────────────────────────────── */
-        @media (max-width: 768px) {
           header {
             background: rgba(250, 247, 242, 0.97) !important;
             backdrop-filter: blur(20px) !important;
@@ -542,64 +603,14 @@ export default function Navbar() {
           }
         }
 
-        /* Premium cart pill button */
-        .navbar-cart-btn {
-          display: flex;
-          align-items: center;
-          gap: 7px;
-          padding: 8px 16px 8px 12px;
-          background: var(--text-primary);
-          color: var(--bg-base);
-          border: none;
-          border-radius: 99px;
-          font-family: 'DM Sans', sans-serif;
-          font-size: 12px;
-          font-weight: 700;
-          letter-spacing: 0.05em;
-          cursor: pointer;
-          transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
-          position: relative;
-        }
-        .navbar-cart-btn:hover {
-          background: var(--accent);
-          transform: translateY(-1px);
-          box-shadow: 0 6px 20px rgba(201,149,109,0.35);
-        }
-        .navbar-cart-label {
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-        }
-        .navbar-cart-badge {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 18px;
-          height: 18px;
-          padding: 0 5px;
-          background: var(--accent);
-          color: #fff;
-          font-size: 9px;
-          font-weight: 700;
-          border-radius: 99px;
-          transition: background 0.25s ease;
-        }
-        .navbar-cart-btn:hover .navbar-cart-badge {
-          background: rgba(255,255,255,0.25);
+        /* Hide non-essential icons on Mobile to prevent clutter */
+        @media (max-width: 640px) {
+          .hide-on-mobile { display: none !important; }
         }
 
-        /* Wishlist button */
-        .navbar-wishlist-btn {
-          transition: color 0.2s ease, transform 0.2s ease !important;
-        }
-        .navbar-wishlist-btn:hover {
-          color: #ef4444 !important;
-          transform: scale(1.1);
-        }
-
-        /* Hide cart label text on very small screens */
-        @media (max-width: 480px) {
-          .navbar-cart-label { display: none; }
-          .navbar-cart-btn { padding: 8px 10px; border-radius: 50%; }
+        /* Logo size on small screens */
+        @media (max-width: 400px) {
+          .navbar-logo { font-size: 17px !important; letter-spacing: 0.12em !important; }
         }
       `}</style>
     </>
