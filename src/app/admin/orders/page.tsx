@@ -1056,42 +1056,11 @@ function ViewOrderModal({ order, onClose, onSave }: {
 
         {/* ── Footer */}
         <div style={{ borderTop: `1px solid ${C.border}`, background: C.elevated, flexShrink: 0 }}>
-          {/* Courier Actions Row */}
-          <div style={{ display: 'flex', gap: 10, padding: '12px 20px', borderBottom: `1px solid ${C.border}` }}>
-            {/* Steadfast Button */}
-            <button
-              onClick={() => setShowSteadfastModal(true)}
-              style={{
-                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                padding: '9px 0', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                background: consignmentId ? 'rgba(16,185,129,0.1)' : 'rgba(16,185,129,0.15)',
-                border: `1px solid ${consignmentId ? '#10B981' : 'rgba(16,185,129,0.4)'}`,
-                color: '#10B981', transition: 'all 0.2s',
-              }}
-            >
-              <Truck size={13} />
-              {consignmentId ? `Steadfast: ${consignmentId}` : 'Send to Steadfast'}
-            </button>
-
-            {/* Fraud Check Button */}
-            <button
-              onClick={() => setShowFraudModal(true)}
-              style={{
-                flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-                padding: '9px 0', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                background: 'rgba(96,165,250,0.12)', border: '1px solid rgba(96,165,250,0.4)',
-                color: C.info, transition: 'all 0.2s',
-              }}
-            >
-              <Shield size={13} /> Check Fraud
-            </button>
-          </div>
-
-          {/* Tracking link if consignment already set */}
+          {/* Tracking link if consignment already set (inside form, read-only) */}
           {consignmentId && trackingUrl && (
             <div style={{ padding: '8px 20px', display: 'flex', alignItems: 'center', gap: 8, borderBottom: `1px solid ${C.border}`, background: 'rgba(16,185,129,0.05)' }}>
               <Check size={12} style={{ color: '#10B981', flexShrink: 0 }} />
-              <span style={{ fontSize: 11, color: '#10B981', fontWeight: 600 }}>Dispatched via Steadfast</span>
+              <span style={{ fontSize: 11, color: '#10B981', fontWeight: 600 }}>Dispatched via Steadfast · {consignmentId}</span>
               <a href={trackingUrl} target="_blank" rel="noopener noreferrer" style={{ fontSize: 11, color: C.info, marginLeft: 'auto', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
                 Track Package →
               </a>
@@ -1688,7 +1657,8 @@ function CreateOrderModal({ onClose, onSave }: { onClose: () => void; onSave: (o
 
 // ─── Main Orders Page ─────────────────────────────────────────────────────
 export default function AdminOrders() {
-  const [orders, setOrders] = useState<Order[]>(INITIAL_ORDERS);
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All' | 'Today'>('All');
   const [updating, setUpdating] = useState<string | null>(null);
@@ -1696,6 +1666,8 @@ export default function AdminOrders() {
   const [viewOrder, setViewOrder] = useState<Order | null>(null);
   const [successMsg, setSuccessMsg] = useState('');
   const [currentSession, setCurrentSession] = useState<any>(null);
+  const [quickFraudOrder, setQuickFraudOrder] = useState<Order | null>(null);
+  const [quickCourierOrder, setQuickCourierOrder] = useState<Order | null>(null);
 
   // Load session from LocalStorage
   useEffect(() => {
@@ -1722,6 +1694,7 @@ export default function AdminOrders() {
       ? '/api/orders?includeUnsynced=true'
       : `/api/orders?moderatorEmail=${encodeURIComponent(currentSession.email)}`;
 
+    setOrdersLoading(true);
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
@@ -1729,7 +1702,8 @@ export default function AdminOrders() {
           setOrders(data);
         }
       })
-      .catch((err) => console.error('Failed to load orders from live database:', err));
+      .catch((err) => console.error('Failed to load orders from live database:', err))
+      .finally(() => setOrdersLoading(false));
   }, [currentSession]);
 
   const filtered = orders.filter(o => {
@@ -2064,11 +2038,16 @@ export default function AdminOrders() {
       {/* Orders Table */}
       <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
         {/* Header row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '100px 1fr 100px 110px 100px 130px 80px', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${C.border}`, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 100px 110px 100px 140px 120px', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${C.border}`, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>
           <div>Order ID</div><div>Customer</div><div>Date</div><div>Amount</div><div>Payment</div><div>Status</div><div>Actions</div>
         </div>
 
-        {filtered.length === 0 ? (
+        {ordersLoading ? (
+          <div style={{ padding: '40px 20px', textAlign: 'center', color: C.muted, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontSize: 13 }}>
+            <div style={{ width: 16, height: 16, border: `2px solid ${C.border}`, borderTopColor: C.accent, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
+            Loading orders...
+          </div>
+        ) : filtered.length === 0 ? (
           <div style={{ padding: '60px 20px', textAlign: 'center', color: C.muted }}>
             <Filter size={32} style={{ margin: '0 auto 12px', opacity: 0.4 }} />
             <p style={{ fontSize: 14 }}>No orders found</p>
@@ -2078,7 +2057,7 @@ export default function AdminOrders() {
             <React.Fragment key={order.id}>
               <div
                 style={{
-                  display: 'grid', gridTemplateColumns: '100px 1fr 100px 110px 100px 130px 80px',
+                  display: 'grid', gridTemplateColumns: '110px 1fr 100px 110px 100px 140px 120px',
                   gap: 12, padding: '14px 20px', alignItems: 'center',
                   borderBottom: `1px solid ${C.border}`, transition: 'background 0.15s',
                   background: 'transparent',
@@ -2102,27 +2081,44 @@ export default function AdminOrders() {
                     value={order.status}
                     onChange={e => updateStatus(order.id, e.target.value as OrderStatus)}
                     disabled={updating === order.id}
-                    style={{ appearance: 'none', width: '100%', padding: '5px 28px 5px 10px', background: STATUS_STYLES[order.status].bg, border: `1px solid ${STATUS_STYLES[order.status].color}40`, borderRadius: 6, fontSize: 11, fontWeight: 700, color: STATUS_STYLES[order.status].color, cursor: 'pointer', outline: 'none' }}
+                    style={{ appearance: 'none', width: '100%', padding: '5px 28px 5px 10px', background: STATUS_STYLES[order.status]?.bg || 'transparent', border: `1px solid ${STATUS_STYLES[order.status]?.color || C.border}40`, borderRadius: 6, fontSize: 11, fontWeight: 700, color: STATUS_STYLES[order.status]?.color || C.text, cursor: 'pointer', outline: 'none' }}
                   >
                     {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
                   </select>
                   {updating === order.id
-                    ? <RefreshCw size={11} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: STATUS_STYLES[order.status].color, animation: 'spin 0.6s linear infinite' }} />
-                    : <ChevronDown size={11} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: STATUS_STYLES[order.status].color, pointerEvents: 'none' }} />
+                    ? <RefreshCw size={11} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: STATUS_STYLES[order.status]?.color || C.accent, animation: 'spin 0.6s linear infinite' }} />
+                    : <ChevronDown size={11} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: STATUS_STYLES[order.status]?.color || C.muted, pointerEvents: 'none' }} />
                   }
                 </div>
-                <div style={{ display: 'flex', gap: 6 }}>
+                {/* Actions: View + Fraud + Courier */}
+                <div style={{ display: 'flex', gap: 5 }}>
                   <button
+                    title="View / Edit Order"
                     onClick={() => setViewOrder(order)}
                     style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, cursor: 'pointer', color: C.muted }}
                   >
                     <Eye size={13} />
+                  </button>
+                  <button
+                    title="Check Fraud"
+                    onClick={() => setQuickFraudOrder(order)}
+                    style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 6, cursor: 'pointer', color: C.info }}
+                  >
+                    <Shield size={13} />
+                  </button>
+                  <button
+                    title="Send to Steadfast"
+                    onClick={() => setQuickCourierOrder(order)}
+                    style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.35)', borderRadius: 6, cursor: 'pointer', color: '#10B981' }}
+                  >
+                    <Truck size={13} />
                   </button>
                 </div>
               </div>
             </React.Fragment>
           ))
         )}
+
       </div>
 
       <p style={{ fontSize: 12, color: C.muted }}>Showing {filtered.length} of {orders.length} orders</p>
@@ -2136,6 +2132,26 @@ export default function AdminOrders() {
           order={viewOrder}
           onClose={() => setViewOrder(null)}
           onSave={handleUpdateOrder}
+        />
+      )}
+
+      {/* Quick Fraud Modal (from card button) */}
+      {quickFraudOrder && (
+        <FraudCheckModal
+          phone={quickFraudOrder.phone}
+          onClose={() => setQuickFraudOrder(null)}
+        />
+      )}
+
+      {/* Quick Steadfast Modal (from card button) */}
+      {quickCourierOrder && (
+        <SteadfastModal
+          order={quickCourierOrder}
+          onClose={() => setQuickCourierOrder(null)}
+          onSent={(consignmentId: string, trackingUrl: string) => {
+            setOrders(prev => prev.map(o => o.id === quickCourierOrder.id ? { ...o, courier: 'Steadfast' } as any : o));
+            setQuickCourierOrder(null);
+          }}
         />
       )}
 
