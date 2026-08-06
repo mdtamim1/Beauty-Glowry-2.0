@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useMemo, useEffect } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { SlidersHorizontal, X, Grid3X3, List, ChevronDown, Search } from 'lucide-react';
 import { products, skinConcerns, categories, Product } from '../../data/products';
 import ProductCard from '../../components/ProductCard';
@@ -12,6 +12,8 @@ type SortOption = 'popularity' | 'price-low' | 'price-high' | 'rating' | 'newest
 
 function ProductsContent() {
   const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const [dbProducts, setDbProducts] = useState<Product[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -51,6 +53,64 @@ function ProductsContent() {
 
   const skinTypes = ['Oily', 'Dry', 'Combination', 'Sensitive', 'Normal', 'All Skin Types'];
 
+  // Helper to sync category/concern filter changes into browser URL query string for SEO & shareability
+  const updateUrlParams = (cats: string[], concs: string[]) => {
+    const params = new URLSearchParams();
+    if (cats.length > 0) params.set('category', cats[0]);
+    if (concs.length > 0) params.set('concern', concs[0]);
+    const queryString = params.toString();
+    const target = queryString ? `${pathname}?${queryString}` : pathname;
+    router.replace(target, { scroll: false });
+  };
+
+  const handleCategoryToggle = (cat: string) => {
+    const next = toggleFilter(selectedCategories, cat);
+    setSelectedCategories(next);
+    setPage(1);
+    updateUrlParams(next, selectedConcerns);
+  };
+
+  const handleConcernToggle = (concernName: string) => {
+    const next = toggleFilter(selectedConcerns, concernName);
+    setSelectedConcerns(next);
+    setPage(1);
+    updateUrlParams(selectedCategories, next);
+  };
+
+  // SEO Dynamic Heading Title
+  const pageTitle = useMemo(() => {
+    if (selectedCategories.length > 0 && selectedConcerns.length > 0) {
+      return `${selectedCategories.join(', ')} for ${selectedConcerns.join(', ')}`;
+    }
+    if (selectedCategories.length > 0) {
+      return `${selectedCategories.join(', ')} Formulations`;
+    }
+    if (selectedConcerns.length > 0) {
+      return `${selectedConcerns.join(', ')} Care & Treatments`;
+    }
+    return 'All Formulations';
+  }, [selectedCategories, selectedConcerns]);
+
+  // SEO Dynamic Subtitle
+  const pageSubtitle = useMemo(() => {
+    if (selectedCategories.length > 0) {
+      return `Explore clean, dermatologist-formulated ${selectedCategories.join(', ').toLowerCase()} engineered for clinical results.`;
+    }
+    if (selectedConcerns.length > 0) {
+      return `Targeted clinical treatments formulated to effectively address ${selectedConcerns.join(', ').toLowerCase()}.`;
+    }
+    return 'Dermatologist-formulated active treatments for measurable skin transformation.';
+  }, [selectedCategories, selectedConcerns]);
+
+  // Sync client-side document title for SEO
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      document.title = pageTitle === 'All Formulations'
+        ? 'Clinical Skincare Products Catalog | BEAUTY GLOWRY'
+        : `${pageTitle} | BEAUTY GLOWRY`;
+    }
+  }, [pageTitle]);
+
   const filteredProducts = useMemo(() => {
     let result = [...displayProducts];
 
@@ -88,6 +148,7 @@ function ProductsContent() {
     setSelectedSkinTypes([]);
     setMaxPrice(5000);
     setPage(1);
+    updateUrlParams([], []);
   };
 
   const activeFilterCount = selectedCategories.length + selectedConcerns.length + selectedSkinTypes.length;
@@ -129,7 +190,7 @@ function ProductsContent() {
     </button>
   );
 
-  const Sidebar = () => (
+  const SidebarContent = () => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
       {/* Category */}
       <div>
@@ -150,7 +211,7 @@ function ProductsContent() {
             key={cat}
             label={cat}
             active={selectedCategories.includes(cat)}
-            onClick={() => { setSelectedCategories((p) => toggleFilter(p, cat)); setPage(1); }}
+            onClick={() => handleCategoryToggle(cat)}
           />
         ))}
       </div>
@@ -176,7 +237,7 @@ function ProductsContent() {
             key={c.id}
             label={c.name}
             active={selectedConcerns.includes(c.name)}
-            onClick={() => { setSelectedConcerns((p) => toggleFilter(p, c.name)); setPage(1); }}
+            onClick={() => handleConcernToggle(c.name)}
           />
         ))}
       </div>
@@ -246,24 +307,49 @@ function ProductsContent() {
     </div>
   );
 
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://beautyglowry.com';
+
   // Dynamically generate CollectionPage schema for the products page
   const collectionSchema = {
     '@context': 'https://schema.org',
     '@type': 'CollectionPage',
-    name: selectedCategories.length > 0 
-      ? `${selectedCategories.join(', ')} Skincare Formulations`
-      : 'Beauty Glowry Skincare Formulations',
-    description: 'Shop dermatologist-formulated active skincare treatments at Beauty Glowry. Clean, clinical formulas.',
-    url: 'https://beautyglowry.com/products',
+    name: pageTitle,
+    description: pageSubtitle,
+    url: `${baseUrl}/products`,
     mainEntity: {
       '@type': 'ItemList',
       itemListElement: filteredProducts.map((p, idx) => ({
         '@type': 'ListItem',
         position: idx + 1,
-        url: `https://beautyglowry.com/product/${p.id}`,
+        url: `${baseUrl}/product/${p.id}`,
         name: p.name,
       })),
     },
+  };
+
+  const breadcrumbSchema = {
+    '@context': 'https://schema.org',
+    '@type': 'BreadcrumbList',
+    itemListElement: [
+      {
+        '@type': 'ListItem',
+        position: 1,
+        name: 'Home',
+        item: `${baseUrl}/`,
+      },
+      {
+        '@type': 'ListItem',
+        position: 2,
+        name: 'Products',
+        item: `${baseUrl}/products`,
+      },
+      ...(selectedCategories.length > 0 ? [{
+        '@type': 'ListItem',
+        position: 3,
+        name: selectedCategories[0],
+        item: `${baseUrl}/products?category=${encodeURIComponent(selectedCategories[0])}`,
+      }] : []),
+    ],
   };
 
   return (
@@ -272,6 +358,10 @@ function ProductsContent() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
       <div style={{ minHeight: '80vh', paddingTop: 24, background: 'var(--bg-base)' }}>
         {/* Page Header */}
@@ -305,10 +395,10 @@ function ProductsContent() {
                 marginBottom: 12,
               }}
             >
-              All Formulations
+              {pageTitle}
             </h1>
             <p style={{ fontSize: 15, color: 'var(--text-muted)', maxWidth: 560 }}>
-              Dermatologist-formulated active treatments for measurable skin transformation.
+              {pageSubtitle}
             </p>
           </div>
         </div>
@@ -348,402 +438,282 @@ function ProductsContent() {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as SortOption)}
+              {/* View toggle */}
+              <div
                 style={{
-                  padding: '6px 12px',
-                  background: 'none',
+                  display: 'flex',
                   border: '1px solid var(--border-default)',
                   borderRadius: 2,
-                  fontSize: 12,
-                  color: 'var(--text-primary)',
-                  cursor: 'pointer',
-                  fontFamily: "'DM Sans', sans-serif",
+                  overflow: 'hidden',
                 }}
               >
-                <option value="popularity">Most Popular</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-                <option value="rating">Highest Rated</option>
-                <option value="newest">Newest First</option>
-              </select>
-
-              <div className="view-toggle">
                 <button
                   onClick={() => setViewMode('grid')}
-                  className={`view-toggle-btn${viewMode === 'grid' ? ' view-toggle-active' : ''}`}
+                  style={{
+                    padding: '6px 10px',
+                    background: viewMode === 'grid' ? 'var(--bg-elevated)' : 'transparent',
+                    border: 'none',
+                    color: viewMode === 'grid' ? 'var(--text-primary)' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                  }}
+                  title="Grid View"
                 >
                   <Grid3X3 size={15} />
                 </button>
                 <button
                   onClick={() => setViewMode('list')}
-                  className={`view-toggle-btn${viewMode === 'list' ? ' view-toggle-active' : ''}`}
+                  style={{
+                    padding: '6px 10px',
+                    background: viewMode === 'list' ? 'var(--bg-elevated)' : 'transparent',
+                    border: 'none',
+                    color: viewMode === 'list' ? 'var(--text-primary)' : 'var(--text-muted)',
+                    cursor: 'pointer',
+                  }}
+                  title="List View"
                 >
                   <List size={15} />
                 </button>
               </div>
-            </div>
-          </div>
-        </div>
 
-        {/* Mobile Sidebar Overlay */}
-        {sidebarOpen && (
-          <div
-            className="mobile-sidebar-overlay"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
-        {/* Main Content */}
-        <div className="container-lg" style={{ paddingTop: 40, paddingBottom: 80 }}>
-          <div style={{ display: 'flex', gap: 40 }}>
-            {/* Sidebar — desktop inline, mobile drawer */}
-            <div className={`products-sidebar${sidebarOpen ? ' products-sidebar-open' : ''}`}>
-              <div className="products-sidebar-inner">
-                {/* Mobile close button */}
-                <div className="sidebar-mobile-header">
-                  <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>Filters</span>
-                  <button
-                    onClick={() => setSidebarOpen(false)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
-                  >
-                    <X size={20} style={{ color: 'var(--text-secondary)' }} />
-                  </button>
-                </div>
-                <Sidebar />
-                {/* Mobile apply button */}
-                <div className="sidebar-mobile-footer">
-                  <button onClick={() => setSidebarOpen(false)} className="btn-accent" style={{ width: '100%', justifyContent: 'center' }}>
-                    Apply Filters
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Products */}
-            <div style={{ flex: 1, minWidth: 0 }}>
-              {!loaded ? (
-                <div className="products-grid">
-                  {Array.from({ length: 6 }).map((_, idx) => (
-                    <div key={idx} style={{
-                      height: 380,
-                      background: 'var(--bg-surface)',
-                      border: '1px solid var(--border-default)',
-                      borderRadius: 10,
-                      position: 'relative',
-                      overflow: 'hidden'
-                    }}>
-                      <div className="pc-skeleton" style={{ height: '70%' }} />
-                      <div style={{ padding: 15 }}>
-                        <div className="pc-skeleton" style={{ height: 15, width: '40%', marginBottom: 10 }} />
-                        <div className="pc-skeleton" style={{ height: 20, width: '90%', marginBottom: 10 }} />
-                        <div className="pc-skeleton" style={{ height: 15, width: '60%' }} />
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : paginated.length === 0 ? (
-                <div
+              {/* Sort dropdown */}
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
                   style={{
-                    textAlign: 'center',
-                    padding: '80px 20px',
-                    border: '1px solid var(--border-default)',
-                    borderRadius: 4,
+                    appearance: 'none',
+                    padding: '7px 28px 7px 12px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: 'var(--text-primary)',
                     background: 'var(--bg-surface)',
+                    border: '1px solid var(--border-default)',
+                    borderRadius: 2,
+                    cursor: 'pointer',
+                    outline: 'none',
+                    fontFamily: "'DM Sans', sans-serif",
                   }}
                 >
-                  <div
-                    style={{
-                      width: 60,
-                      height: 60,
-                      borderRadius: '50%',
-                      background: 'var(--bg-elevated)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      margin: '0 auto 20px',
-                    }}
-                  >
-                    <Search size={24} style={{ color: 'var(--text-muted)' }} />
-                  </div>
-                  <h3
-                    style={{
-                      fontFamily: "'Cormorant Garamond', Georgia, serif",
-                      fontSize: 24,
-                      fontWeight: 500,
-                      color: 'var(--text-primary)',
-                      marginBottom: 8,
-                    }}
-                  >
-                    No formulations found
-                  </h3>
-                  <p style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 24 }}>Try adjusting your filters</p>
-                  <button onClick={clearAll} className="btn-outline">
-                    Clear All Filters
-                  </button>
-                </div>
-              ) : viewMode === 'grid' ? (
-                <div className="products-grid">
-                  {paginated.map((p) => (
-                    <ProductCard key={p.id} product={p} />
-                  ))}
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                  {paginated.map((p) => (
-                    <div
-                      key={p.id}
-                      style={{
-                        display: 'flex',
-                        gap: 24,
-                        background: 'var(--bg-surface)',
-                        border: '1px solid var(--border-default)',
-                        borderRadius: 4,
-                        overflow: 'hidden',
-                        transition: 'all 0.25s ease',
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--border-dark)')}
-                      onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-default)')}
-                    >
-                      <div
-                        style={{
-                          width: 200,
-                          flexShrink: 0,
-                          background: 'var(--bg-elevated)',
-                          overflow: 'hidden',
-                        }}
-                      >
-                        <img
-                          src={p.image}
-                          alt={p.name}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover', minHeight: 160 }}
-                        />
-                      </div>
-                      <div style={{ padding: '24px 24px 24px 0', flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
-                        <div>
-                          {p.actives.length > 0 && (
-                            <span className="badge-active" style={{ marginBottom: 10, display: 'inline-block' }}>
-                              {p.actives[0].name} {p.actives[0].concentration}{p.actives[0].unit}
-                            </span>
-                          )}
-                          <h3 style={{ fontSize: 18, fontWeight: 600, color: 'var(--text-primary)', marginBottom: 8 }}>{p.name}</h3>
-                          <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>{p.description.slice(0, 120)}...</p>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 20, marginTop: 20 }}>
-                          <span style={{ fontFamily: "'DM Mono', monospace", fontSize: 20, fontWeight: 700, color: 'var(--text-primary)' }}>
-                            ৳{p.price.toLocaleString()}
-                          </span>
-                          <ProductCard product={p} />
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Pagination */}
-              {totalPages > 1 && (
-                <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginTop: 48 }}>
-                  {Array.from({ length: totalPages }).map((_, i) => (
-                    <button
-                      key={i}
-                      onClick={() => { setPage(i + 1); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
-                      style={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 2,
-                        border: '1px solid',
-                        borderColor: page === i + 1 ? 'var(--text-primary)' : 'var(--border-default)',
-                        background: page === i + 1 ? 'var(--text-primary)' : 'transparent',
-                        color: page === i + 1 ? 'var(--bg-base)' : 'var(--text-secondary)',
-                        fontSize: 13,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        transition: 'all 0.2s ease',
-                      }}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
-                </div>
-              )}
+                  <option value="popularity">Bestsellers First</option>
+                  <option value="newest">Newest Arrivals</option>
+                  <option value="rating">Highest Rated</option>
+                  <option value="price-low">Price: Low to High</option>
+                  <option value="price-high">Price: High to Low</option>
+                </select>
+                <ChevronDown
+                  size={13}
+                  style={{
+                    position: 'absolute',
+                    right: 8,
+                    top: '50%',
+                    transform: 'translateY(-50%)',
+                    color: 'var(--text-muted)',
+                    pointerEvents: 'none',
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
+
+        {/* Main Content Layout */}
+        <div className="container-lg products-main-grid">
+          {/* Desktop Sidebar */}
+          <aside className="products-desktop-sidebar">
+            <SidebarContent />
+          </aside>
+
+          {/* Product Grid / List */}
+          <main style={{ minHeight: 400 }}>
+            {activeFilterCount > 0 && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                  marginBottom: 20,
+                }}
+              >
+                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Active filters:</span>
+                {selectedCategories.map((c) => (
+                  <span key={c} className="tag-filter-active">
+                    {c}
+                    <button onClick={() => handleCategoryToggle(c)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}>
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+                {selectedConcerns.map((c) => (
+                  <span key={c} className="tag-filter-active">
+                    {c}
+                    <button onClick={() => handleConcernToggle(c)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}>
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+                {selectedSkinTypes.map((st) => (
+                  <span key={st} className="tag-filter-active">
+                    {st}
+                    <button onClick={() => setSelectedSkinTypes((p) => p.filter((x) => x !== st))} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'inherit', padding: 0 }}>
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+                <button
+                  onClick={clearAll}
+                  style={{
+                    fontSize: 11,
+                    color: 'var(--accent)',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                  }}
+                >
+                  Clear all
+                </button>
+              </div>
+            )}
+
+            {filteredProducts.length === 0 ? (
+              <div
+                style={{
+                  textAlign: 'center',
+                  padding: '80px 20px',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 4,
+                }}
+              >
+                <p
+                  style={{
+                    fontFamily: "'Cormorant Garamond', Georgia, serif",
+                    fontSize: 24,
+                    color: 'var(--text-secondary)',
+                    marginBottom: 12,
+                  }}
+                >
+                  No matching formulations found
+                </p>
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>
+                  Try adjusting your filter selection or price range.
+                </p>
+                <button onClick={clearAll} className="btn-accent" style={{ padding: '10px 24px' }}>
+                  Reset Filters
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className={viewMode === 'grid' ? 'products-grid' : 'products-list'}>
+                  {paginated.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'center',
+                      alignItems: 'center',
+                      gap: 8,
+                      marginTop: 48,
+                    }}
+                  >
+                    {Array.from({ length: totalPages }).map((_, i) => (
+                      <button
+                        key={i}
+                        onClick={() => setPage(i + 1)}
+                        style={{
+                          width: 36,
+                          height: 36,
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: page === i + 1 ? '#FFF' : 'var(--text-primary)',
+                          background: page === i + 1 ? 'var(--accent)' : 'var(--bg-surface)',
+                          border: `1px solid ${page === i + 1 ? 'var(--accent)' : 'var(--border-default)'}`,
+                          borderRadius: 2,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s ease',
+                        }}
+                      >
+                        {i + 1}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </main>
+        </div>
       </div>
+
+      {/* Mobile Sidebar Overlay */}
+      {sidebarOpen && (
+        <>
+          <div
+            onClick={() => setSidebarOpen(false)}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 90,
+              background: 'rgba(0,0,0,0.6)',
+            }}
+          />
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              bottom: 0,
+              width: 300,
+              zIndex: 100,
+              background: 'var(--bg-surface)',
+              borderRight: '1px solid var(--border-default)',
+              padding: 24,
+              overflowY: 'auto',
+              boxShadow: '4px 0 24px rgba(0,0,0,0.3)',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                marginBottom: 24,
+                paddingBottom: 16,
+                borderBottom: '1px solid var(--border-default)',
+              }}
+            >
+              <span style={{ fontSize: 13, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                Filters
+              </span>
+              <button
+                onClick={() => setSidebarOpen(false)}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <SidebarContent />
+          </div>
+        </>
+      )}
+
       <Footer />
-
-      <style>{`
-        /* pc-skeleton shimmer animation */
-        .pc-skeleton {
-          background: linear-gradient(
-            90deg,
-            var(--bg-elevated) 25%,
-            rgba(201,149,109,0.06) 50%,
-            var(--bg-elevated) 75%
-          );
-          background-size: 200% 100%;
-          animation: pc-shimmer 1.4s infinite;
-        }
-        @keyframes pc-shimmer {
-          0% { background-position: -200% 0; }
-          100% { background-position: 200% 0; }
-        }
-
-        /* ── Page title ─────────────────────────────────── */
-        .products-page-title { font-size: 52px; }
-
-        /* ── Toolbar ──────────────────────────────────── */
-        .products-toolbar-wrap {
-          border-bottom: 1px solid var(--border-default);
-          background: var(--bg-surface);
-          position: sticky;
-          top: 64px;
-          z-index: 20;
-        }
-        .products-toolbar {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          min-height: 52px;
-          gap: 12px;
-          flex-wrap: wrap;
-          padding-top: 8px;
-          padding-bottom: 8px;
-        }
-        .products-filter-btn {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          padding: 6px 14px;
-          background: none;
-          border: 1px solid var(--border-default);
-          border-radius: 2px;
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--text-primary);
-          cursor: pointer;
-          transition: all 0.2s ease;
-          font-family: 'DM Sans', sans-serif;
-        }
-        .view-toggle {
-          display: flex;
-          border: 1px solid var(--border-default);
-          border-radius: 2px;
-          overflow: hidden;
-        }
-        .view-toggle-btn {
-          padding: 6px 10px;
-          background: transparent;
-          border: none;
-          cursor: pointer;
-          color: var(--text-muted);
-        }
-        .view-toggle-active {
-          background: var(--text-primary);
-          color: var(--bg-base);
-        }
-
-        /* ── Sidebar ──────────────────────────────────── */
-        .products-sidebar {
-          width: 220px;
-          flex-shrink: 0;
-          display: none;
-        }
-        .products-sidebar.products-sidebar-open {
-          display: block;
-        }
-        .products-sidebar-inner {
-          position: sticky;
-          top: 128px;
-        }
-        .sidebar-mobile-header { display: none; }
-        .sidebar-mobile-footer { display: none; }
-        .mobile-sidebar-overlay { display: none; }
-
-        /* ── Products grid ────────────────────────────── */
-        .products-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 20px;
-        }
-
-        /* ═══════════════════════════════════════════════════
-           TABLET — 900px
-        ═══════════════════════════════════════════════════ */
-        @media (max-width: 900px) {
-          .products-page-title { font-size: 38px; }
-          .products-grid { grid-template-columns: repeat(2, 1fr); }
-        }
-
-        /* ═══════════════════════════════════════════════════
-           MOBILE — 768px: sidebar becomes drawer
-        ═══════════════════════════════════════════════════ */
-        @media (max-width: 768px) {
-          .products-page-title { font-size: 30px; }
-
-          /* Sidebar becomes a bottom sheet / side drawer */
-          .products-sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            bottom: 0;
-            width: 300px;
-            z-index: 80;
-            background: var(--bg-surface);
-            border-right: 1px solid var(--border-default);
-            overflow-y: auto;
-            transform: translateX(-100%);
-            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-            display: block !important;
-          }
-          .products-sidebar.products-sidebar-open {
-            transform: translateX(0);
-          }
-          .products-sidebar-inner {
-            position: static;
-            padding: 0 24px 32px;
-          }
-          .sidebar-mobile-header {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 20px 0 16px;
-            margin-bottom: 24px;
-            border-bottom: 1px solid var(--border-default);
-          }
-          .sidebar-mobile-footer {
-            display: block;
-            margin-top: 24px;
-            padding-top: 20px;
-            border-top: 1px solid var(--border-default);
-          }
-          .mobile-sidebar-overlay {
-            display: block;
-            position: fixed;
-            inset: 0;
-            z-index: 70;
-            background: rgba(26,26,24,0.5);
-          }
-          .products-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-        }
-
-        /* ═══════════════════════════════════════════════════
-           SMALL MOBILE — 420px
-        ═══════════════════════════════════════════════════ */
-        @media (max-width: 420px) {
-          .products-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-          .products-sidebar { width: 100vw; }
-        }
-      `}</style>
     </>
   );
 }
 
 export default function ProductsPage() {
   return (
-    <React.Suspense fallback={<div style={{ minHeight: '100vh', background: 'var(--bg-base)' }} />}>
+    <React.Suspense fallback={
+      <div style={{ minHeight: '80vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <p style={{ color: 'var(--text-muted)', fontSize: 14 }}>Loading formulations catalog...</p>
+      </div>
+    }>
       <ProductsContent />
     </React.Suspense>
   );
