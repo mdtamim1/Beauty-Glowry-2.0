@@ -400,25 +400,30 @@ function Modal({
   };
 
   // ─── Gallery Images Helper Logic ─────────────────────────────────────────
-  const galleryImages = form.productImages
-    ? form.productImages.split(',').map((s) => s.trim()).filter(Boolean)
-    : [];
+  const [localGalleryImages, setLocalGalleryImages] = useState<string[]>(() => {
+    return form.productImages
+      ? form.productImages.split(',').map((s) => s.trim())
+      : [];
+  });
 
   const updateImage = (index: number, val: string) => {
-    const list = [...galleryImages];
+    const list = [...localGalleryImages];
     list[index] = val;
-    update('productImages', list.join(','));
+    setLocalGalleryImages(list);
+    update('productImages', list.filter(Boolean).join(', '));
   };
 
   const addImageField = () => {
-    const list = [...galleryImages, ''];
-    update('productImages', list.join(','));
+    const list = [...localGalleryImages, ''];
+    setLocalGalleryImages(list);
+    update('productImages', list.filter(Boolean).join(', '));
   };
 
   const removeImageField = (index: number) => {
-    const list = [...galleryImages];
+    const list = [...localGalleryImages];
     list.splice(index, 1);
-    update('productImages', list.join(','));
+    setLocalGalleryImages(list);
+    update('productImages', list.filter(Boolean).join(', '));
   };
 
   const tabs = [
@@ -814,12 +819,12 @@ function Modal({
                     background: 'rgba(0,0,0,0.15)',
                     boxSizing: 'border-box',
                   }}>
-                    {galleryImages.length === 0 ? (
+                    {localGalleryImages.length === 0 ? (
                       <div style={{ padding: '20px 12px', textAlign: 'center', color: C.muted, fontSize: 12 }}>
                         No gallery images added yet. Click "+ Add Gallery Image" below.
                       </div>
                     ) : (
-                      galleryImages.map((url, index) => (
+                      localGalleryImages.map((url, index) => (
                         <div key={index} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '0 8px' }}>
                           <span style={{ fontSize: 11, color: C.muted, minWidth: 20, textAlign: 'center' }}>
                             #{index + 1}
