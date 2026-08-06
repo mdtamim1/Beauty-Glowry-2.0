@@ -134,6 +134,10 @@ export default async function RootLayout({
       className={`${cormorant.variable} ${dmSans.variable} ${dmMono.variable} h-full antialiased`}
     >
       <head>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://images.unsplash.com" />
+        <link rel="dns-prefetch" href="https://res.cloudinary.com" />
         {storeConfig.googleSiteVerification && (
           <meta name="google-site-verification" content={storeConfig.googleSiteVerification} />
         )}
