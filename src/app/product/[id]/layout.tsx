@@ -1,14 +1,81 @@
 import type { Metadata } from 'next';
-import { products } from '../../../data/products';
+import { prisma } from '@/lib/prisma';
+import { products as staticProducts } from '../../../data/products';
 
 type Props = {
   params: Promise<{ id: string }>;
   children: React.ReactNode;
 };
 
+async function getProductData(id: string) {
+  try {
+    const p = await prisma.product.findFirst({
+      where: {
+        OR: [
+          { id: id },
+          { slug: id },
+        ],
+      },
+      include: {
+        brand: true,
+        category: true,
+        images: { orderBy: { position: 'asc' } },
+        reviews: { select: { rating: true } },
+      },
+    });
+
+    if (p) {
+      const reviews = p.reviews || [];
+      const reviewCount = reviews.length;
+      const averageRating = reviewCount > 0
+        ? Number((reviews.reduce((acc, r) => acc + r.rating, 0) / reviewCount).toFixed(1))
+        : 5.0;
+
+      return {
+        id: p.id,
+        name: p.name,
+        description: p.description || '',
+        price: Number(p.price),
+        image: p.images[0]?.url || 'https://beautygloowry.com/logo.PNG',
+        brand: p.brand?.name || 'Beauty Glowry',
+        category: p.category?.name || 'Skincare',
+        stock: p.stock_qty,
+        rating: averageRating,
+        reviewCount: reviewCount,
+        concerns: p.skin_type_tags || [],
+        skinTypes: p.skin_type_tags || [],
+      };
+    }
+  } catch (err) {
+    console.error('[Product SEO Layout] Failed to fetch product from DB:', err);
+  }
+
+  // Fallback to static data if DB record is not found or connection fails
+  const numId = Number(id);
+  const staticP = staticProducts.find((p) => p.id === numId);
+  if (staticP) {
+    return {
+      id: String(staticP.id),
+      name: staticP.name,
+      description: staticP.description || '',
+      price: staticP.price,
+      image: staticP.image,
+      brand: staticP.brand === 'beauty-glowry' ? 'Beauty Glowry' : staticP.brand === 'dermalab' ? 'DermaLab' : 'PureAct',
+      category: staticP.category || 'Skincare',
+      stock: staticP.stock || 10,
+      rating: staticP.rating || 5.0,
+      reviewCount: staticP.reviewCount || 1,
+      concerns: staticP.concerns || [],
+      skinTypes: staticP.skinTypes || [],
+    };
+  }
+
+  return null;
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
-  const product = products.find((p) => p.id === Number(resolvedParams.id));
+  const product = await getProductData(resolvedParams.id);
 
   if (!product) {
     return {
@@ -17,15 +84,19 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     };
   }
 
+  const concernsText = product.concerns.length > 0 ? ` Formulated for ${product.concerns.join(', ')}.` : '';
+  const skinTypesText = product.skinTypes.length > 0 ? ` Suitable for ${product.skinTypes.join(', ')}.` : '';
+  const descriptionSnippet = `${product.name} — ${product.description.slice(0, 150)}...${concernsText}${skinTypesText}`;
+
   return {
     title: product.name,
-    description: `${product.name} — ${product.description.slice(0, 150)}... Formulated with premium actives for ${product.concerns.join(', ')}. Target skin types: ${product.skinTypes.join(', ')}.`,
+    description: descriptionSnippet,
     alternates: {
       canonical: `https://beautygloowry.com/product/${product.id}`,
     },
     openGraph: {
       title: `${product.name} | BEAUTY GLOWRY`,
-      description: `${product.name} — ${product.description.slice(0, 150)}... Price: ৳${product.price.toLocaleString()}. Targeted for ${product.concerns.join(', ')}.`,
+      description: `${product.name} — ${product.description.slice(0, 150)}... Price: ৳${product.price.toLocaleString()}.${concernsText}`,
       url: `https://beautygloowry.com/product/${product.id}`,
       images: [
         {
@@ -36,6 +107,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
       type: 'website',
     },
     twitter: {
+      card: 'summary_large_image',
       title: `${product.name} | BEAUTY GLOWRY`,
       description: `${product.description.slice(0, 120)}...`,
       images: [product.image],
@@ -51,7 +123,7 @@ export default async function ProductLayout({
   params: Promise<{ id: string }>;
 }) {
   const resolvedParams = await params;
-  const product = products.find((p) => p.id === Number(resolvedParams.id));
+  const product = await getProductData(resolvedParams.id);
 
   if (!product) {
     return <>{children}</>;
@@ -68,7 +140,7 @@ export default async function ProductLayout({
     mpn: `BG-MPN-${product.id}`,
     brand: {
       '@type': 'Brand',
-      name: product.brand === 'beauty-glowry' ? 'Beauty Glowry' : product.brand === 'dermalab' ? 'DermaLab' : 'PureAct',
+      name: product.brand,
     },
     offers: {
       '@type': 'Offer',

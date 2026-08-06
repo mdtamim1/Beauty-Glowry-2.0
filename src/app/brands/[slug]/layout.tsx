@@ -1,9 +1,65 @@
 import type { Metadata } from 'next';
-import { brands, products } from '../../../data/products';
+import { prisma } from '@/lib/prisma';
+import { brands as staticBrands, products as staticProducts } from '../../../data/products';
+
+type Props = {
+  params: Promise<{ slug: string }>;
+  children: React.ReactNode;
+};
+
+async function getBrandData(slug: string) {
+  try {
+    const b = await prisma.brand.findFirst({
+      where: {
+        OR: [
+          { id: slug },
+          { slug: slug },
+        ],
+      },
+      include: {
+        products: {
+          where: { is_active: true },
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    if (b) {
+      return {
+        id: b.slug || b.id,
+        name: b.name,
+        tagline: b.description || 'Clinical Formulations',
+        description: b.description || `${b.name} clinical skincare products formulated for maximum efficacy.`,
+        country: 'Clinical Lab',
+        coverImage: b.logo || 'https://beautygloowry.com/logo.PNG',
+        products: b.products.map(p => ({ id: p.id, name: p.name })),
+      };
+    }
+  } catch (err) {
+    console.error('[Brand SEO Layout] Failed to fetch brand from DB:', err);
+  }
+
+  // Fallback to static brands
+  const staticB = staticBrands.find((b) => b.id === slug);
+  if (staticB) {
+    const brandProds = staticProducts.filter((p) => p.brand === slug);
+    return {
+      id: staticB.id,
+      name: staticB.name,
+      tagline: staticB.tagline,
+      description: staticB.description,
+      country: staticB.country,
+      coverImage: staticB.coverImage,
+      products: brandProds.map(p => ({ id: String(p.id), name: p.name })),
+    };
+  }
+
+  return null;
+}
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
-  const brand = brands.find((b) => b.id === resolvedParams.slug);
+  const brand = await getBrandData(resolvedParams.slug);
 
   if (!brand) {
     return {
@@ -31,6 +87,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       type: 'website',
     },
     twitter: {
+      card: 'summary_large_image',
       title: `${brand.name} | BEAUTY GLOWRY`,
       description: brand.tagline,
       images: [brand.coverImage],
@@ -46,8 +103,7 @@ export default async function BrandLayout({
   params: Promise<{ slug: string }>;
 }) {
   const resolvedParams = await params;
-  const brand = brands.find((b) => b.id === resolvedParams.slug);
-  const brandProducts = products.filter((p) => p.brand === resolvedParams.slug);
+  const brand = await getBrandData(resolvedParams.slug);
 
   if (!brand) {
     return <>{children}</>;
@@ -66,7 +122,7 @@ export default async function BrandLayout({
     },
     mainEntity: {
       '@type': 'ItemList',
-      itemListElement: brandProducts.map((p, idx) => ({
+      itemListElement: brand.products.map((p, idx) => ({
         '@type': 'ListItem',
         position: idx + 1,
         url: `https://beautygloowry.com/product/${p.id}`,
