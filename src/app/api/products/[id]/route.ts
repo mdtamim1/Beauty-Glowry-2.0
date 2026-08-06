@@ -155,7 +155,12 @@ export async function PUT(
         description: data.description ?? p.description,
         ingredients: data.inciList ?? p.ingredients,
         how_to_use: data.usageSteps ? (Array.isArray(data.usageSteps) ? data.usageSteps.join('\n') : data.usageSteps) : p.how_to_use,
-        skin_type_tags: data.skinTypes ? (Array.isArray(data.skinTypes) ? data.skinTypes : data.skinTypes.split(',').map((s: string) => s.trim())) : p.skin_type_tags,
+        skin_type_tags: (data.skinTypes || data.concerns)
+          ? [
+              ...(data.skinTypes ? (Array.isArray(data.skinTypes) ? data.skinTypes : data.skinTypes.split(',').map((s: string) => s.trim())) : []),
+              ...(data.concerns ? (Array.isArray(data.concerns) ? data.concerns : data.concerns.split(',').map((s: string) => s.trim())) : [])
+            ].filter(Boolean)
+          : p.skin_type_tags,
         price: data.price ?? p.price,
         discount_price: data.originalPrice ?? p.discount_price,
         stock_qty: data.stock ?? p.stock_qty,

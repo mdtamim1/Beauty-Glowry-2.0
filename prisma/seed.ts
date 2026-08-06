@@ -8,6 +8,24 @@ function slugify(text: string): string {
     .replace(/(^-|-$)+/g, '');
 }
 
+function mapConcernsToTags(concerns: string[]): string[] {
+  const mapping: Record<string, string> = {
+    "Acne & Blemishes": "Acne",
+    "Dullness & Uneven Tone": "Brightening",
+    "Enlarged Pores": "Pores",
+    "Blackheads & Pores": "Pores",
+    "Excess Sebum": "Oiliness",
+    "Aging & Fine Lines": "Aging",
+    "Hyperpigmentation & Dark Spots": "Dark Spots",
+    "Redness & Sensitivity": "Sensitive",
+    "Dehydration & Dryness": "Hydration",
+    "Compromised Barrier": "Sensitive",
+    "Fine Lines": "Aging",
+    "Dullness": "Brightening",
+  };
+  return concerns.map(c => mapping[c] || c);
+}
+
 async function main() {
   console.log('🌱 Starting database seeding...');
 
@@ -102,7 +120,7 @@ async function main() {
         description: p.description,
         ingredients: p.inciList,
         how_to_use: p.usageSteps.join('\n'),
-        skin_type_tags: p.skinTypes,
+        skin_type_tags: Array.from(new Set([...p.skinTypes, ...mapConcernsToTags(p.concerns)])),
         price: p.price,
         discount_price: p.discountPrice || p.price,
         sku: mainSku,
@@ -119,7 +137,7 @@ async function main() {
         description: p.description,
         ingredients: p.inciList,
         how_to_use: p.usageSteps.join('\n'),
-        skin_type_tags: p.skinTypes,
+        skin_type_tags: Array.from(new Set([...p.skinTypes, ...mapConcernsToTags(p.concerns)])),
         price: p.price,
         discount_price: p.discountPrice || p.price,
         sku: mainSku,

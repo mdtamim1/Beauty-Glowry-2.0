@@ -4,15 +4,17 @@ import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
-  GitCompare, Trash2, ArrowLeft, ShoppingBag, Star, Check, Sparkles
+  GitCompare, Trash2, ArrowLeft, ShoppingBag, Star, Check, Sparkles, X, User, Award, ShieldAlert
 } from 'lucide-react';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 import { useCartStore } from '../../store/useCartStore';
+import { useAuthStore } from '../../store/useAuthStore';
 import { products as localProducts } from '../../data/products';
 
 export default function ComparePage() {
   const { compareList, removeFromCompare, clearCompare, addToCart } = useCartStore();
+  const { user } = useAuthStore();
   const router = useRouter();
 
   // Load products list (database fallback)
@@ -21,6 +23,9 @@ export default function ComparePage() {
 
   // Success indicator for bag additions
   const [successMsg, setSuccessMsg] = useState<Record<string, boolean>>({});
+
+  // Dynamic Skin Profile Matching
+  const [userSkinType, setUserSkinType] = useState<string>('');
 
   useEffect(() => {
     fetch('/api/products')
@@ -39,6 +44,13 @@ export default function ComparePage() {
       });
   }, []);
 
+  // Initialize skin profile from user storage
+  useEffect(() => {
+    if (user?.skin_type) {
+      setUserSkinType(user.skin_type);
+    }
+  }, [user]);
+
   // Resolve compared items
   const comparedItems = useMemo(() => {
     return compareList
@@ -50,7 +62,6 @@ export default function ComparePage() {
   const sharedIngredients = useMemo(() => {
     if (comparedItems.length < 2) return [];
     
-    // Parse ingredients list
     const parseIngs = (inci: string) => {
       if (!inci) return [];
       return inci
@@ -68,13 +79,83 @@ export default function ComparePage() {
         return list.includes(ing);
       });
     }).map((ing: string) => {
-      // Find original capitalization from first product
       const orig = (comparedItems[0].inciList || '')
         .split(',')
         .find((i: string) => i.trim().toLowerCase() === ing);
       return orig ? orig.trim() : ing;
     }).slice(0, 8); // top 8 shared
   }, [comparedItems]);
+
+  // Calculate price value per 10ml / 10g
+  const valueMetrics = useMemo(() => {
+    return comparedItems.map(p => {
+      const sizeStr = p.size || '30ml';
+      const numMatch = sizeStr.match(/\d+/);
+      const sizeNum = numMatch ? Number(numMatch[0]) : 30;
+      const pricePerTen = Math.round((p.price / sizeNum) * 10);
+      return { id: p.id, pricePerTen };
+    });
+  }, [comparedItems]);
+
+  // Find the best value product
+  const bestValueId = useMemo(() => {
+    if (valueMetrics.length < 2) return null;
+    const sorted = [...valueMetrics].sort((a, b) => a.pricePerTen - b.pricePerTen);
+    return sorted[0]?.id;
+  }, [valueMetrics]);
+
+  // Calculate Compatibility Percentage based on selected skin type
+  const compatibilityScores = useMemo(() => {
+    if (!userSkinType) return {};
+    
+    const result: Record<string, { score: number; label: string; color: string }> = {};
+    
+    comparedItems.forEach(p => {
+      const pSkinTypes = p.skinTypes || [];
+      const isSensitive = userSkinType.toLowerCase() === 'sensitive';
+      
+      let score = 70; // baseline
+      
+      // Exact Match
+      if (pSkinTypes.some((st: string) => st.toLowerCase() === userSkinType.toLowerCase())) {
+        score = 95;
+      } 
+      // All Skin Types Match
+      else if (pSkinTypes.some((st: string) => st.toLowerCase() === 'all skin types')) {
+        score = 90;
+      } 
+      // Sensitive safety check
+      else if (isSensitive && pSkinTypes.some((st: string) => st.toLowerCase() === 'sensitive')) {
+        score = 88;
+      }
+      // Mismatched
+      else if (
+        (userSkinType.toLowerCase() === 'oily' && pSkinTypes.includes('Dry')) ||
+        (userSkinType.toLowerCase() === 'dry' && pSkinTypes.includes('Oily'))
+      ) {
+        score = 55; // Low compatibility
+      }
+      
+      // Determine label and color
+      let label = 'Compatible 👍';
+      let color = '#EAB308'; // Yellow
+      
+      if (score >= 90) {
+        label = 'Perfect Match 🌟';
+        color = '#10B981'; // Green
+      } else if (score >= 80) {
+        label = 'High Match ✅';
+        color = '#06B6D4'; // Teal
+      } else if (score <= 60) {
+        label = 'Low Compatibility ⚠️';
+        color = '#EF4444'; // Red
+      }
+      
+      result[p.id] = { score, label, color };
+    });
+    
+    return result;
+  }, [comparedItems, userSkinType]);
 
   const handleQuickAdd = (p: any) => {
     addToCart(p);
@@ -87,266 +168,275 @@ export default function ComparePage() {
   return (
     <>
       <Navbar />
-      <main style={{ background: 'var(--bg-base)', minHeight: '100vh', padding: '40px 0 100px' }}>
+      <main className="compare-main">
         <div className="container-lg">
           {/* Header Link */}
-          <Link href="/products" style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--text-muted)', textDecoration: 'none', marginBottom: 20 }}>
+          <Link href="/products" className="compare-back-link">
             <ArrowLeft size={14} /> Back to Catalog
           </Link>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 }}>
+          <div className="compare-header-row">
             <div>
-              <h1 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 'clamp(28px, 4vw, 44px)', fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>
-                Smart Product Comparison
-              </h1>
-              <p style={{ color: 'var(--text-muted)', fontSize: 14, marginTop: 4 }}>
-                Compare ingredients, concentrations, price value, and let the AI find your matching formula.
+              <span className="compare-badge">
+                <GitCompare size={12} /> SCIENTIFIC COMPARE
+              </span>
+              <h1 className="compare-heading">Smart Product Comparison</h1>
+              <p className="compare-subtitle">
+                Compare active concentrations, formulas, and calculate AI compatibility for your skin regimen.
               </p>
             </div>
             {comparedItems.length > 0 && (
-              <button
-                onClick={clearCompare}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: '1px solid #EF4444',
-                  color: '#EF4444', padding: '8px 18px', borderRadius: 12, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                  transition: 'background 0.2s, color 0.2s'
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = '#EF4444'; e.currentTarget.style.color = '#fff'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'none'; e.currentTarget.style.color = '#EF4444'; }}
-              >
-                <Trash2 size={13} /> Clear Comparison
+              <button onClick={clearCompare} className="compare-clear-btn">
+                <Trash2 size={13} /> Clear List
               </button>
             )}
           </div>
 
           {comparedItems.length === 0 ? (
             /* Empty State */
-            <div style={{
-              textAlign: 'center', padding: '80px 20px',
-              background: 'var(--bg-surface)', borderRadius: 24, border: '1px solid var(--border-default)',
-              boxShadow: '0 10px 30px rgba(0,0,0,0.02)'
-            }}>
-              <div style={{
-                width: 64, height: 64, borderRadius: '50%', background: 'rgba(201, 149, 109, 0.12)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent)',
-                margin: '0 auto 20px'
-              }}>
-                <GitCompare size={30} />
+            <div className="compare-empty-card">
+              <div className="compare-empty-icon-wrap">
+                <GitCompare size={32} />
               </div>
-              <h2 style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: 24, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 10 }}>
-                Comparison List is Empty
-              </h2>
-              <p style={{ color: 'var(--text-muted)', fontSize: 14, maxWidth: 440, margin: '0 auto 24px', lineHeight: 1.5 }}>
-                Select up to 3 skin serums, cleansers, or toners from the product lists to compare active ingredients, skin compatibility, and clinical results.
+              <h2>Comparison List is Empty</h2>
+              <p>
+                Select up to 3 formulations from the product catalog to compare active ingredients, compatibility, and pricing side-by-side.
               </p>
-              <Link href="/products" className="btn-primary" style={{ display: 'inline-block', padding: '12px 36px', borderRadius: 12, textDecoration: 'none' }}>
-                Browse Products
+              <Link href="/products" className="btn-primary" style={{ display: 'inline-block', textDecoration: 'none' }}>
+                Browse Formulations
               </Link>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-              {/* Dynamic comparison table */}
-              <div style={{
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-default)',
-                borderRadius: 24,
-                overflow: 'hidden',
-                boxShadow: '0 12px 40px rgba(0,0,0,0.03)'
-              }}>
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', minWidth: 700 }}>
-                    <thead>
-                      <tr style={{ borderBottom: '1px solid var(--border-default)' }}>
-                        <th style={{ padding: '24px 20px', width: '22%', background: 'var(--bg-elevated)', borderRight: '1px solid var(--border-subtle)' }}>
-                          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--text-muted)' }}>
-                            Comparing ({comparedItems.length}) Products
-                          </span>
-                        </th>
-                        {comparedItems.map((p) => (
-                          <th key={p.id} style={{ padding: '24px 20px', width: `${78 / comparedItems.length}%`, verticalAlign: 'top', borderRight: '1px solid var(--border-subtle)', position: 'relative' }}>
-                            {/* Remove button */}
-                            <button
-                              onClick={() => removeFromCompare(String(p.id))}
-                              style={{
-                                position: 'absolute', top: 12, right: 12, background: 'none', border: 'none',
-                                cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', padding: 4
-                              }}
-                              title="Remove product"
-                            >
-                              <X size={15} />
-                            </button>
-                            
-                            {/* Product Header details */}
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                              <img
-                                src={p.image}
-                                alt={p.name}
-                                style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 12, background: 'var(--bg-base)' }}
-                              />
-                              <div>
-                                <span style={{ fontSize: 9, fontWeight: 800, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-                                  {p.brand}
-                                </span>
-                                <h3 style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", fontSize: 16, fontWeight: 700, color: 'var(--text-primary)', margin: '3px 0 6px', lineHeight: 1.3 }}>
-                                  {p.name}
-                                </h3>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
-                                  <div style={{ display: 'flex', gap: 1 }}>
-                                    {Array.from({ length: 5 }).map((_, i) => (
-                                      <Star key={i} size={11} style={{ fill: i < Math.round(p.rating) ? '#C9956D' : 'none', color: '#C9956D' }} />
-                                    ))}
-                                  </div>
-                                  <span>({p.reviewCount})</span>
-                                </div>
-                              </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+              
+              {/* ── Skin Profile Dynamic Match Selector ── */}
+              <div className="compare-skin-selector-panel">
+                <div className="selector-title">
+                  <User size={15} style={{ color: 'var(--accent)' }} />
+                  <span>Personalize Match Score:</span>
+                </div>
+                <div className="selector-inputs">
+                  {['Normal', 'Dry', 'Oily', 'Combination', 'Sensitive'].map((type) => (
+                    <button
+                      key={type}
+                      onClick={() => setUserSkinType(prev => prev === type ? '' : type)}
+                      className={`skin-tag-btn ${userSkinType === type ? 'active' : ''}`}
+                    >
+                      {type}
+                    </button>
+                  ))}
+                </div>
+              </div>
 
-                              {/* Price and CTA */}
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, flexWrap: 'wrap', gap: 10 }}>
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                  <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>৳{p.price.toLocaleString()}</span>
-                                  {p.originalPrice > p.price && (
-                                    <span style={{ fontSize: 11, color: 'var(--text-muted)', textDecoration: 'line-through' }}>৳{p.originalPrice.toLocaleString()}</span>
-                                  )}
-                                </div>
-                                <button
-                                  onClick={() => handleQuickAdd(p)}
-                                  style={{
-                                    background: successMsg[p.id] ? '#10B981' : 'var(--accent)',
-                                    color: '#fff', border: 'none', padding: '8px 16px', borderRadius: 10,
-                                    fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6,
-                                    boxShadow: '0 4px 10px rgba(201,149,109,0.25)', transition: 'background 0.2s'
-                                  }}
+              {/* ── Grid Comparison Table ── */}
+              <div className="compare-grid-card">
+                <div className="compare-custom-table" style={{ '--cols': comparedItems.length } as any}>
+                  
+                  {/* Header Row: Product Info */}
+                  <div className="compare-grid-row header-row">
+                    <div className="compare-grid-cell label-cell">
+                      <span className="cell-label">Formulations</span>
+                    </div>
+                    {comparedItems.map((p) => {
+                      const isBestValue = p.id === bestValueId;
+                      return (
+                        <div key={p.id} className="compare-grid-cell product-cell">
+                          {/* Remove X button */}
+                          <button
+                            onClick={() => removeFromCompare(String(p.id))}
+                            className="compare-remove-item"
+                            title="Remove product"
+                          >
+                            <X size={15} />
+                          </button>
+
+                          {/* Best Value Ribbon */}
+                          {isBestValue && (
+                            <div className="best-value-ribbon">
+                              <Award size={10} /> BEST VALUE
+                            </div>
+                          )}
+
+                          <img src={p.image} alt={p.name} className="product-cell-img" />
+                          <div className="product-cell-info">
+                            <span className="product-brand-tag">{p.brandInfo?.name || p.brand}</span>
+                            <h3 className="product-title">{p.name}</h3>
+                            <div className="product-rating">
+                              <div style={{ display: 'flex', gap: 1 }}>
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star key={i} size={10} style={{ fill: i < Math.round(p.rating) ? 'var(--accent)' : 'none', color: 'var(--accent)' }} />
+                                ))}
+                              </div>
+                              <span>({p.reviewCount})</span>
+                            </div>
+
+                            <div className="product-purchase-row">
+                              <div className="price-block">
+                                <span className="current-price">৳{p.price.toLocaleString()}</span>
+                                {p.originalPrice > p.price && (
+                                  <span className="old-price">৳{p.originalPrice.toLocaleString()}</span>
+                                )}
+                              </div>
+                              <button onClick={() => handleQuickAdd(p)} className={`buy-btn ${successMsg[p.id] ? 'success' : ''}`}>
+                                {successMsg[p.id] ? <Check size={11} /> : <ShoppingBag size={11} />}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Row 1: AI Compatibility Meter */}
+                  <div className="compare-grid-row">
+                    <div className="compare-grid-cell label-cell">Compatibility Score</div>
+                    {comparedItems.map(p => {
+                      const match = compatibilityScores[p.id];
+                      return (
+                        <div key={p.id} className="compare-grid-cell text-cell">
+                          {match ? (
+                            <div className="compatibility-gauge-wrapper">
+                              <div className="gauge-bar-outer">
+                                <div
+                                  className="gauge-bar-inner"
+                                  style={{ width: `${match.score}%`, background: match.color }}
+                                />
+                              </div>
+                              <span className="gauge-score" style={{ color: match.color }}>
+                                {match.score}% · {match.label}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="gauge-placeholder">Select skin type above</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Row 2: Price Value */}
+                  <div className="compare-grid-row">
+                    <div className="compare-grid-cell label-cell">Price & Size</div>
+                    {comparedItems.map(p => {
+                      const metric = valueMetrics.find(vm => vm.id === p.id);
+                      return (
+                        <div key={p.id} className="compare-grid-cell text-cell">
+                          <span className="unit-value">৳{p.price} for {p.size || '30ml'}</span>
+                          {metric && (
+                            <span className="unit-rate">৳{metric.pricePerTen} / 10ml</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Row 3: Skin Compatibility */}
+                  <div className="compare-grid-row">
+                    <div className="compare-grid-cell label-cell">Suitable Skin Types</div>
+                    {comparedItems.map(p => (
+                      <div key={p.id} className="compare-grid-cell text-cell">
+                        <div className="compare-badges-flex">
+                          {p.skinTypes?.map((st: string) => (
+                            <span key={st} className="compatibility-badge">
+                              {st}
+                            </span>
+                          )) || <span className="value-none">N/A</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Row 4: Skin Concerns */}
+                  <div className="compare-grid-row">
+                    <div className="compare-grid-cell label-cell">Targets Concerns</div>
+                    {comparedItems.map(p => (
+                      <div key={p.id} className="compare-grid-cell text-cell">
+                        <div className="compare-badges-flex">
+                          {p.concerns?.map((co: string) => (
+                            <span key={co} className="concern-badge">
+                              {co}
+                            </span>
+                          )) || <span className="value-none">N/A</span>}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Row 5: Active Ingredients */}
+                  <div className="compare-grid-row">
+                    <div className="compare-grid-cell label-cell">Active Ingredients</div>
+                    {comparedItems.map(p => (
+                      <div key={p.id} className="compare-grid-cell text-cell">
+                        <div className="compare-actives-list">
+                          {p.actives && p.actives.length > 0 ? (
+                            p.actives.map((act: any, i: number) => (
+                              <div key={i} className="active-item">
+                                <span className="active-dot" />
+                                <span className="active-text">
+                                  {act.name} <strong>{act.concentration}{act.unit}</strong>
+                                </span>
+                              </div>
+                            ))
+                          ) : (
+                            <span className="value-none">Generic base formula</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Row 6: Description */}
+                  <div className="compare-grid-row">
+                    <div className="compare-grid-cell label-cell">Formula Benefits</div>
+                    {comparedItems.map(p => (
+                      <div key={p.id} className="compare-grid-cell desc-cell">
+                        <p>{p.description || 'No description listed.'}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Row 7: INCI Full list */}
+                  <div className="compare-grid-row">
+                    <div className="compare-grid-cell label-cell">Full Ingredients (INCI)</div>
+                    {comparedItems.map(p => (
+                      <div key={p.id} className="compare-grid-cell inci-cell">
+                        <div className="inci-viewport">
+                          {p.inciList ? (
+                            p.inciList.split(',').map((ing: string, i: number) => {
+                              const trimmed = ing.trim();
+                              const isShared = sharedIngredients.some(s => s.toLowerCase() === trimmed.toLowerCase());
+                              return (
+                                <span
+                                  key={i}
+                                  className={isShared ? 'shared-ingredient' : ''}
                                 >
-                                  {successMsg[p.id] ? <><Check size={12} /> Added</> : <><ShoppingBag size={12} /> Add to Bag</>}
-                                </button>
-                              </div>
-                            </div>
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {/* Price & Value Row */}
-                      <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                        <td style={{ padding: '16px 20px', background: 'var(--bg-elevated)', fontWeight: 700, fontSize: 12, color: 'var(--text-secondary)', borderRight: '1px solid var(--border-subtle)' }}>Price Value</td>
-                        {comparedItems.map(p => (
-                          <td key={p.id} style={{ padding: '16px 20px', fontSize: 13, borderRight: '1px solid var(--border-subtle)', color: 'var(--text-primary)' }}>
-                            <strong>৳{p.price}</strong> for {p.size || 'standard'} ({p.weight || 'N/A'})
-                          </td>
-                        ))}
-                      </tr>
-
-                      {/* Skin Type Compatibility Row */}
-                      <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                        <td style={{ padding: '16px 20px', background: 'var(--bg-elevated)', fontWeight: 700, fontSize: 12, color: 'var(--text-secondary)', borderRight: '1px solid var(--border-subtle)' }}>Suitable Skin Types</td>
-                        {comparedItems.map(p => (
-                          <td key={p.id} style={{ padding: '16px 20px', fontSize: 13, borderRight: '1px solid var(--border-subtle)' }}>
-                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                              {p.skinTypes?.map((st: string) => (
-                                <span key={st} style={{ padding: '2px 8px', borderRadius: 6, background: 'var(--bg-base)', border: '1px solid var(--border-default)', fontSize: 11, fontWeight: 600, color: 'var(--text-secondary)' }}>
-                                  {st}
+                                  {trimmed}{i < p.inciList.split(',').length - 1 ? ', ' : ''}
                                 </span>
-                              )) || 'N/A'}
-                            </div>
-                          </td>
-                        ))}
-                      </tr>
+                              );
+                            })
+                          ) : (
+                            <span className="value-none">N/A</span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
 
-                      {/* Key Skin Concerns Row */}
-                      <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                        <td style={{ padding: '16px 20px', background: 'var(--bg-elevated)', fontWeight: 700, fontSize: 12, color: 'var(--text-secondary)', borderRight: '1px solid var(--border-subtle)' }}>Targets Concerns</td>
-                        {comparedItems.map(p => (
-                          <td key={p.id} style={{ padding: '16px 20px', fontSize: 13, borderRight: '1px solid var(--border-subtle)' }}>
-                            <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                              {p.concerns?.map((co: string) => (
-                                <span key={co} style={{ padding: '2px 8px', borderRadius: 6, background: 'rgba(201,149,109,0.08)', color: 'var(--accent)', fontSize: 11, fontWeight: 600 }}>
-                                  {co}
-                                </span>
-                              )) || 'N/A'}
-                            </div>
-                          </td>
-                        ))}
-                      </tr>
-
-                      {/* Active Ingredients Row */}
-                      <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                        <td style={{ padding: '16px 20px', background: 'var(--bg-elevated)', fontWeight: 700, fontSize: 12, color: 'var(--text-secondary)', borderRight: '1px solid var(--border-subtle)' }}>Active Ingredients</td>
-                        {comparedItems.map(p => (
-                          <td key={p.id} style={{ padding: '16px 20px', fontSize: 13, borderRight: '1px solid var(--border-subtle)' }}>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                              {p.actives?.map((act: any, i: number) => (
-                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--sage)' }} />
-                                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>
-                                    {act.name} <strong style={{ color: 'var(--accent)' }}>{act.concentration}{act.unit}</strong>
-                                  </span>
-                                </div>
-                              )) || 'None listed'}
-                            </div>
-                          </td>
-                        ))}
-                      </tr>
-
-                      {/* Clinical Benefits Summary */}
-                      <tr style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                        <td style={{ padding: '16px 20px', background: 'var(--bg-elevated)', fontWeight: 700, fontSize: 12, color: 'var(--text-secondary)', borderRight: '1px solid var(--border-subtle)' }}>Formula Benefits</td>
-                        {comparedItems.map(p => (
-                          <td key={p.id} style={{ padding: '16px 20px', fontSize: 12, lineHeight: 1.5, color: 'var(--text-secondary)', borderRight: '1px solid var(--border-subtle)', verticalAlign: 'top' }}>
-                            {p.description || 'No description listed.'}
-                          </td>
-                        ))}
-                      </tr>
-
-                      {/* Full Ingredients INCI list */}
-                      <tr>
-                        <td style={{ padding: '16px 20px', background: 'var(--bg-elevated)', fontWeight: 700, fontSize: 12, color: 'var(--text-secondary)', borderRight: '1px solid var(--border-subtle)' }}>Full Ingredients (INCI)</td>
-                        {comparedItems.map(p => (
-                          <td key={p.id} style={{ padding: '16px 20px', fontSize: 11, lineHeight: 1.6, color: 'var(--text-muted)', borderRight: '1px solid var(--border-subtle)', verticalAlign: 'top' }}>
-                            <div style={{ maxHeight: 180, overflowY: 'auto', paddingRight: 8 }}>
-                              {p.inciList ? (
-                                p.inciList.split(',').map((ing: string, i: number) => {
-                                  const trimmed = ing.trim();
-                                  const isShared = sharedIngredients.some(s => s.toLowerCase() === trimmed.toLowerCase());
-                                  return (
-                                    <span
-                                      key={i}
-                                      style={{
-                                        color: isShared ? 'var(--accent)' : 'inherit',
-                                        fontWeight: isShared ? 700 : 'inherit',
-                                        background: isShared ? 'rgba(201,149,109,0.06)' : 'none',
-                                        borderRadius: 4, padding: isShared ? '0 2px' : 0
-                                      }}
-                                    >
-                                      {trimmed}{i < p.inciList.split(',').length - 1 ? ', ' : ''}
-                                    </span>
-                                  );
-                                })
-                              ) : 'N/A'}
-                            </div>
-                          </td>
-                        ))}
-                      </tr>
-                    </tbody>
-                  </table>
                 </div>
               </div>
 
               {/* Shared Ingredients Highlight Panel */}
               {sharedIngredients.length > 0 && (
-                <div style={{
-                  background: 'linear-gradient(135deg, rgba(201,149,109,0.08), rgba(139,69,19,0.03))',
-                  border: '1px solid rgba(201,149,109,0.18)',
-                  borderRadius: 16, padding: '18px 24px'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--accent)', fontWeight: 700, fontSize: 14, marginBottom: 8 }}>
+                <div className="compare-shared-panel">
+                  <div className="shared-panel-title">
                     <Sparkles size={16} /> Shared Active Base
                   </div>
-                  <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '0 0 12px' }}>
-                    These products share these key skin-conditioning and base ingredients. They will integrate harmoniously into your routine:
+                  <p className="shared-panel-desc">
+                    These formulations share these key skin-conditioning and base ingredients. They will integrate harmoniously into your routine:
                   </p>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <div className="shared-badges-group">
                     {sharedIngredients.map(ing => (
-                      <span key={ing} style={{ padding: '4px 10px', borderRadius: 8, background: '#fff', border: '1px solid var(--border-default)', fontSize: 11, fontWeight: 700, color: 'var(--text-primary)' }}>
+                      <span key={ing} className="shared-badge">
                         ✓ {ing}
                       </span>
                     ))}
@@ -354,36 +444,664 @@ export default function ComparePage() {
                 </div>
               )}
 
-
             </div>
           )}
         </div>
       </main>
       <Footer />
+
       <style>{`
-        /* Responsive Table adjustments */
-        table th {
+        /* Page layout */
+        .compare-main {
+          background: var(--bg-base);
+          min-height: 100vh;
+          padding: 40px 0 100px;
+        }
+
+        .compare-back-link {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          fontSize: 13px;
+          color: var(--text-muted);
+          text-decoration: none;
+          margin-bottom: 24px;
+          font-weight: 500;
+          transition: color 0.2s ease;
+        }
+        .compare-back-link:hover {
+          color: var(--accent);
+        }
+
+        .compare-header-row {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-end;
+          margin-bottom: 32px;
+          gap: 20px;
+        }
+
+        .compare-badge {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.12em;
+          color: var(--accent);
+          background: rgba(201, 149, 109, 0.08);
+          padding: 5px 12px;
+          border-radius: 99px;
+          border: 1px solid rgba(201, 149, 109, 0.15);
+          margin-bottom: 12px;
+        }
+
+        .compare-heading {
+          font-family: 'Cormorant Garamond', Georgia, serif;
+          font-size: clamp(28px, 4vw, 42px);
+          font-weight: 500;
+          color: var(--text-primary);
+          line-height: 1.1;
+          margin: 0;
+        }
+
+        .compare-subtitle {
+          color: var(--text-muted);
+          font-size: 14px;
+          margin-top: 6px;
+        }
+
+        .compare-clear-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          background: transparent;
+          border: 1px solid var(--border-default);
+          color: var(--text-secondary);
+          padding: 8px 18px;
+          border-radius: 99px;
+          font-size: 12px;
+          font-weight: 600;
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+        .compare-clear-btn:hover {
+          border-color: #EF4444;
+          color: #EF4444;
+          background: rgba(239, 68, 68, 0.04);
+        }
+
+        /* Empty state card */
+        .compare-empty-card {
+          text-align: center;
+          padding: 80px 20px;
+          background: var(--bg-surface);
+          border-radius: 20px;
+          border: 1px solid var(--border-default);
+          box-shadow: 0 4px 20px rgba(0,0,0,0.02);
+        }
+
+        .compare-empty-icon-wrap {
+          width: 56px;
+          height: 56px;
+          border-radius: 50%;
+          background: rgba(201, 149, 109, 0.08);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--accent);
+          margin: 0 auto 20px;
+          border: 1px solid rgba(201, 149, 109, 0.12);
+        }
+
+        .compare-empty-card h2 {
+          font-family: 'Cormorant Garamond', Georgia, serif;
+          font-size: 24px;
+          color: var(--text-primary);
+          margin-bottom: 8px;
+        }
+
+        .compare-empty-card p {
+          color: var(--text-muted);
+          font-size: 14px;
+          max-width: 420px;
+          margin: 0 auto 24px;
+          line-height: 1.5;
+        }
+
+        /* Skin type matcher selector */
+        .compare-skin-selector-panel {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
+          border-radius: 16px;
+          padding: 16px 20px;
+          display: flex;
+          align-items: center;
+          gap: 20px;
+        }
+
+        .selector-title {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 12px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.06em;
+          color: var(--text-muted);
+          flex-shrink: 0;
+        }
+
+        .selector-inputs {
+          display: flex;
+          gap: 8px;
+          flex-wrap: wrap;
+        }
+
+        .skin-tag-btn {
+          padding: 6px 14px;
+          border-radius: 99px;
+          border: 1px solid var(--border-default);
+          background: transparent;
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--text-secondary);
+          cursor: pointer;
+          transition: all 0.2s ease;
+        }
+
+        .skin-tag-btn:hover {
+          border-color: var(--text-secondary);
+          color: var(--text-primary);
+        }
+
+        .skin-tag-btn.active {
+          background: var(--accent);
+          border-color: var(--accent);
+          color: #fff;
+          box-shadow: 0 4px 12px rgba(201,149,109,0.25);
+        }
+
+        /* Grid Card Comparison layout */
+        .compare-grid-card {
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
+          border-radius: 24px;
+          overflow: hidden;
+          box-shadow: 0 8px 30px rgba(0,0,0,0.03);
+        }
+
+        .compare-custom-table {
+          display: flex;
+          flex-direction: column;
+          min-width: 600px;
+        }
+
+        .compare-grid-row {
+          display: grid;
+          grid-template-columns: 200px repeat(var(--cols), 1fr);
+          border-bottom: 1px solid var(--border-subtle);
+        }
+        .compare-grid-row:last-child {
+          border-bottom: none;
+        }
+
+        .compare-grid-cell {
+          padding: 16px 20px;
           border-right: 1px solid var(--border-subtle);
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
         }
-        table th:last-child, table td:last-child {
-          border-right: none !important;
+        .compare-grid-cell:last-child {
+          border-right: none;
         }
+
+        .compare-grid-cell.label-cell {
+          background: var(--bg-elevated);
+          font-size: 11px;
+          font-weight: 700;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          justify-content: center;
+        }
+
+        /* Product header row specifically */
+        .header-row {
+          align-items: stretch;
+        }
+        .header-row .compare-grid-cell {
+          justify-content: flex-start;
+        }
+
+        .compare-remove-item {
+          position: absolute;
+          top: 14px;
+          right: 14px;
+          background: var(--bg-base);
+          border: 1px solid var(--border-default);
+          border-radius: 50%;
+          width: 24px;
+          height: 24px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          color: var(--text-muted);
+          transition: all 0.2s ease;
+          z-index: 5;
+        }
+        .compare-remove-item:hover {
+          color: #EF4444;
+          border-color: #EF4444;
+          background: rgba(239,68,68,0.05);
+        }
+
+        .best-value-ribbon {
+          position: absolute;
+          top: 14px;
+          left: 14px;
+          background: linear-gradient(135deg, #D4AF37, #C5A028);
+          color: #fff;
+          font-size: 8px;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          padding: 4px 8px;
+          border-radius: 4px;
+          box-shadow: 0 4px 10px rgba(197,160,40,0.3);
+          display: flex;
+          align-items: center;
+          gap: 3px;
+          z-index: 4;
+        }
+
+        .product-cell {
+          position: relative;
+        }
+
+        .product-cell-img {
+          width: 100%;
+          height: 150px;
+          object-fit: cover;
+          border-radius: 12px;
+          background: var(--bg-base);
+          border: 1px solid var(--border-default);
+          margin-bottom: 12px;
+        }
+
+        .product-cell-info {
+          display: flex;
+          flex-direction: column;
+          flex: 1;
+        }
+
+        .product-brand-tag {
+          font-size: 9px;
+          font-weight: 800;
+          color: var(--accent);
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+        }
+
+        .product-title {
+          font-family: 'Cormorant Garamond', Georgia, serif;
+          font-size: 15px;
+          font-weight: 700;
+          color: var(--text-primary);
+          line-height: 1.3;
+          margin: 3px 0 6px;
+        }
+
+        .product-rating {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 11px;
+          color: var(--text-muted);
+        }
+
+        .product-purchase-row {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          margin-top: 12px;
+          gap: 8px;
+        }
+
+        .price-block {
+          display: flex;
+          flex-direction: column;
+        }
+
+        .current-price {
+          font-size: 16px;
+          font-weight: 800;
+          color: var(--text-primary);
+        }
+
+        .old-price {
+          font-size: 11px;
+          color: var(--text-muted);
+          text-decoration: line-through;
+        }
+
+        .buy-btn {
+          background: var(--accent);
+          color: #fff;
+          border: none;
+          width: 32px;
+          height: 32px;
+          border-radius: 8px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.2s ease;
+          box-shadow: 0 4px 10px rgba(201,149,109,0.2);
+        }
+        .buy-btn:hover {
+          background: var(--accent-hover);
+        }
+        .buy-btn.success {
+          background: #10B981;
+          box-shadow: 0 4px 10px rgba(16,185,129,0.2);
+        }
+
+        /* Compatibility Gauge */
+        .compatibility-gauge-wrapper {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+          width: 100%;
+        }
+
+        .gauge-bar-outer {
+          width: 100%;
+          height: 5px;
+          background: var(--border-default);
+          border-radius: 99px;
+          overflow: hidden;
+        }
+
+        .gauge-bar-inner {
+          height: 100%;
+          border-radius: 99px;
+          transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .gauge-score {
+          font-size: 11.5px;
+          font-weight: 700;
+        }
+
+        .gauge-placeholder {
+          font-size: 11px;
+          font-style: italic;
+          color: var(--text-muted);
+        }
+
+        /* Price unit metrics */
+        .unit-value {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--text-primary);
+        }
+        .unit-rate {
+          font-size: 10.5px;
+          color: var(--text-muted);
+          margin-top: 2px;
+        }
+
+        /* Badges list styling */
+        .compare-badges-flex {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 6px;
+        }
+
+        .compatibility-badge {
+          font-size: 10.5px;
+          font-weight: 600;
+          color: var(--text-secondary);
+          background: var(--bg-base);
+          border: 1px solid var(--border-default);
+          padding: 2px 8px;
+          border-radius: 6px;
+        }
+
+        .concern-badge {
+          font-size: 10.5px;
+          font-weight: 600;
+          color: var(--accent);
+          background: rgba(201,149,109,0.06);
+          border: 1px solid rgba(201,149,109,0.12);
+          padding: 2px 8px;
+          border-radius: 6px;
+        }
+
+        .value-none {
+          font-size: 11px;
+          color: var(--text-muted);
+        }
+
+        /* Actives List */
+        .compare-actives-list {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .active-item {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .active-dot {
+          width: 5px;
+          height: 5px;
+          background: var(--sage);
+          border-radius: 50%;
+          flex-shrink: 0;
+        }
+
+        .active-text {
+          font-size: 11.5px;
+          color: var(--text-secondary);
+        }
+        .active-text strong {
+          color: var(--accent);
+        }
+
+        /* Description and INCI cells */
+        .compare-grid-cell.desc-cell p {
+          font-size: 12px;
+          line-height: 1.5;
+          color: var(--text-secondary);
+          margin: 0;
+        }
+
+        .compare-grid-cell.inci-cell {
+          vertical-align: top;
+        }
+
+        .inci-viewport {
+          max-height: 140px;
+          overflow-y: auto;
+          font-size: 11px;
+          line-height: 1.6;
+          color: var(--text-muted);
+          padding-right: 6px;
+        }
+
+        .shared-ingredient {
+          color: var(--accent);
+          font-weight: 700;
+          background: rgba(201,149,109,0.06);
+          border-radius: 4px;
+          padding: 0 2px;
+        }
+
+        /* Shared base panel */
+        .compare-shared-panel {
+          background: linear-gradient(135deg, rgba(201,149,109,0.06), rgba(139,157,119,0.03));
+          border: 1px solid rgba(201,149,109,0.15);
+          border-radius: 16px;
+          padding: 18px 24px;
+          box-shadow: 0 4px 12px rgba(0,0,0,0.01);
+        }
+
+        .shared-panel-title {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 13.5px;
+          font-weight: 700;
+          color: var(--accent);
+          margin-bottom: 6px;
+        }
+
+        .shared-panel-desc {
+          font-size: 12px;
+          color: var(--text-secondary);
+          margin: 0 0 12px;
+          line-height: 1.5;
+        }
+
+        .shared-badges-group {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 8px;
+        }
+
+        .shared-badge {
+          font-size: 11px;
+          font-weight: 600;
+          color: var(--text-primary);
+          background: var(--bg-surface);
+          border: 1px solid var(--border-default);
+          padding: 4px 12px;
+          border-radius: 8px;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+        }
+
+        /* ── MOBILE RESPONSIVE OVERRIDES ────────────────────────────────────── */
         @media (max-width: 768px) {
-          .pdp-main-grid, .pdp-related-grid {
-            grid-template-columns: 1fr !important;
+          .compare-main {
+            padding: 24px 0 64px;
+          }
+
+          .compare-header-row {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 16px;
+            margin-bottom: 24px;
+          }
+
+          .compare-clear-btn {
+            width: 100%;
+            justify-content: center;
+          }
+
+          .compare-skin-selector-panel {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 14px 16px;
+          }
+
+          /* Collapse table rows into stacked grid layouts */
+          .compare-custom-table {
+            min-width: 100%;
+          }
+
+          .compare-grid-row {
+            grid-template-columns: repeat(var(--cols), 1fr);
+          }
+
+          .compare-grid-cell {
+            padding: 10px 12px;
+            font-size: 12px;
+          }
+
+          /* Force label cell to be a full-width header block spanning all columns */
+          .compare-grid-cell.label-cell {
+            grid-column: 1 / -1;
+            border-right: none;
+            border-bottom: 1px solid var(--border-subtle);
+            padding: 8px 12px;
+            font-size: 10px;
+            text-align: left;
+            align-items: flex-start;
+            background: var(--bg-elevated);
+          }
+
+          /* Product images sizes */
+          .product-cell-img {
+            height: 90px;
+            margin-bottom: 8px;
+          }
+
+          .product-title {
+            font-size: 13px;
+            line-height: 1.25;
+            margin-bottom: 4px;
+          }
+
+          .product-rating {
+            font-size: 9.5px;
+          }
+
+          .product-purchase-row {
+            margin-top: 8px;
+          }
+
+          .current-price {
+            font-size: 14px;
+          }
+
+          .buy-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+          }
+
+          .compatibility-badge, .concern-badge {
+            font-size: 9.5px;
+            padding: 2px 6px;
+          }
+
+          .active-text {
+            font-size: 10.5px;
+          }
+
+          .compare-grid-cell.desc-cell p {
+            font-size: 11px;
+            line-height: 1.45;
+          }
+
+          .inci-viewport {
+            max-height: 100px;
+            font-size: 10px;
+          }
+
+          .best-value-ribbon {
+            top: 8px;
+            left: 8px;
+            font-size: 7px;
+            padding: 2px 5px;
+          }
+
+          .compare-remove-item {
+            top: 8px;
+            right: 8px;
+            width: 20px;
+            height: 20px;
           }
         }
       `}</style>
     </>
-  );
-}
-
-// Simple X Icon helper
-function X({ size = 16, color = 'currentColor' }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="18" y1="6" x2="6" y2="18"></line>
-      <line x1="6" y1="6" x2="18" y2="18"></line>
-    </svg>
   );
 }

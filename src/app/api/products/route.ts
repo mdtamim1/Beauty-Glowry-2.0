@@ -133,7 +133,10 @@ export async function POST(request: Request) {
         description: data.description,
         ingredients: data.inciList,
         how_to_use: data.usageSteps ? (Array.isArray(data.usageSteps) ? data.usageSteps.join('\n') : data.usageSteps) : '',
-        skin_type_tags: data.skinTypes ? (Array.isArray(data.skinTypes) ? data.skinTypes : data.skinTypes.split(',').map((s: string) => s.trim())) : [],
+        skin_type_tags: [
+          ...(data.skinTypes ? (Array.isArray(data.skinTypes) ? data.skinTypes : data.skinTypes.split(',').map((s: string) => s.trim())) : []),
+          ...(data.concerns ? (Array.isArray(data.concerns) ? data.concerns : data.concerns.split(',').map((s: string) => s.trim())) : [])
+        ].filter(Boolean),
         price: data.price,
         discount_price: data.originalPrice || data.price,
         sku: data.sku || `${slug.slice(0, 3).toUpperCase()}-STD`,

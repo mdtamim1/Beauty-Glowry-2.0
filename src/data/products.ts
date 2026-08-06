@@ -117,7 +117,9 @@ export const skinConcerns = [
   { id: 'hydration', name: 'Dehydration & Dryness', tag: 'Hydration' },
   { id: 'brightening', name: 'Dullness & Uneven Tone', tag: 'Brightening' },
   { id: 'darkspots', name: 'Hyperpigmentation & Dark Spots', tag: 'Dark Spots' },
-  { id: 'sensitive', name: 'Redness & Sensitivity', tag: 'Sensitive' }
+  { id: 'sensitive', name: 'Redness & Sensitivity', tag: 'Sensitive' },
+  { id: 'pores', name: 'Enlarged Pores', tag: 'Pores' },
+  { id: 'oiliness', name: 'Excess Sebum & Oiliness', tag: 'Oiliness' }
 ];
 
 export const locations: Record<string, string[]> = {

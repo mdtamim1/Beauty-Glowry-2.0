@@ -20,6 +20,7 @@ const QUESTIONS = [
       { value: 'combination', label: 'Combination', desc: 'T-zone oily, cheeks normal/dry', icon: '⚖️' },
       { value: 'sensitive', label: 'Sensitive', desc: 'Easily irritated, prone to redness', icon: '🌸' },
       { value: 'normal', label: 'Normal', desc: 'Balanced, few issues', icon: '✨' },
+      { value: 'all', label: 'All Skin Types', desc: 'Balanced skin that tolerates most formulas', icon: '🌍' },
     ],
   },
   {
@@ -33,6 +34,8 @@ const QUESTIONS = [
       { value: 'hydration', label: 'Dehydration', desc: 'Lacks moisture, dull looking', icon: '💦' },
       { value: 'brightening', label: 'Dullness', desc: 'Lack of radiance and glow', icon: '☀️' },
       { value: 'sensitive', label: 'Sensitivity', desc: 'Redness, reactive skin', icon: '🌿' },
+      { value: 'pores', label: 'Enlarged Pores', desc: 'Visible pores, blackheads, texture', icon: '🎯' },
+      { value: 'oiliness', label: 'Excess Sebum & Oiliness', desc: 'Shiny skin, excess oil, sebum', icon: '🌊' },
     ],
   },
   {
@@ -64,6 +67,8 @@ const CONCERN_MAP: Record<string, string[]> = {
   hydration: ['Dehydration & Dryness'],
   brightening: ['Dullness & Uneven Tone'],
   sensitive: ['Redness & Sensitivity'],
+  pores: ['Pores', 'Blackheads & Pores'],
+  oiliness: ['Oiliness', 'Excess Sebum'],
 };
 
 const SKIN_TYPE_MAP: Record<string, string[]> = {
@@ -72,6 +77,7 @@ const SKIN_TYPE_MAP: Record<string, string[]> = {
   combination: ['Combination', 'Normal'],
   sensitive: ['Sensitive'],
   normal: ['Normal', 'All Skin Types'],
+  all: ['Oily', 'Dry', 'Combination', 'Normal', 'Sensitive', 'All Skin Types'],
 };
 
 export default function QuizPage() {

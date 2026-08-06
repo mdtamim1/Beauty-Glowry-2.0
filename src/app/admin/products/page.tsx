@@ -255,18 +255,69 @@ function SectionCard({
 }
 
 // ─── Main Modal ──────────────────────────────────────────────────────────────
-function Modal({ title, onClose, onSave, form, setForm, isEdit, categoriesList, onCategoryCreated, onCategoryDeleted }: {
+function Modal({
+  title, onClose, onSave, form, setForm, isEdit,
+  categoriesList, onCategoryCreated, onCategoryDeleted,
+  brandsList, onBrandCreated, onBrandDeleted
+}: {
   title: string; onClose: () => void; onSave: () => void;
   form: FormData; setForm: (f: FormData) => void; isEdit: boolean;
   categoriesList: { id: string; name: string }[];
   onCategoryCreated: (cat: { id: string; name: string }) => void;
   onCategoryDeleted: (catId: string) => void;
+  brandsList: { id: string; name: string; logo?: string; description?: string }[];
+  onBrandCreated: (brand: { id: string; name: string; logo?: string; description?: string }) => void;
+  onBrandDeleted: (brandId: string) => void;
 }) {
   const update = (key: keyof FormData, val: any) => setForm({ ...form, [key]: val });
   const [activeTab, setActiveTab] = useState<'basic' | 'sections' | 'advanced'>('basic');
   const [isCreatingCat, setIsCreatingCat] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [isSavingCat, setIsSavingCat] = useState(false);
+
+  const [isCreatingBrand, setIsCreatingBrand] = useState(false);
+  const [newBrandName, setNewBrandName] = useState('');
+  const [newBrandLogo, setNewBrandLogo] = useState('✦');
+  const [newBrandDesc, setNewBrandDesc] = useState('');
+  const [isSavingBrand, setIsSavingBrand] = useState(false);
+
+  const handleCreateBrand = async () => {
+    if (!newBrandName.trim()) return;
+    setIsSavingBrand(true);
+    try {
+      const res = await fetch('/api/brands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+        body: JSON.stringify({ name: newBrandName.trim(), logo: newBrandLogo.trim(), description: newBrandDesc.trim() })
+      });
+      if (!res.ok) throw new Error('Failed to save brand');
+      const data = await res.json();
+      onBrandCreated({ id: data.id, name: data.name, logo: data.logo || '', description: data.description || '' });
+      setNewBrandName('');
+      setNewBrandDesc('');
+      setIsCreatingBrand(false);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save new brand');
+    } finally {
+      setIsSavingBrand(false);
+    }
+  };
+
+  const handleDeleteBrand = async (brandId: string) => {
+    if (!confirm('Are you sure you want to delete this brand? Products in this brand will be set to no brand.')) return;
+    try {
+      const res = await fetch(`/api/brands?id=${brandId}`, {
+        method: 'DELETE',
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) throw new Error('Failed to delete brand');
+      onBrandDeleted(brandId);
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete brand');
+    }
+  };
 
   const handleCreateCategory = async () => {
     if (!newCatName.trim()) return;
@@ -451,23 +502,99 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit, categoriesList, 
                   <label style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 6 }}>
                     Brand <span style={{ color: C.danger }}>*</span>
                   </label>
-                  <select
-                    value={form.brand}
-                    onChange={(e) => update('brand', e.target.value)}
-                    style={{ width: '100%', padding: '10px 12px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.text, outline: 'none', boxSizing: 'border-box' as any }}
-                    onFocus={(e) => (e.currentTarget.style.borderColor = C.accent)}
-                    onBlur={(e) => (e.currentTarget.style.borderColor = C.border)}
-                  >
-                    {brands.map((b) => (
-                      <option key={b.id} value={b.id}>{b.name} — {b.tagline}</option>
-                    ))}
-                  </select>
-                  {form.brand && (() => {
-                    const selectedBrand = brands.find((b) => b.id === form.brand);
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <select
+                      value={form.brand}
+                      onChange={(e) => update('brand', e.target.value)}
+                      style={{ flex: 1, padding: '10px 12px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 7, fontSize: 13, color: C.text, outline: 'none', boxSizing: 'border-box' as any }}
+                      onFocus={(e) => (e.currentTarget.style.borderColor = C.accent)}
+                      onBlur={(e) => (e.currentTarget.style.borderColor = C.border)}
+                    >
+                      {brandsList.map((b) => (
+                        <option key={b.id} value={b.id}>{b.name}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => setIsCreatingBrand(!isCreatingBrand)}
+                      style={{ padding: '0 12px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 7, color: C.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+                    >
+                      {isCreatingBrand ? 'Cancel' : '⚙️ Manage'}
+                    </button>
+                  </div>
+
+                  {isCreatingBrand && (
+                    <div style={{ marginTop: 12, padding: 12, background: C.bg, borderRadius: 8, border: `1.5px dashed ${C.border}`, display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      {/* Create New Form */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <input
+                            type="text"
+                            placeholder="New Brand Name"
+                            value={newBrandName}
+                            onChange={(e) => setNewBrandName(e.target.value)}
+                            style={{ flex: 1, padding: '6px 10px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, outline: 'none' }}
+                          />
+                          <input
+                            type="text"
+                            placeholder="Logo/Emoji"
+                            value={newBrandLogo}
+                            onChange={(e) => setNewBrandLogo(e.target.value)}
+                            style={{ width: 100, padding: '6px 10px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, outline: 'none' }}
+                          />
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <input
+                            type="text"
+                            placeholder="Tagline / Description"
+                            value={newBrandDesc}
+                            onChange={(e) => setNewBrandDesc(e.target.value)}
+                            style={{ flex: 1, padding: '6px 10px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, outline: 'none' }}
+                          />
+                          <button
+                            type="button"
+                            onClick={handleCreateBrand}
+                            disabled={isSavingBrand || !newBrandName}
+                            style={{ padding: '6px 12px', background: C.accent, border: 'none', borderRadius: 5, fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', opacity: (!newBrandName || isSavingBrand) ? 0.5 : 1 }}
+                          >
+                            {isSavingBrand ? 'Saving...' : 'Save'}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Existing Brands List with Delete option */}
+                      <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
+                        <p style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>
+                          Manage Existing Brands ({brandsList.length})
+                        </p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 150, overflowY: 'auto', paddingRight: 4 }}>
+                          {brandsList.map((brand) => (
+                            <div key={brand.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 8px', background: C.elevated, borderRadius: 5, border: `1px solid ${C.border}` }}>
+                              <span style={{ fontSize: 12, color: C.text }}>
+                                <span style={{ marginRight: 6 }}>{brand.logo || '✦'}</span>
+                                {brand.name}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteBrand(brand.id)}
+                                style={{ background: 'none', border: 'none', color: C.danger, cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center' }}
+                                title="Delete Brand"
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {!isCreatingBrand && form.brand && (() => {
+                    const selectedBrand = brandsList.find((b) => b.id === form.brand);
                     return selectedBrand ? (
                       <p style={{ fontSize: 10, color: C.muted, marginTop: 6, display: 'flex', alignItems: 'center', gap: 6 }}>
-                        <span style={{ fontSize: 14 }}>{selectedBrand.logo}</span>
-                        {selectedBrand.name} · {selectedBrand.country} · Est. {selectedBrand.founded}
+                        <span style={{ fontSize: 14 }}>{selectedBrand.logo || '✦'}</span>
+                        {selectedBrand.name} {selectedBrand.description ? `· ${selectedBrand.description}` : ''}
                       </p>
                     ) : null;
                   })()}
@@ -1172,6 +1299,8 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit, categoriesList, 
                   hydration:   { label: 'Dehydration',            tags: ['Hydration'],        icon: '💦' },
                   brightening: { label: 'Dullness / Brightening', tags: ['Brightening'],      icon: '☀️' },
                   sensitive:   { label: 'Sensitivity',            tags: ['Sensitive'],        icon: '🌿' },
+                  pores:       { label: 'Enlarged Pores',         tags: ['Pores'],            icon: '🎯' },
+                  oiliness:    { label: 'Excess Sebum & Oiliness',tags: ['Oiliness'],         icon: '🌊' },
                 };
                 const QSM: Record<string, { label: string; types: string[]; icon: string }> = {
                   oily:        { label: 'Oily',        types: ['Oily', 'Combination', 'All Skin Types'],         icon: '💧' },
@@ -1179,6 +1308,7 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit, categoriesList, 
                   combination: { label: 'Combination', types: ['Combination', 'Normal', 'All Skin Types'],       icon: '⚖️' },
                   sensitive:   { label: 'Sensitive',   types: ['Sensitive', 'All Skin Types'],                   icon: '🌸' },
                   normal:      { label: 'Normal',      types: ['Normal', 'All Skin Types'],                      icon: '✨' },
+                  all:         { label: 'All Skin Types',types: ['Oily', 'Dry', 'Combination', 'Normal', 'Sensitive', 'All Skin Types'], icon: '🌍' },
                 };
                 const stList = form.skinTypes ? form.skinTypes.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
                 const cM = Object.entries(QCM).map(([k, c]) => ({
@@ -1333,6 +1463,7 @@ export default function AdminProducts() {
   const [selected, setSelected] = useState<(string | number)[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<string | number | null>(null);
   const [dbCategories, setDbCategories] = useState<{ id: string, name: string }[]>([]);
+  const [dbBrands, setDbBrands] = useState<{ id: string, name: string, logo?: string, description?: string }[]>([]);
 
   useEffect(() => {
     setLoading(true);
@@ -1354,11 +1485,24 @@ export default function AdminProducts() {
         }
       })
       .catch((err) => console.error('Failed to load categories from live database:', err));
+
+    fetch('/api/brands')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) {
+          setDbBrands(data.map((b) => ({ id: b.id, name: b.name, logo: b.logo || '', description: b.description || '' })));
+        }
+      })
+      .catch((err) => console.error('Failed to load brands from live database:', err));
   }, []);
 
   const activeCategories = dbCategories.length > 0
     ? dbCategories
     : categories.map((c) => ({ id: c.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, ''), name: c }));
+
+  const activeBrands = dbBrands.length > 0
+    ? dbBrands
+    : brands.map((b) => ({ id: b.id, name: b.name, logo: b.logo, description: b.description }));
 
   const filtered = items.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || p.category.toLowerCase().includes(search.toLowerCase());
@@ -1693,6 +1837,20 @@ export default function AdminProducts() {
               const remaining = activeCategories.filter((c) => c.id !== catId);
               return prev.category === activeCategories.find((c) => c.id === catId)?.name
                 ? { ...prev, category: remaining[0]?.name || '' }
+                : prev;
+            });
+          }}
+          brandsList={activeBrands}
+          onBrandCreated={(newBrand) => {
+            setDbBrands((prev) => [...prev, newBrand].sort((a, b) => a.name.localeCompare(b.name)));
+            setForm((prev) => ({ ...prev, brand: newBrand.id }));
+          }}
+          onBrandDeleted={(brandId) => {
+            setDbBrands((prev) => prev.filter((b) => b.id !== brandId));
+            setForm((prev) => {
+              const remaining = activeBrands.filter((b) => b.id !== brandId);
+              return prev.brand === brandId
+                ? { ...prev, brand: remaining[0]?.id || 'beauty-glowry' }
                 : prev;
             });
           }}
