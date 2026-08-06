@@ -619,6 +619,7 @@ function ViewOrderModal({ order, onClose, onSave }: {
                   <input
                     type="tel" placeholder="01XXXXXXXXX" value={customerPhone}
                     onChange={e => setCustomerPhone(e.target.value)}
+                    autoComplete="off"
                     style={{ ...iS, paddingLeft: 28 }}
                     onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
                     onBlur={e => (e.currentTarget.style.borderColor = C.border)}
@@ -1293,6 +1294,7 @@ function CreateOrderModal({ onClose, onSave }: { onClose: () => void; onSave: (o
                   <input
                     type="tel" placeholder="01XXXXXXXXX" value={customerPhone}
                     onChange={e => setCustomerPhone(e.target.value)}
+                    autoComplete="off"
                     style={{ ...iS, paddingLeft: 28 }}
                     onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
                     onBlur={e => (e.currentTarget.style.borderColor = C.border)}
@@ -2027,7 +2029,10 @@ export default function AdminOrders() {
       <div style={{ position: 'relative', maxWidth: 360 }}>
         <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: C.muted }} />
         <input
-          type="text" placeholder="Search order ID, customer, phone..."
+          type="search"
+          name="order-search"
+          autoComplete="off"
+          placeholder="Search order ID, customer, phone..."
           value={search} onChange={e => setSearch(e.target.value)}
           style={{ width: '100%', padding: '9px 12px 9px 36px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, color: C.text, outline: 'none' }}
           onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
