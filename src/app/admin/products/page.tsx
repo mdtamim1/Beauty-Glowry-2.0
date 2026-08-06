@@ -1162,6 +1162,84 @@ function Modal({ title, onClose, onSave, form, setForm, isEdit, categoriesList, 
                   })}
                 </div>
               </div>
+
+              {/* ── 🧪 Quiz Result Visibility Preview ── */}
+              {(() => {
+                const QCM: Record<string, { label: string; tags: string[]; icon: string }> = {
+                  acne:        { label: 'Acne & Blemishes',       tags: ['Acne', 'Pores'],    icon: '⚡' },
+                  aging:       { label: 'Anti-Aging',             tags: ['Aging'],            icon: '⏳' },
+                  darkspots:   { label: 'Hyperpigmentation',      tags: ['Dark Spots'],       icon: '🔵' },
+                  hydration:   { label: 'Dehydration',            tags: ['Hydration'],        icon: '💦' },
+                  brightening: { label: 'Dullness / Brightening', tags: ['Brightening'],      icon: '☀️' },
+                  sensitive:   { label: 'Sensitivity',            tags: ['Sensitive'],        icon: '🌿' },
+                };
+                const QSM: Record<string, { label: string; types: string[]; icon: string }> = {
+                  oily:        { label: 'Oily',        types: ['Oily', 'Combination', 'All Skin Types'],         icon: '💧' },
+                  dry:         { label: 'Dry',         types: ['Dry', 'All Skin Types'],                         icon: '🌵' },
+                  combination: { label: 'Combination', types: ['Combination', 'Normal', 'All Skin Types'],       icon: '⚖️' },
+                  sensitive:   { label: 'Sensitive',   types: ['Sensitive', 'All Skin Types'],                   icon: '🌸' },
+                  normal:      { label: 'Normal',      types: ['Normal', 'All Skin Types'],                      icon: '✨' },
+                };
+                const stList = form.skinTypes ? form.skinTypes.split(',').map((s: string) => s.trim()).filter(Boolean) : [];
+                const cM = Object.entries(QCM).map(([k, c]) => ({
+                  key: k, ...c,
+                  matches: c.tags.some(tag => concernList.some((x: string) => x.toLowerCase().includes(tag.toLowerCase().split(' ')[0]))),
+                }));
+                const sM = Object.entries(QSM).map(([k, s]) => ({
+                  key: k, ...s,
+                  matches: s.types.some(t => stList.includes(t)),
+                }));
+                const total = cM.filter(c => c.matches).length * sM.filter(s => s.matches).length;
+                return (
+                  <div style={{ background: 'rgba(201,149,109,0.06)', border: '1.5px solid rgba(201,149,109,0.22)', borderRadius: 12, padding: '18px 20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 14 }}>
+                      <div>
+                        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.accent, marginBottom: 4 }}>🧪 Quiz Result Visibility</p>
+                        <p style={{ fontSize: 11, color: C.muted }}>Customer quiz answer অনুযায়ী এই product কখন দেখাবে — live preview</p>
+                      </div>
+                      <div style={{ textAlign: 'center', padding: '8px 14px', background: total > 0 ? 'rgba(76,175,130,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${total > 0 ? C.success : C.border}`, borderRadius: 8, flexShrink: 0, marginLeft: 12 }}>
+                        <div style={{ fontSize: 20, fontWeight: 900, color: total > 0 ? C.success : C.muted }}>{total}</div>
+                        <div style={{ fontSize: 9, color: C.muted, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Combos</div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: C.muted, marginBottom: 8 }}>Concern (Quiz Q2)</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          {cM.map(c => (
+                            <div key={c.key} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 9px', borderRadius: 7, background: c.matches ? 'rgba(76,175,130,0.1)' : 'rgba(255,255,255,0.03)', border: `1px solid ${c.matches ? 'rgba(76,175,130,0.3)' : C.border}` }}>
+                              <span style={{ fontSize: 12 }}>{c.icon}</span>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: c.matches ? '#A8D8B0' : C.muted, flex: 1 }}>{c.label}</span>
+                              <span style={{ fontSize: 9, padding: '2px 5px', background: c.matches ? 'rgba(76,175,130,0.25)' : 'rgba(255,255,255,0.05)', borderRadius: 4, color: c.matches ? C.success : C.muted, fontWeight: 700 }}>
+                                {c.matches ? '✓ SHOW' : 'hide'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: C.muted, marginBottom: 8 }}>Skin Type (Quiz Q1)</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                          {sM.map(s => (
+                            <div key={s.key} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 9px', borderRadius: 7, background: s.matches ? 'rgba(96,165,250,0.1)' : 'rgba(255,255,255,0.03)', border: `1px solid ${s.matches ? 'rgba(96,165,250,0.3)' : C.border}` }}>
+                              <span style={{ fontSize: 12 }}>{s.icon}</span>
+                              <span style={{ fontSize: 11, fontWeight: 600, color: s.matches ? '#93C5FD' : C.muted, flex: 1 }}>{s.label}</span>
+                              <span style={{ fontSize: 9, padding: '2px 5px', background: s.matches ? 'rgba(96,165,250,0.25)' : 'rgba(255,255,255,0.05)', borderRadius: 4, color: s.matches ? '#60A5FA' : C.muted, fontWeight: 700 }}>
+                                {s.matches ? '✓ SHOW' : 'hide'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                    {total === 0 && (
+                      <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(240,165,75,0.1)', border: '1px solid rgba(240,165,75,0.3)', borderRadius: 8, fontSize: 12, color: C.warning }}>
+                        ⚠️ এই product কোনো quiz result-এ দেখাবে না। উপরে <strong>Skin Concern Tags</strong> ও <strong>Suitable Skin Types</strong> সেট করুন।
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           )}
 
