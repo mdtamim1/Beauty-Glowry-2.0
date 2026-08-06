@@ -13,6 +13,8 @@ const DEFAULT_CONFIG = {
   language: 'English',
   metaTitle: 'Beauty Glowry — Clinical Skincare Bangladesh',
   metaDesc: 'Science-backed skincare with clinically proven active ingredients. Shop serums, moisturizers, and more.',
+  googleSiteVerification: '',
+  bingSiteVerification: '',
   freeShippingThreshold: '1500',
   defaultShippingFee: '120',
   estimatedDaysInside: '2-3',

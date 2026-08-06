@@ -292,6 +292,8 @@ export default function AdminSettings() {
   const [language, setLanguage] = useState('English');
   const [metaTitle, setMetaTitle] = useState('Beauty Glowry — Clinical Skincare Bangladesh');
   const [metaDesc, setMetaDesc] = useState('Science-backed skincare with clinically proven active ingredients. Shop serums, moisturizers, and more.');
+  const [googleSiteVerification, setGoogleSiteVerification] = useState('');
+  const [bingSiteVerification, setBingSiteVerification] = useState('');
 
   // Shipping settings
   const [freeShippingThreshold, setFreeShippingThreshold] = useState('1500');
@@ -341,6 +343,8 @@ export default function AdminSettings() {
           if (config.language) setLanguage(config.language);
           if (config.metaTitle) setMetaTitle(config.metaTitle);
           if (config.metaDesc) setMetaDesc(config.metaDesc);
+          if (config.googleSiteVerification) setGoogleSiteVerification(config.googleSiteVerification);
+          if (config.bingSiteVerification) setBingSiteVerification(config.bingSiteVerification);
           if (config.freeShippingThreshold) setFreeShippingThreshold(config.freeShippingThreshold);
           if (config.defaultShippingFee) setDefaultShippingFee(config.defaultShippingFee);
           if (config.estimatedDaysInside) setEstimatedDaysInside(config.estimatedDaysInside);
@@ -386,6 +390,8 @@ export default function AdminSettings() {
           language,
           metaTitle,
           metaDesc,
+          googleSiteVerification,
+          bingSiteVerification,
           freeShippingThreshold,
           defaultShippingFee,
           estimatedDaysInside,
@@ -524,6 +530,10 @@ export default function AdminSettings() {
               <p style={{ fontSize: 11, color: metaDesc.length > 155 ? C.danger : C.muted, marginTop: 5 }}>
                 {metaDesc.length}/155 characters recommended
               </p>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 8 }}>
+              <Field label="Google Search Console Verification Code" value={googleSiteVerification} onChange={setGoogleSiteVerification} placeholder="e.g. google-site-verification-abc123xyz" note="Found in Google Search Console HTML tag method" />
+              <Field label="Bing Webmaster Verification Code" value={bingSiteVerification} onChange={setBingSiteVerification} placeholder="e.g. msvalidate.01 code" note="Found in Bing Webmaster Tools HTML meta tag" />
             </div>
           </FieldGroup>
         </div>

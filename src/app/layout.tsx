@@ -36,8 +36,11 @@ export const metadata: Metadata = {
   },
   description: "Dermatologist-formulated active skincare. Precision ingredients for measurable results. Trusted by 10,000+ customers across Bangladesh.",
   keywords: ["skincare", "serum", "niacinamide", "vitamin c", "bangladesh", "clinical skincare", "active ingredients", "acne solution", "dark spots treatment"],
-  alternates: {
-    canonical: "./",
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
+    other: {
+      'msvalidate.01': process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION || '',
+    },
   },
   openGraph: {
     title: "BEAUTY GLOWRY | Premium Clinical Skincare",
@@ -74,6 +77,8 @@ export default async function RootLayout({
     storeEmail: 'hello@beautyglowry.com',
     storePhone: '+880 1700 000000',
     storeAddress: 'House 12, Road 4, Dhanmondi, Dhaka 1205',
+    googleSiteVerification: '',
+    bingSiteVerification: '',
   };
 
   try {
@@ -129,6 +134,12 @@ export default async function RootLayout({
       className={`${cormorant.variable} ${dmSans.variable} ${dmMono.variable} h-full antialiased`}
     >
       <head>
+        {storeConfig.googleSiteVerification && (
+          <meta name="google-site-verification" content={storeConfig.googleSiteVerification} />
+        )}
+        {storeConfig.bingSiteVerification && (
+          <meta name="msvalidate.01" content={storeConfig.bingSiteVerification} />
+        )}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(orgSchema) }}
