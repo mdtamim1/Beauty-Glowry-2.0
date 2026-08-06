@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Skincare Routine Builder & Skin Diagnostic | BEAUTY GLOWRY',
     description: 'Take our 2-minute clinical skin diagnostic test. Get a personalized dermatologist-approved routine designed for your unique skin type.',
-    url: 'https://beautygloowry.com/quiz',
+    url: 'https://beautyglowry.com/quiz',
     type: 'website',
   },
   twitter: {

@@ -115,7 +115,7 @@ export async function POST(request: Request) {
     // email is optional — generate a phone-based placeholder for guests without email
     const email: string = rawEmail?.trim()
       ? rawEmail.trim()
-      : `guest_${phone?.replace(/\D/g, '')}@beautygloowry.com`;
+      : `guest_${phone?.replace(/\D/g, '')}@beautyglowry.com`;
 
     if (!name || !phone || !address || !items || items.length === 0) {
       return NextResponse.json({ error: 'Missing required checkout information' }, { status: 400 });

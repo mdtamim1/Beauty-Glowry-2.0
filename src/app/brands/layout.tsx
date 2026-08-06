@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: 'Clinical Skincare Brands | BEAUTY GLOWRY',
     description: 'Explore premium clinical skincare brands including DermaLab, PureAct, and our signature line Beauty Glowry. Formulated by dermatologists worldwide.',
-    url: 'https://beautygloowry.com/brands',
+    url: 'https://beautyglowry.com/brands',
     type: 'website',
   },
 };

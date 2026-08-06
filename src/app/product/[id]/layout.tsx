@@ -8,6 +8,7 @@ type Props = {
 };
 
 async function getProductData(id: string) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://beautyglowry.com';
   try {
     const p = await prisma.product.findFirst({
       where: {
@@ -36,7 +37,7 @@ async function getProductData(id: string) {
         name: p.name,
         description: p.description || '',
         price: Number(p.price),
-        image: p.images[0]?.url || 'https://beautygloowry.com/logo.PNG',
+        image: p.images[0]?.url || `${baseUrl}/logo.PNG`,
         brand: p.brand?.name || 'Beauty Glowry',
         category: p.category?.name || 'Skincare',
         stock: p.stock_qty,
@@ -76,6 +77,7 @@ async function getProductData(id: string) {
 export async function generateMetadata({ params }: { params: Promise<{ id: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
   const product = await getProductData(resolvedParams.id);
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://beautyglowry.com';
 
   if (!product) {
     return {
@@ -92,12 +94,12 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
     title: product.name,
     description: descriptionSnippet,
     alternates: {
-      canonical: `https://beautygloowry.com/product/${product.id}`,
+      canonical: `${baseUrl}/product/${product.id}`,
     },
     openGraph: {
       title: `${product.name} | BEAUTY GLOWRY`,
       description: `${product.name} — ${product.description.slice(0, 150)}... Price: ৳${product.price.toLocaleString()}.${concernsText}`,
-      url: `https://beautygloowry.com/product/${product.id}`,
+      url: `${baseUrl}/product/${product.id}`,
       images: [
         {
           url: product.image,
@@ -124,6 +126,7 @@ export default async function ProductLayout({
 }) {
   const resolvedParams = await params;
   const product = await getProductData(resolvedParams.id);
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://beautyglowry.com';
 
   if (!product) {
     return <>{children}</>;
@@ -144,7 +147,7 @@ export default async function ProductLayout({
     },
     offers: {
       '@type': 'Offer',
-      url: `https://beautygloowry.com/product/${product.id}`,
+      url: `${baseUrl}/product/${product.id}`,
       priceCurrency: 'BDT',
       price: product.price,
       itemCondition: 'https://schema.org/NewCondition',
@@ -168,25 +171,25 @@ export default async function ProductLayout({
         '@type': 'ListItem',
         position: 1,
         name: 'Home',
-        item: 'https://beautygloowry.com/',
+        item: `${baseUrl}/`,
       },
       {
         '@type': 'ListItem',
         position: 2,
         name: 'Products',
-        item: 'https://beautygloowry.com/products',
+        item: `${baseUrl}/products`,
       },
       {
         '@type': 'ListItem',
         position: 3,
         name: product.category,
-        item: `https://beautygloowry.com/products?category=${encodeURIComponent(product.category)}`,
+        item: `${baseUrl}/products?category=${encodeURIComponent(product.category)}`,
       },
       {
         '@type': 'ListItem',
         position: 4,
         name: product.name,
-        item: `https://beautygloowry.com/product/${product.id}`,
+        item: `${baseUrl}/product/${product.id}`,
       },
     ],
   };

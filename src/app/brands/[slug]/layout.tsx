@@ -8,6 +8,7 @@ type Props = {
 };
 
 async function getBrandData(slug: string) {
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://beautyglowry.com';
   try {
     const b = await prisma.brand.findFirst({
       where: {
@@ -31,7 +32,7 @@ async function getBrandData(slug: string) {
         tagline: b.description || 'Clinical Formulations',
         description: b.description || `${b.name} clinical skincare products formulated for maximum efficacy.`,
         country: 'Clinical Lab',
-        coverImage: b.logo || 'https://beautygloowry.com/logo.PNG',
+        coverImage: b.logo || `${baseUrl}/logo.PNG`,
         products: b.products.map(p => ({ id: p.id, name: p.name })),
       };
     }
@@ -60,6 +61,7 @@ async function getBrandData(slug: string) {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
   const brand = await getBrandData(resolvedParams.slug);
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://beautyglowry.com';
 
   if (!brand) {
     return {
@@ -72,12 +74,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     title: brand.name,
     description: `${brand.name} — ${brand.tagline}. ${brand.description}`,
     alternates: {
-      canonical: `https://beautygloowry.com/brands/${brand.id}`,
+      canonical: `${baseUrl}/brands/${brand.id}`,
     },
     openGraph: {
       title: `${brand.name} | BEAUTY GLOWRY`,
       description: `${brand.name} — ${brand.tagline}. Origin: ${brand.country}.`,
-      url: `https://beautygloowry.com/brands/${brand.id}`,
+      url: `${baseUrl}/brands/${brand.id}`,
       images: [
         {
           url: brand.coverImage,
@@ -104,6 +106,7 @@ export default async function BrandLayout({
 }) {
   const resolvedParams = await params;
   const brand = await getBrandData(resolvedParams.slug);
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://beautyglowry.com';
 
   if (!brand) {
     return <>{children}</>;
@@ -114,7 +117,7 @@ export default async function BrandLayout({
     '@type': 'CollectionPage',
     name: `${brand.name} Formulations`,
     description: brand.description,
-    url: `https://beautygloowry.com/brands/${brand.id}`,
+    url: `${baseUrl}/brands/${brand.id}`,
     about: {
       '@type': 'Brand',
       name: brand.name,
@@ -125,7 +128,7 @@ export default async function BrandLayout({
       itemListElement: brand.products.map((p, idx) => ({
         '@type': 'ListItem',
         position: idx + 1,
-        url: `https://beautygloowry.com/product/${p.id}`,
+        url: `${baseUrl}/product/${p.id}`,
         name: p.name,
       })),
     },
@@ -139,19 +142,19 @@ export default async function BrandLayout({
         '@type': 'ListItem',
         position: 1,
         name: 'Home',
-        item: 'https://beautygloowry.com/',
+        item: `${baseUrl}/`,
       },
       {
         '@type': 'ListItem',
         position: 2,
         name: 'Brands',
-        item: 'https://beautygloowry.com/brands',
+        item: `${baseUrl}/brands`,
       },
       {
         '@type': 'ListItem',
         position: 3,
         name: brand.name,
-        item: `https://beautygloowry.com/brands/${brand.id}`,
+        item: `${baseUrl}/brands/${brand.id}`,
       },
     ],
   };

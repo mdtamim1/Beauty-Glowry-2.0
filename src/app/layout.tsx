@@ -29,7 +29,7 @@ const dmMono = DM_Mono({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://beautygloowry.com"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://beautyglowry.com"),
   title: {
     default: "BEAUTY GLOWRY | Premium Clinical Skincare",
     template: "%s | BEAUTY GLOWRY"
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "BEAUTY GLOWRY | Premium Clinical Skincare",
     description: "Dermatologist-formulated active skincare for measurable results. Trusted by 10,000+ customers across Bangladesh.",
-    url: "https://beautygloowry.com",
+    url: process.env.NEXT_PUBLIC_APP_URL || "https://beautyglowry.com",
     siteName: "Beauty Glowry",
     images: [
       {
@@ -88,13 +88,15 @@ export default async function RootLayout({
     console.error('[RootLayout] Failed to load store settings:', e);
   }
 
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://beautyglowry.com';
+
   // Construct JSON-LD schemas
   const orgSchema = {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: storeConfig.storeName,
-    url: 'https://beautygloowry.com',
-    logo: 'https://beautygloowry.com/logo.PNG',
+    url: baseUrl,
+    logo: `${baseUrl}/logo.PNG`,
     description: storeConfig.storeTagline,
     contactPoint: {
       '@type': 'ContactPoint',
@@ -113,10 +115,10 @@ export default async function RootLayout({
     '@context': 'https://schema.org',
     '@type': 'WebSite',
     name: storeConfig.storeName,
-    url: 'https://beautygloowry.com',
+    url: baseUrl,
     potentialAction: {
       '@type': 'SearchAction',
-      target: 'https://beautygloowry.com/products?search={search_term_string}',
+      target: `${baseUrl}/products?search={search_term_string}`,
       'query-input': 'required name=search_term_string',
     },
   };

@@ -2,7 +2,7 @@ import { MetadataRoute } from 'next';
 import { prisma } from '../lib/prisma';
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://beautygloowry.com';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://beautyglowry.com';
 
   const staticUrls = [
     { url: `${baseUrl}/`, lastModified: new Date() },

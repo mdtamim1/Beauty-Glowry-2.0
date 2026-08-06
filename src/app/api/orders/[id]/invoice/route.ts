@@ -200,7 +200,7 @@ export async function GET(
     doc.setFontSize(8);
     doc.setTextColor(140, 140, 140);
     doc.text('Thank you for choosing clinical excellence with Beauty Glowry.', 105, y, { align: 'center' });
-    doc.text('For queries or support, reach out to support@beautygloowry.com', 105, y + 4, { align: 'center' });
+    doc.text('For queries or support, reach out to support@beautyglowry.com', 105, y + 4, { align: 'center' });
 
     const pdfBuffer = Buffer.from(doc.output('arraybuffer'));
 

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const resolvedParams = await params;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://beautyglowry.com';
   try {
     const post = await prisma.blogPost.findFirst({
       where: { slug: resolvedParams.slug },
@@ -19,12 +20,12 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
       title: post.title,
       description: post.summary ?? undefined,
       alternates: {
-        canonical: `https://beautygloowry.com/blog/${post.slug}`,
+        canonical: `${baseUrl}/blog/${post.slug}`,
       },
       openGraph: {
         title: `${post.title} | BEAUTY GLOWRY Blog`,
         description: post.summary ?? undefined,
-        url: `https://beautygloowry.com/blog/${post.slug}`,
+        url: `${baseUrl}/blog/${post.slug}`,
         images: post.cover_image ? [
           {
             url: post.cover_image,
@@ -49,6 +50,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     };
   }
 }
+
 export default async function BlogPostLayout({
   children,
   params,
@@ -57,6 +59,7 @@ export default async function BlogPostLayout({
   params: Promise<{ slug: string }>;
 }) {
   const resolvedParams = await params;
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://beautyglowry.com';
   let post = null;
 
   try {
@@ -87,7 +90,7 @@ export default async function BlogPostLayout({
       name: 'Beauty Glowry',
       logo: {
         '@type': 'ImageObject',
-        url: 'https://beautygloowry.com/logo.PNG',
+        url: `${baseUrl}/logo.PNG`,
       },
     },
   };
@@ -100,19 +103,19 @@ export default async function BlogPostLayout({
         '@type': 'ListItem',
         position: 1,
         name: 'Home',
-        item: 'https://beautygloowry.com/',
+        item: `${baseUrl}/`,
       },
       {
         '@type': 'ListItem',
         position: 2,
         name: 'Blog',
-        item: 'https://beautygloowry.com/blog',
+        item: `${baseUrl}/blog`,
       },
       {
         '@type': 'ListItem',
         position: 3,
         name: post.title,
-        item: `https://beautygloowry.com/blog/${post.slug}`,
+        item: `${baseUrl}/blog/${post.slug}`,
       },
     ],
   };

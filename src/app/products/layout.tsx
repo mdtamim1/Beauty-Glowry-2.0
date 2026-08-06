@@ -4,12 +4,12 @@ export const metadata: Metadata = {
   title: 'Clinical Skincare Products Catalog',
   description: 'Shop dermatologist-formulated active skincare treatments at Beauty Glowry. Clean, clinical formulas including Vitamin C, Niacinamide, and Salicylic Acid serums.',
   alternates: {
-    canonical: 'https://beautygloowry.com/products',
+    canonical: 'https://beautyglowry.com/products',
   },
   openGraph: {
     title: 'Clinical Skincare Products Catalog | BEAUTY GLOWRY',
     description: 'Shop dermatologist-formulated active skincare treatments. Premium formulas targeted for acne, fine lines, dark spots, and sensitive skin.',
-    url: 'https://beautygloowry.com/products',
+    url: 'https://beautyglowry.com/products',
     type: 'website',
   },
   twitter: {
