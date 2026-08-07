@@ -1,11 +1,13 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { ShoppingBag, Heart, Star, Zap, Check, GitCompare } from 'lucide-react';
 import { Product, brands } from '../data/products';
 import { useCartStore } from '../store/useCartStore';
+
+const FALLBACK_IMAGE = 'https://images.unsplash.com/photo-1608248597481-496100c80836?q=80&w=1000&auto=format&fit=crop';
 
 interface ProductCardProps {
   product: Product;
@@ -18,6 +20,15 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
   const [hovered, setHovered] = useState(false);
   const { addToCart, toggleWishlist, isInWishlist, setBuyNow, addToCompare, removeFromCompare, isInCompare } = useCartStore();
   const router = useRouter();
+
+  const imgRef = useRef<HTMLImageElement>(null);
+  const productImage = product.image || FALLBACK_IMAGE;
+
+  useEffect(() => {
+    if (imgRef.current && imgRef.current.complete) {
+      setImageLoaded(true);
+    }
+  }, [productImage]);
 
   const inWishlist = isInWishlist(product.id.toString());
   const inCompare = isInCompare(product.id.toString());
@@ -57,7 +68,7 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
       product: {
         id: String(product.id),
         name: product.name,
-        image: product.image,
+        image: productImage,
         price: product.price,
         discount_price: product.originalPrice > product.price ? product.price : undefined,
       },
@@ -83,12 +94,13 @@ export default function ProductCard({ product, onQuickView }: ProductCardProps) 
             {!imageLoaded && <div className="pc-skeleton" />}
 
             <img
-              src={product.image}
+              ref={imgRef}
+              src={productImage}
               alt={product.name}
               loading="lazy"
               onLoad={() => setImageLoaded(true)}
+              onError={() => setImageLoaded(true)}
               className={`pc-img${hovered ? ' pc-img-zoom' : ''}`}
-              style={{ display: imageLoaded ? 'block' : 'none' }}
             />
 
             {/* Bottom gradient — always present, deepens on hover */}
