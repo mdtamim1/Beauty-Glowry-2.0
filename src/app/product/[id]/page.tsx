@@ -3,6 +3,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ShoppingBag, Heart, Star, ChevronLeft, ChevronRight,
   Plus, Minus, ArrowRight, ZoomIn, Check, Zap,
@@ -330,12 +331,30 @@ export default function ProductDetailPage() {
                   boxShadow: '0 8px 40px rgba(0,0,0,0.06)',
                 }}
               >
-                {/* Normal image */}
-                <img
-                  src={allImages[selectedImage]}
-                  alt={product.name}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover', display: zoom ? 'none' : 'block', transition: 'opacity 0.3s' }}
-                />
+                {/* Normal image with premium animation */}
+                <AnimatePresence mode="popLayout">
+                  <motion.img
+                    key={selectedImage}
+                    src={allImages[selectedImage]}
+                    alt={product.name}
+                    initial={{ opacity: 0, scale: 1.05, filter: 'blur(8px)' }}
+                    animate={{ opacity: 1, scale: 1, filter: 'blur(0px)' }}
+                    exit={{ opacity: 0, scale: 0.95, filter: 'blur(8px)' }}
+                    transition={{
+                      duration: 0.5,
+                      ease: [0.25, 0.1, 0.25, 1],
+                    }}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
+                      zIndex: 1,
+                    }}
+                  />
+                </AnimatePresence>
+
                 {/* Zoomed */}
                 {zoom && (
                   <div style={{
@@ -344,11 +363,12 @@ export default function ProductDetailPage() {
                     backgroundSize: '250%',
                     backgroundRepeat: 'no-repeat',
                     backgroundPosition: `${zoomPos.x}% ${zoomPos.y}%`,
+                    zIndex: 2,
                   }} />
                 )}
 
                 {/* Badges */}
-                <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', flexDirection: 'column', gap: 6, zIndex: 3 }}>
                   {product.isBestseller && <span className="badge-bestseller">Bestseller</span>}
                   {product.isNew && <span className="badge-new">New</span>}
                   {product.isFreeDelivery && <span className="badge-free-delivery">Free Delivery</span>}
@@ -363,6 +383,7 @@ export default function ProductDetailPage() {
                   padding: '5px 12px', display: 'flex', alignItems: 'center', gap: 6,
                   fontSize: 12, fontWeight: 700, color: 'var(--text-primary)',
                   fontFamily: "'DM Mono', monospace",
+                  zIndex: 3,
                 }}>
                   <Package size={12} style={{ color: 'var(--text-muted)' }} />
                   {product.size}
@@ -375,6 +396,7 @@ export default function ProductDetailPage() {
                   border: '1px solid var(--border-default)', borderRadius: 3,
                   padding: '5px 10px', display: 'flex', alignItems: 'center', gap: 5,
                   fontSize: 10, color: 'var(--text-muted)', pointerEvents: 'none',
+                  zIndex: 3,
                 }}>
                   <ZoomIn size={11} /> Hover to zoom
                 </div>
@@ -383,11 +405,11 @@ export default function ProductDetailPage() {
                 {allImages.length > 1 && (
                   <>
                     <button onClick={() => setSelectedImage(p => (p === 0 ? allImages.length - 1 : p - 1))}
-                      style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 34, height: 34, borderRadius: '50%', background: 'rgba(250,247,242,0.9)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+                      style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', width: 34, height: 34, borderRadius: '50%', background: 'rgba(250,247,242,0.9)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', zIndex: 3 }}>
                       <ChevronLeft size={17} />
                     </button>
                     <button onClick={() => setSelectedImage(p => (p === allImages.length - 1 ? 0 : p + 1))}
-                      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 34, height: 34, borderRadius: '50%', background: 'rgba(250,247,242,0.9)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.1)' }}>
+                      style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', width: 34, height: 34, borderRadius: '50%', background: 'rgba(250,247,242,0.9)', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 10px rgba(0,0,0,0.1)', zIndex: 3 }}>
                       <ChevronRight size={17} />
                     </button>
                   </>
@@ -422,48 +444,7 @@ export default function ProductDetailPage() {
                 </div>
               )}
 
-              {/* ── Product Specs Card ───────────────────────────────── */}
-              <div
-                style={{
-                  marginTop: 16,
-                  background: 'var(--bg-elevated)',
-                  border: '1px solid var(--border-default)',
-                  borderRadius: 6,
-                  padding: 18,
-                  display: 'grid',
-                  gridTemplateColumns: '1fr 1fr',
-                  gap: 0,
-                }}
-              >
-                {[
-                  { icon: <Package size={13} />, label: 'Net Content', value: product.size },
-                  { icon: <FlaskConical size={13} />, label: 'Net Weight', value: product.weight || `${product.size.replace(/[^0-9]/g, '')}g` },
-                  { icon: <Clock size={13} />, label: 'Shelf Life', value: product.shelfLife || '24 months' },
-                  { icon: <Globe size={13} />, label: 'Made In', value: product.madeIn || 'Bangladesh' },
-                ].map((spec, i) => (
-                  <div
-                    key={spec.label}
-                    style={{
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: 8,
-                      padding: '11px 14px',
-                      borderBottom: i < 2 ? '1px solid var(--border-subtle)' : 'none',
-                      borderRight: i % 2 === 0 ? '1px solid var(--border-subtle)' : 'none',
-                    }}
-                  >
-                    <div style={{ color: 'var(--accent)', marginTop: 1, flexShrink: 0 }}>{spec.icon}</div>
-                    <div>
-                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 3 }}>
-                        {spec.label}
-                      </p>
-                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', fontFamily: "'DM Mono', monospace" }}>
-                        {spec.value}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+
             </div>
 
             {/* ── RIGHT: Product Info ────────────────────────────────── */}
@@ -536,10 +517,7 @@ export default function ProductDetailPage() {
                 ))}
               </div>
 
-              {/* Description */}
-              <p style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--text-secondary)', marginBottom: 24 }}>
-                {product.description}
-              </p>
+
 
               {/* ── Price Block ─────────────────────────────────── */}
               <div
@@ -855,6 +833,54 @@ export default function ProductDetailPage() {
                     </span>
                   ))}
                 </div>
+              </div>
+
+              {/* Description */}
+              <p style={{ fontSize: 14, lineHeight: 1.8, color: 'var(--text-secondary)', marginBottom: 20 }}>
+                {product.description}
+              </p>
+
+              {/* ── Product Specs Card ───────────────────────────────── */}
+              <div
+                style={{
+                  marginBottom: 24,
+                  background: 'var(--bg-elevated)',
+                  border: '1px solid var(--border-default)',
+                  borderRadius: 6,
+                  padding: 18,
+                  display: 'grid',
+                  gridTemplateColumns: '1fr 1fr',
+                  gap: 0,
+                }}
+              >
+                {[
+                  { icon: <Package size={13} />, label: 'Net Content', value: product.size },
+                  { icon: <FlaskConical size={13} />, label: 'Net Weight', value: product.weight || `${product.size.replace(/[^0-9]/g, '')}g` },
+                  { icon: <Clock size={13} />, label: 'Shelf Life', value: product.shelfLife || '24 months' },
+                  { icon: <Globe size={13} />, label: 'Made In', value: product.madeIn || 'Bangladesh' },
+                ].map((spec, i) => (
+                  <div
+                    key={spec.label}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: 8,
+                      padding: '11px 14px',
+                      borderBottom: i < 2 ? '1px solid var(--border-subtle)' : 'none',
+                      borderRight: i % 2 === 0 ? '1px solid var(--border-subtle)' : 'none',
+                    }}
+                  >
+                    <div style={{ color: 'var(--accent)', marginTop: 1, flexShrink: 0 }}>{spec.icon}</div>
+                    <div>
+                      <p style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: 3 }}>
+                        {spec.label}
+                      </p>
+                      <p style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', fontFamily: "'DM Mono', monospace" }}>
+                        {spec.value}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {/* ── Accordion Info ────────────────────────────────────── */}
