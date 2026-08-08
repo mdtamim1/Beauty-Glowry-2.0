@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
 import { logAdminAction } from '../../../../lib/audit';
-import { verifyAdminOrModerator } from '../../../../lib/auth';
+import { verifyAdminOrModerator, verifyAdminOrModeratorV2 } from '../../../../lib/auth';
 
 const DEFAULT_CONFIG = {
   storeName: 'Beauty Glowry',
@@ -68,10 +68,11 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   try {
-    const admin = await verifyAdminOrModerator(request, 'Settings');
-    if (!admin) {
-      return NextResponse.json({ error: 'Unauthorized or insufficient permissions' }, { status: 403 });
+    const auth = await verifyAdminOrModeratorV2(request, 'Settings');
+    if (auth.status !== 200) {
+      return NextResponse.json({ error: auth.status === 401 ? 'Unauthorized' : 'Forbidden' }, { status: auth.status });
     }
+    const admin = auth.payload;
 
     const data = await request.json();
 

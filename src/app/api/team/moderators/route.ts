@@ -1,11 +1,15 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../../lib/prisma';
-import { verifyAdminOrModerator } from '../../../../lib/auth';
+import { verifyAdminOrModerator, verifyAdminOrModeratorV2 } from '../../../../lib/auth';
 
 export async function GET(request: Request) {
   try {
-    const admin = await verifyAdminOrModerator(request);
-    if (!admin || admin.role !== 'admin') {
+    const auth = await verifyAdminOrModeratorV2(request);
+    if (auth.status !== 200) {
+      return NextResponse.json({ error: auth.status === 401 ? 'Unauthorized' : 'Forbidden' }, { status: auth.status });
+    }
+    const admin = auth.payload;
+    if (admin?.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -65,8 +69,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
-    const admin = await verifyAdminOrModerator(request);
-    if (!admin || admin.role !== 'admin') {
+    const auth = await verifyAdminOrModeratorV2(request);
+    if (auth.status !== 200) {
+      return NextResponse.json({ error: auth.status === 401 ? 'Unauthorized' : 'Forbidden' }, { status: auth.status });
+    }
+    const admin = auth.payload;
+    if (admin?.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -104,8 +112,12 @@ export async function POST(request: Request) {
 
 export async function PUT(request: Request) {
   try {
-    const admin = await verifyAdminOrModerator(request);
-    if (!admin || admin.role !== 'admin') {
+    const auth = await verifyAdminOrModeratorV2(request);
+    if (auth.status !== 200) {
+      return NextResponse.json({ error: auth.status === 401 ? 'Unauthorized' : 'Forbidden' }, { status: auth.status });
+    }
+    const admin = auth.payload;
+    if (admin?.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -134,8 +146,12 @@ export async function PUT(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const admin = await verifyAdminOrModerator(request);
-    if (!admin || admin.role !== 'admin') {
+    const auth = await verifyAdminOrModeratorV2(request);
+    if (auth.status !== 200) {
+      return NextResponse.json({ error: auth.status === 401 ? 'Unauthorized' : 'Forbidden' }, { status: auth.status });
+    }
+    const admin = auth.payload;
+    if (admin?.role !== 'admin') {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

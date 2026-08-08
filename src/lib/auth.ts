@@ -83,3 +83,40 @@ export async function verifyAdminOrModerator(request: Request, requiredPermissio
     return null;
   }
 }
+
+export async function verifyAdminOrModeratorV2(request: Request, requiredPermission?: string): Promise<{ payload?: TokenPayload; status: 200 | 401 | 403 }> {
+  const authHeader = request.headers.get('Authorization');
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { status: 401 };
+  }
+  const token = authHeader.substring(7);
+  try {
+    const decoded: any = jwt.verify(token, ACCESS_TOKEN_SECRET);
+    
+    // If the role is super admin, they have all permissions
+    if (decoded.role === 'admin') {
+      return { payload: decoded as TokenPayload, status: 200 };
+    }
+    
+    // If it's a moderator, verify permissions
+    if (decoded.role === 'moderator') {
+      if (requiredPermission) {
+        const { prisma } = require('./prisma');
+        const mod = await prisma.moderator.findUnique({
+          where: { email: decoded.email },
+        });
+        if (!mod || mod.status !== 'Active') {
+          return { status: 403 };
+        }
+        if (!mod.permissions.includes(requiredPermission)) {
+          return { status: 403 };
+        }
+      }
+      return { payload: decoded as TokenPayload, status: 200 };
+    }
+
+    return { status: 403 };
+  } catch (e) {
+    return { status: 401 };
+  }
+}

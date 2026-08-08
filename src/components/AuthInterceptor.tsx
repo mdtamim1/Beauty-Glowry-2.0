@@ -32,6 +32,10 @@ export default function AuthInterceptor() {
       // Intercept 401 Unauthorized errors
       if (response.status === 401) {
         const headers = new Headers(init?.headers);
+        if (headers.get('X-Retry')) {
+          return response;
+        }
+
         const authHeader = headers.get('Authorization');
         
         if (authHeader && authHeader.startsWith('Bearer ')) {
@@ -55,6 +59,12 @@ export default function AuthInterceptor() {
 
                 onRefreshed(newAccessToken);
                 isRefreshing.current = false;
+
+                // Retry the request that triggered the refresh
+                const updatedHeaders = new Headers(init?.headers);
+                updatedHeaders.set('Authorization', `Bearer ${newAccessToken}`);
+                updatedHeaders.set('X-Retry', 'true');
+                return originalFetch(input, { ...init, headers: updatedHeaders });
               } else {
                 isRefreshing.current = false;
                 useAuthStore.getState().logout();
@@ -75,6 +85,7 @@ export default function AuthInterceptor() {
             addRefreshSubscriber((newToken) => {
               const updatedHeaders = new Headers(init?.headers);
               updatedHeaders.set('Authorization', `Bearer ${newToken}`);
+              updatedHeaders.set('X-Retry', 'true');
               resolve(originalFetch(input, { ...init, headers: updatedHeaders }));
             });
           });

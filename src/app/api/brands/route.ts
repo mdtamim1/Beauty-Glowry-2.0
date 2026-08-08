@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '../../../lib/prisma';
-import { verifyAdminOrModerator } from '../../../lib/auth';
+import { verifyAdminOrModerator, verifyAdminOrModeratorV2 } from '../../../lib/auth';
 
 export async function GET() {
   try {
@@ -16,9 +16,9 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const auth = await verifyAdminOrModerator(request);
-    if (!auth) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const auth = await verifyAdminOrModeratorV2(request);
+    if (auth.status !== 200) {
+      return NextResponse.json({ error: auth.status === 401 ? 'Unauthorized' : 'Forbidden' }, { status: auth.status });
     }
 
     const data = await request.json();
@@ -53,9 +53,9 @@ export async function POST(request: Request) {
 
 export async function DELETE(request: Request) {
   try {
-    const auth = await verifyAdminOrModerator(request);
-    if (!auth) {
-      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    const auth = await verifyAdminOrModeratorV2(request);
+    if (auth.status !== 200) {
+      return NextResponse.json({ error: auth.status === 401 ? 'Unauthorized' : 'Forbidden' }, { status: auth.status });
     }
 
     const { searchParams } = new URL(request.url);
