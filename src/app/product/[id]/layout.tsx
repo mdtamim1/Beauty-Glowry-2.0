@@ -43,8 +43,8 @@ async function getProductData(id: string) {
         stock: p.stock_qty,
         rating: averageRating,
         reviewCount: reviewCount,
-        concerns: p.skin_type_tags || [],
-        skinTypes: p.skin_type_tags || [],
+        concerns: (p.skin_type_tags || []).filter(tag => ['Acne', 'Brightening', 'Hydration', 'Aging', 'Dark Spots', 'Sensitive', 'Pores', 'Oiliness'].includes(tag)),
+        skinTypes: (p.skin_type_tags || []).filter(tag => ['Oily', 'Dry', 'Combination', 'Normal', 'Sensitive', 'All Skin Types'].includes(tag)),
       };
     }
   } catch (err) {

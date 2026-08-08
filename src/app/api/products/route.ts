@@ -78,8 +78,8 @@ export async function GET(request: Request) {
         isFreeDelivery: p.is_free_delivery,
         description: p.description || '',
         actives: [],
-        skinTypes: p.skin_type_tags,
-        concerns: p.skin_type_tags, // mapping as fallback
+        skinTypes: (p.skin_type_tags || []).filter(tag => ['Oily', 'Dry', 'Combination', 'Normal', 'Sensitive', 'All Skin Types'].includes(tag)),
+        concerns: (p.skin_type_tags || []).filter(tag => ['Acne', 'Brightening', 'Hydration', 'Aging', 'Dark Spots', 'Sensitive', 'Pores', 'Oiliness'].includes(tag)),
         inciList: p.ingredients || '',
         usageSteps: p.how_to_use ? p.how_to_use.split('\n') : [],
         variants: p.variants.map((v) => ({

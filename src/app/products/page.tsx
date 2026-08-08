@@ -118,7 +118,14 @@ function ProductsContent() {
       result = result.filter((p) => selectedCategories.includes(p.category));
     }
     if (selectedConcerns.length > 0) {
-      result = result.filter((p) => p.concerns.some((c) => selectedConcerns.some((sc) => c.includes(sc.split(' ')[0]))));
+      result = result.filter((p) =>
+        (p.concerns || []).some((c) =>
+          selectedConcerns.some((scName) => {
+            const concernObj = skinConcerns.find((sc) => sc.name === scName);
+            return concernObj ? c === concernObj.tag : false;
+          })
+        )
+      );
     }
     if (selectedSkinTypes.length > 0) {
       result = result.filter((p) => p.skinTypes.some((st) => selectedSkinTypes.includes(st)));
