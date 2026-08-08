@@ -605,9 +605,9 @@ function Modal({
                   })()}
                 </div>
 
-                {/* Category Selector */}
+                {/* Product Type Selector */}
                 <div>
-                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 6 }}>Category</label>
+                  <label style={{ display: 'block', fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, marginBottom: 6 }}>Product Type</label>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <select
                       value={form.category}
@@ -621,7 +621,7 @@ function Modal({
                       onClick={() => setIsCreatingCat(!isCreatingCat)}
                       style={{ padding: '0 12px', background: 'none', border: `1px solid ${C.border}`, borderRadius: 7, color: C.accent, fontSize: 12, fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
                     >
-                      {isCreatingCat ? 'Cancel' : '⚙️ Manage'}
+                      {isCreatingCat ? 'Cancel' : '⚙️ Add/Delete Types'}
                     </button>
                   </div>
 
@@ -631,7 +631,7 @@ function Modal({
                       <div style={{ display: 'flex', gap: 8 }}>
                         <input
                           type="text"
-                          placeholder="New Category Name"
+                          placeholder="New Product Type Name"
                           value={newCatName}
                           onChange={(e) => setNewCatName(e.target.value)}
                           style={{ flex: 1, padding: '6px 10px', background: C.elevated, border: `1px solid ${C.border}`, borderRadius: 5, fontSize: 12, color: C.text, outline: 'none' }}
@@ -642,14 +642,14 @@ function Modal({
                           disabled={isSavingCat || !newCatName}
                           style={{ padding: '6px 12px', background: C.accent, border: 'none', borderRadius: 5, fontSize: 12, fontWeight: 700, color: '#fff', cursor: 'pointer', opacity: (!newCatName || isSavingCat) ? 0.5 : 1 }}
                         >
-                          {isSavingCat ? 'Saving...' : 'Save'}
+                          {isSavingCat ? 'Adding...' : 'Add Type'}
                         </button>
                       </div>
 
-                      {/* Existing Categories List with Delete option */}
+                      {/* Existing Product Types List with Delete option */}
                       <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 10 }}>
                         <p style={{ fontSize: 10, fontWeight: 700, color: C.muted, textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>
-                          Manage Existing Categories ({categoriesList.length})
+                          Manage Existing Product Types ({categoriesList.length})
                         </p>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 150, overflowY: 'auto', paddingRight: 4 }}>
                           {categoriesList.map((cat) => (
@@ -659,7 +659,7 @@ function Modal({
                                 type="button"
                                 onClick={() => handleDeleteCategory(cat.id)}
                                 style={{ background: 'none', border: 'none', color: C.danger, cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center' }}
-                                title="Delete Category"
+                                title="Delete Product Type"
                               >
                                 <Trash2 size={13} />
                               </button>
@@ -1710,7 +1710,7 @@ export default function AdminProducts() {
             onChange={(e) => setCatFilter(e.target.value)}
             style={{ padding: '9px 36px 9px 14px', appearance: 'none', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, color: C.text, cursor: 'pointer', outline: 'none' }}
           >
-            <option value="All">All Categories</option>
+            <option value="All">All Product Types</option>
             {activeCategories.map((c) => <option key={c.id} value={c.name}>{c.name}</option>)}
           </select>
           <ChevronDown size={13} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
@@ -1732,7 +1732,7 @@ export default function AdminProducts() {
           <div><input type="checkbox" checked={selected.length === filtered.length && filtered.length > 0} onChange={selectAll} style={{ accentColor: C.accent, cursor: 'pointer' }} /></div>
           <div>Image</div>
           <div>Product</div>
-          <div>Category</div>
+          <div>Product Type</div>
           <div>Price</div>
           <div>Stock</div>
           <div>Sections</div>
