@@ -62,17 +62,34 @@ function CheckoutContent() {
 
   const [form, setForm] = useState({
     name: '', phone: '', email: '',
-    division: '', district: '', address: '', notes: '',
+    district: 'Dhaka', thana: '', area: '', address: '', notes: '',
     paymentMethod: 'cod',
   });
   const update = (f: string, v: string) => setForm(p => ({ ...p, [f]: v }));
+
+  const [geocodeData, setGeocodeData] = useState<Record<string, Record<string, string[]>>>({});
 
   useEffect(() => {
     fetch('/api/admin/store-config')
       .then(r => r.json())
       .then(d => { if (d) setStoreConfig(d); })
       .catch(() => {});
+
+    fetch('/bangladesh-geocode.json')
+      .then(r => r.json())
+      .then(d => setGeocodeData(d))
+      .catch(err => console.error('Failed to load geocode data:', err));
   }, []);
+
+  const districtsList = Object.keys(geocodeData).length > 0
+    ? Object.keys(geocodeData).sort()
+    : Object.keys(locations);
+
+  const thanas = geocodeData[form.district]
+    ? Object.keys(geocodeData[form.district]).sort()
+    : (locations[form.district] || []);
+
+  const unions = geocodeData[form.district]?.[form.thana] || [];
 
   /* pricing */
   const subtotal = checkoutItems.reduce((acc, item) => {
@@ -117,7 +134,8 @@ function CheckoutContent() {
     try {
       const payload = {
         name: form.name, phone: form.phone, email: form.email,
-        division: form.division, district: form.district,
+        division: form.district, district: form.district,
+        thana: form.thana, area: form.area,
         address: form.address, notes: form.notes,
         paymentMethod:
           form.paymentMethod === 'bkash' ? 'bKash' :
@@ -388,36 +406,60 @@ function CheckoutContent() {
                 <div className="co-field-stack">
                   <div className="co-row-2">
                     <div>
-                      <Label>Division *</Label>
+                      <Label>District *</Label>
                       <div className="co-select-wrap">
                         <select
-                          required value={form.division}
-                          onChange={e => { update('division', e.target.value); update('district', ''); }}
+                          required value={form.district}
+                          onChange={e => { update('district', e.target.value); update('thana', ''); update('area', ''); }}
                           className="co-input co-select"
                         >
-                          <option value="">Select Division</option>
-                          {Object.keys(locations).map(d => <option key={d} value={d}>{d}</option>)}
+                          {districtsList.map(d => <option key={d} value={d}>{d}</option>)}
                         </select>
                         <ChevronDown size={14} className="co-select-icon" />
                       </div>
                     </div>
                     <div>
-                      <Label>District *</Label>
+                      <Label>Thana / Upazila *</Label>
                       <div className="co-select-wrap">
                         <select
-                          required value={form.district}
-                          onChange={e => update('district', e.target.value)}
-                          disabled={!form.division}
+                          required value={form.thana}
+                          onChange={e => { update('thana', e.target.value); update('area', ''); }}
+                          disabled={!form.district}
                           className="co-input co-select"
                         >
-                          <option value="">Select District</option>
-                          {form.division && locations[form.division]?.map(d =>
-                            <option key={d} value={d}>{d}</option>
-                          )}
+                          <option value="">Select Thana</option>
+                          {thanas.map(t => <option key={t} value={t}>{t}</option>)}
                         </select>
                         <ChevronDown size={14} className="co-select-icon" />
                       </div>
                     </div>
+                  </div>
+
+                  <div>
+                    <Label>Area / Union *</Label>
+                    {unions.length > 0 ? (
+                      <div className="co-select-wrap">
+                        <select
+                          required value={form.area}
+                          onChange={e => update('area', e.target.value)}
+                          disabled={!form.thana}
+                          className="co-input co-select"
+                        >
+                          <option value="">Select Area / Union</option>
+                          {unions.map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                        <ChevronDown size={14} className="co-select-icon" />
+                      </div>
+                    ) : (
+                      <input
+                        type="text"
+                        required
+                        placeholder="Block / Village / Union name"
+                        value={form.area}
+                        onChange={e => update('area', e.target.value)}
+                        className="co-input"
+                      />
+                    )}
                   </div>
                   <div>
                     <Label>Full Address *</Label>
@@ -486,7 +528,7 @@ function CheckoutContent() {
                   </button>
                   <button
                     type="button" className="co-btn-next"
-                    disabled={!form.division || !form.district || !form.address}
+                    disabled={!form.district || !form.thana || !form.address}
                     onClick={() => setStep('confirm')}
                   >
                     Review Order <ArrowRight size={16} />
@@ -515,7 +557,7 @@ function CheckoutContent() {
                     <MapPin size={14} style={{ color: 'var(--text-muted)' }} />
                     <div>
                       <p className="co-confirm-detail">{form.address}</p>
-                      <p className="co-confirm-detail">{form.district}, {form.division}</p>
+                      <p className="co-confirm-detail">{form.area ? `${form.area}, ` : ''}{form.thana}, {form.district}</p>
                     </div>
                     <button type="button" className="co-confirm-edit" onClick={() => setStep('shipping')}>Edit</button>
                   </div>

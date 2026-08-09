@@ -103,6 +103,8 @@ export async function POST(request: Request) {
       email: rawEmail,
       division,
       district,
+      thana,
+      area,
       address,
       notes,
       paymentMethod,
@@ -185,6 +187,8 @@ export async function POST(request: Request) {
           payment_status: 'pending',
           address_id: addressRecord.id,
           customer_notes: notes || '',
+          thana: thana || '',
+          area: area || '',
         },
       });
 
