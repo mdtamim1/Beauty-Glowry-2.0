@@ -156,7 +156,7 @@ function SteadfastModal({ order, onClose, onSent }: { order: Order; onClose: () 
   const [error, setError] = useState('');
 
   const getToken = () => {
-    try { const s = localStorage.getItem('bg_admin_session'); return s ? JSON.parse(s)?.token : null; } catch { return null; }
+    try { return localStorage.getItem('bg_admin_token'); } catch { return null; }
   };
 
   const handleSend = async () => {
@@ -254,7 +254,7 @@ function FraudCheckModal({ phone, onClose }: { phone: string; onClose: () => voi
   const [error, setError] = useState('');
 
   const getToken = () => {
-    try { const s = localStorage.getItem('bg_admin_session'); return s ? JSON.parse(s)?.token : null; } catch { return null; }
+    try { return localStorage.getItem('bg_admin_token'); } catch { return null; }
   };
 
   useEffect(() => {
