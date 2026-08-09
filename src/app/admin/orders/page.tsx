@@ -2043,8 +2043,8 @@ export default function AdminOrders() {
       {/* Orders Table */}
       <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
         {/* Header row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 100px 110px 100px 140px 120px', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${C.border}`, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>
-          <div>Order ID</div><div>Customer</div><div>Date</div><div>Amount</div><div>Payment</div><div>Status</div><div>Actions</div>
+        <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 1.2fr 130px 100px 90px 140px 120px', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${C.border}`, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>
+          <div>Order ID</div><div>Customer</div><div>Location</div><div>Date &amp; Time</div><div>Amount</div><div>Payment</div><div>Status</div><div>Actions</div>
         </div>
 
         {ordersLoading ? (
@@ -2058,70 +2058,101 @@ export default function AdminOrders() {
             <p style={{ fontSize: 14 }}>No orders found</p>
           </div>
         ) : (
-          filtered.map((order, i) => (
-            <React.Fragment key={order.id}>
-              <div
-                style={{
-                  display: 'grid', gridTemplateColumns: '110px 1fr 100px 110px 100px 140px 120px',
-                  gap: 12, padding: '14px 20px', alignItems: 'center',
-                  borderBottom: `1px solid ${C.border}`, transition: 'background 0.15s',
-                  background: 'transparent',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
-                onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
-              >
-                <span style={{ fontSize: 12, fontWeight: 700, color: C.accent, fontFamily: "'DM Mono', monospace" }}>{order.id}</span>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>{order.customer}</p>
-                  <p style={{ fontSize: 11, color: C.muted }}>{order.phone}{order.courier ? ` · ${order.courier}` : ''}</p>
+          filtered.map((order, i) => {
+            // Helper to extract date and time
+            const formatOrderDateTime = (isoString?: string, fallbackDate?: string) => {
+              if (!isoString) return { date: fallbackDate || '', time: '' };
+              try {
+                const d = new Date(isoString);
+                const dateStr = d.toISOString().slice(0, 10);
+                const timeStr = d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true });
+                return { date: dateStr, time: timeStr };
+              } catch {
+                return { date: fallbackDate || '', time: '' };
+              }
+            };
+            const dateTime = formatOrderDateTime((order as any).createdAt, order.date);
+
+            return (
+              <React.Fragment key={order.id}>
+                <div
+                  style={{
+                    display: 'grid', gridTemplateColumns: '110px 1fr 1.2fr 130px 100px 90px 140px 120px',
+                    gap: 12, padding: '14px 20px', alignItems: 'center',
+                    borderBottom: `1px solid ${C.border}`, transition: 'background 0.15s',
+                    background: 'transparent',
+                  }}
+                  onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
+                >
+                  <span style={{ fontSize: 12, fontWeight: 700, color: C.accent, fontFamily: "'DM Mono', monospace" }}>{order.id}</span>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>{order.customer}</p>
+                    <p style={{ fontSize: 11, color: C.muted }}>{order.phone}{order.courier ? ` · ${order.courier}` : ''}</p>
+                  </div>
+                  {/* Location Column */}
+                  <div>
+                    <p style={{ fontSize: 12, color: C.textSec, marginBottom: 2, textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' }} title={order.address}>
+                      {order.address || 'N/A'}
+                    </p>
+                    {order.district && (
+                      <p style={{ fontSize: 10, color: C.muted, fontWeight: 500 }}>
+                        {order.district}
+                      </p>
+                    )}
+                  </div>
+                  {/* Date & Time Column */}
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 600, color: C.text, marginBottom: 2 }}>{dateTime.date}</p>
+                    <p style={{ fontSize: 10, color: C.muted }}>{dateTime.time}</p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 700, color: C.text, fontFamily: "'DM Mono', monospace" }}>৳{order.total.toLocaleString()}</p>
+                    {order.shipping > 0 && <p style={{ fontSize: 10, color: C.muted }}>+৳{order.shipping} ship</p>}
+                  </div>
+                  <span style={{ fontSize: 11, color: C.textSec }}>{order.payment}</span>
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={order.status}
+                      onChange={e => updateStatus(order.id, e.target.value as OrderStatus)}
+                      disabled={updating === order.id}
+                      style={{ appearance: 'none', width: '100%', padding: '5px 28px 5px 10px', background: STATUS_STYLES[order.status]?.bg || 'transparent', border: `1px solid ${STATUS_STYLES[order.status]?.color || C.border}40`, borderRadius: 6, fontSize: 11, fontWeight: 700, color: STATUS_STYLES[order.status]?.color || C.text, cursor: 'pointer', outline: 'none' }}
+                    >
+                      {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                    {updating === order.id
+                      ? <RefreshCw size={11} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: STATUS_STYLES[order.status]?.color || C.accent, animation: 'spin 0.6s linear infinite' }} />
+                      : <ChevronDown size={11} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: STATUS_STYLES[order.status]?.color || C.muted, pointerEvents: 'none' }} />
+                    }
+                  </div>
+                  {/* Actions: View + Fraud + Courier */}
+                  <div style={{ display: 'flex', gap: 5 }}>
+                    <button
+                      title="View / Edit Order"
+                      onClick={() => setViewOrder(order)}
+                      style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, cursor: 'pointer', color: C.muted }}
+                    >
+                      <Eye size={13} />
+                    </button>
+                    <button
+                      title="Check Fraud"
+                      onClick={() => setQuickFraudOrder(order)}
+                      style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 6, cursor: 'pointer', color: C.info }}
+                    >
+                      <Shield size={13} />
+                    </button>
+                    <button
+                      title="Send to Steadfast"
+                      onClick={() => setQuickCourierOrder(order)}
+                      style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.35)', borderRadius: 6, cursor: 'pointer', color: '#10B981' }}
+                    >
+                      <Truck size={13} />
+                    </button>
+                  </div>
                 </div>
-                <span style={{ fontSize: 12, color: C.muted }}>{order.date}</span>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 700, color: C.text, fontFamily: "'DM Mono', monospace" }}>৳{order.total.toLocaleString()}</p>
-                  {order.shipping > 0 && <p style={{ fontSize: 10, color: C.muted }}>+৳{order.shipping} ship</p>}
-                </div>
-                <span style={{ fontSize: 11, color: C.textSec }}>{order.payment}</span>
-                <div style={{ position: 'relative' }}>
-                  <select
-                    value={order.status}
-                    onChange={e => updateStatus(order.id, e.target.value as OrderStatus)}
-                    disabled={updating === order.id}
-                    style={{ appearance: 'none', width: '100%', padding: '5px 28px 5px 10px', background: STATUS_STYLES[order.status]?.bg || 'transparent', border: `1px solid ${STATUS_STYLES[order.status]?.color || C.border}40`, borderRadius: 6, fontSize: 11, fontWeight: 700, color: STATUS_STYLES[order.status]?.color || C.text, cursor: 'pointer', outline: 'none' }}
-                  >
-                    {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                  {updating === order.id
-                    ? <RefreshCw size={11} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: STATUS_STYLES[order.status]?.color || C.accent, animation: 'spin 0.6s linear infinite' }} />
-                    : <ChevronDown size={11} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: STATUS_STYLES[order.status]?.color || C.muted, pointerEvents: 'none' }} />
-                  }
-                </div>
-                {/* Actions: View + Fraud + Courier */}
-                <div style={{ display: 'flex', gap: 5 }}>
-                  <button
-                    title="View / Edit Order"
-                    onClick={() => setViewOrder(order)}
-                    style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, cursor: 'pointer', color: C.muted }}
-                  >
-                    <Eye size={13} />
-                  </button>
-                  <button
-                    title="Check Fraud"
-                    onClick={() => setQuickFraudOrder(order)}
-                    style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 6, cursor: 'pointer', color: C.info }}
-                  >
-                    <Shield size={13} />
-                  </button>
-                  <button
-                    title="Send to Steadfast"
-                    onClick={() => setQuickCourierOrder(order)}
-                    style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.35)', borderRadius: 6, cursor: 'pointer', color: '#10B981' }}
-                  >
-                    <Truck size={13} />
-                  </button>
-                </div>
-              </div>
-            </React.Fragment>
-          ))
+              </React.Fragment>
+            );
+          })
         )}
 
       </div>

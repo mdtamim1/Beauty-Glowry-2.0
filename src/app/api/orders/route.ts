@@ -69,6 +69,7 @@ export async function GET(request: NextRequest) {
         payment: o.payment_method,
         status: status as any,
         date: o.created_at.toISOString().slice(0, 10),
+        createdAt: o.created_at.toISOString(),
         notes: o.customer_notes || '',
         customerNote: o.customer_notes || '',
         shopNote: o.admin_notes || '',
