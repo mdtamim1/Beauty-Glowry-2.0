@@ -381,10 +381,11 @@ function FraudCheckModal({ phone, onClose }: { phone: string; onClose: () => voi
 }
 
 // ─── View/Edit Order Modal ─────────────────────────────────────────────────────
-function ViewOrderModal({ order, onClose, onSave }: {
+function ViewOrderModal({ order, onClose, onSave, geocodeData }: {
   order: Order;
   onClose: () => void;
   onSave: (order: Order) => void;
+  geocodeData?: Record<string, Record<string, string[]>>;
 }) {
   const [customerName, setCustomerName] = useState(order.customer);
   const [customerPhone, setCustomerPhone] = useState(order.phone);
@@ -460,7 +461,15 @@ function ViewOrderModal({ order, onClose, onSave }: {
   });
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const thanas = BD_LOCATIONS[district] || [];
+  const districtsList = geocodeData && Object.keys(geocodeData).length > 0
+    ? Object.keys(geocodeData).sort()
+    : Object.keys(BD_LOCATIONS);
+
+  const thanas = geocodeData && geocodeData[district]
+    ? Object.keys(geocodeData[district]).sort()
+    : (BD_LOCATIONS[district] || []);
+
+  const unions = geocodeData && geocodeData[district]?.[thana] || [];
 
   const filteredProducts = useMemo(() =>
     productSearch.length > 0
@@ -700,27 +709,45 @@ function ViewOrderModal({ order, onClose, onSave }: {
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
               <LabeledField label="District">
                 <div style={{ position: 'relative' }}>
-                  <select value={district} onChange={e => { setDistrict(e.target.value); setThana(''); }} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
-                    {Object.keys(BD_LOCATIONS).map(d => <option key={d} value={d}>{d}</option>)}
+                  <select value={district} onChange={e => { setDistrict(e.target.value); setThana(''); setArea(''); }} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
+                    {districtsList.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                   <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
                 </div>
               </LabeledField>
               <LabeledField label="Thana / Upazila">
                 <div style={{ position: 'relative' }}>
-                  <select value={thana} onChange={e => setThana(e.target.value)} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
+                  <select value={thana} onChange={e => { setThana(e.target.value); setArea(''); }} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
                     <option value="">Select Thana</option>
                     {thanas.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                   <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
                 </div>
               </LabeledField>
-              <LabeledField label="Area / Neighborhood">
-                <input type="text" placeholder="Block C, Section 7..." value={area} onChange={e => setArea(e.target.value)}
-                  style={iS}
-                  onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
-                  onBlur={e => (e.currentTarget.style.borderColor = C.border)}
-                />
+              <LabeledField label="Area / Neighborhood / Union">
+                {unions.length > 0 ? (
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={area}
+                      onChange={e => setArea(e.target.value)}
+                      style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}
+                    >
+                      <option value="">Select Union / Area</option>
+                      {unions.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                    <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Block C, Section 7..."
+                    value={area}
+                    onChange={e => setArea(e.target.value)}
+                    style={iS}
+                    onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                    onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                  />
+                )}
               </LabeledField>
             </div>
 
@@ -1117,7 +1144,7 @@ function ViewOrderModal({ order, onClose, onSave }: {
 }
 
 // ─── Create Order Modal ───────────────────────────────────────────────────
-function CreateOrderModal({ onClose, onSave }: { onClose: () => void; onSave: (order: Order) => void }) {
+function CreateOrderModal({ onClose, onSave, geocodeData }: { onClose: () => void; onSave: (order: Order) => void; geocodeData?: Record<string, Record<string, string[]>> }) {
   const [invoiceNo] = useState(genInvoiceNo());
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
@@ -1145,7 +1172,15 @@ function CreateOrderModal({ onClose, onSave }: { onClose: () => void; onSave: (o
   const [orderItems, setOrderItems] = useState<OrderItem[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
 
-  const thanas = BD_LOCATIONS[district] || [];
+  const districtsList = geocodeData && Object.keys(geocodeData).length > 0
+    ? Object.keys(geocodeData).sort()
+    : Object.keys(BD_LOCATIONS);
+
+  const thanas = geocodeData && geocodeData[district]
+    ? Object.keys(geocodeData[district]).sort()
+    : (BD_LOCATIONS[district] || []);
+
+  const unions = geocodeData && geocodeData[district]?.[thana] || [];
 
   const filteredProducts = useMemo(() =>
     productSearch.length > 0
@@ -1356,27 +1391,45 @@ function CreateOrderModal({ onClose, onSave }: { onClose: () => void; onSave: (o
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
               <LabeledField label="District">
                 <div style={{ position: 'relative' }}>
-                  <select value={district} onChange={e => { setDistrict(e.target.value); setThana(''); }} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
-                    {Object.keys(BD_LOCATIONS).map(d => <option key={d} value={d}>{d}</option>)}
+                  <select value={district} onChange={e => { setDistrict(e.target.value); setThana(''); setArea(''); }} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
+                    {districtsList.map(d => <option key={d} value={d}>{d}</option>)}
                   </select>
                   <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
                 </div>
               </LabeledField>
               <LabeledField label="Thana / Upazila">
                 <div style={{ position: 'relative' }}>
-                  <select value={thana} onChange={e => setThana(e.target.value)} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
+                  <select value={thana} onChange={e => { setThana(e.target.value); setArea(''); }} style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}>
                     <option value="">Select Thana</option>
                     {thanas.map(t => <option key={t} value={t}>{t}</option>)}
                   </select>
                   <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
                 </div>
               </LabeledField>
-              <LabeledField label="Area / Neighborhood">
-                <input type="text" placeholder="Block C, Section 7..." value={area} onChange={e => setArea(e.target.value)}
-                  style={iS}
-                  onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
-                  onBlur={e => (e.currentTarget.style.borderColor = C.border)}
-                />
+              <LabeledField label="Area / Neighborhood / Union">
+                {unions.length > 0 ? (
+                  <div style={{ position: 'relative' }}>
+                    <select
+                      value={area}
+                      onChange={e => setArea(e.target.value)}
+                      style={{ ...iS, paddingRight: 28, appearance: 'none', cursor: 'pointer' }}
+                    >
+                      <option value="">Select Union / Area</option>
+                      {unions.map(u => <option key={u} value={u}>{u}</option>)}
+                    </select>
+                    <ChevronDown size={12} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+                  </div>
+                ) : (
+                  <input
+                    type="text"
+                    placeholder="Block C, Section 7..."
+                    value={area}
+                    onChange={e => setArea(e.target.value)}
+                    style={iS}
+                    onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+                    onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+                  />
+                )}
               </LabeledField>
             </div>
 
@@ -1671,6 +1724,14 @@ export default function AdminOrders() {
   const [quickFraudOrder, setQuickFraudOrder] = useState<Order | null>(null);
   const [quickCourierOrder, setQuickCourierOrder] = useState<Order | null>(null);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [geocodeData, setGeocodeData] = useState<Record<string, Record<string, string[]>>>({});
+
+  useEffect(() => {
+    fetch('/bangladesh-geocode.json')
+      .then(res => res.json())
+      .then(data => setGeocodeData(data))
+      .catch(err => console.error('Failed to load geocode data:', err));
+  }, []);
 
   // Clear selection when search/filter changes
   useEffect(() => {
@@ -2572,7 +2633,7 @@ export default function AdminOrders() {
       <p style={{ fontSize: 12, color: C.muted }}>Showing {filtered.length} of {orders.length} orders</p>
 
       {/* Create Order Modal */}
-      {showCreateModal && <CreateOrderModal onClose={() => setShowCreateModal(false)} onSave={handleNewOrder} />}
+      {showCreateModal && <CreateOrderModal onClose={() => setShowCreateModal(false)} onSave={handleNewOrder} geocodeData={geocodeData} />}
 
       {/* View Order Modal */}
       {viewOrder && (
@@ -2580,6 +2641,7 @@ export default function AdminOrders() {
           order={viewOrder}
           onClose={() => setViewOrder(null)}
           onSave={handleUpdateOrder}
+          geocodeData={geocodeData}
         />
       )}
 
