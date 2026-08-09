@@ -199,19 +199,51 @@ export async function POST(request: Request) {
       // Create order items
       for (const item of items) {
         // Find product variant ID
-        let variantId = item.variant?.id;
+        let variantId = item.variant?.id || null;
 
         if (!variantId) {
-          // If no variant id is passed, find standard variant for the product
+          // Try to find variant from DB product
           const dbProduct = await tx.product.findUnique({
             where: { id: String(item.product.id) },
             include: { variants: true },
           });
-          variantId = dbProduct?.variants[0]?.id;
+          variantId = dbProduct?.variants?.[0]?.id || null;
         }
 
         if (!variantId) {
-          throw new Error(`Product variant not found for product id: ${item.product.id}`);
+          // Product not in DB (static-only product).
+          // Find or create a minimal product + variant so the order item can be saved.
+          const productIdStr = String(item.product.id);
+          let dbProduct = await tx.product.findUnique({ where: { id: productIdStr } });
+
+          if (!dbProduct) {
+            // Find the brand record (or pick the first available brand)
+            const firstBrand = await tx.brand.findFirst();
+            dbProduct = await tx.product.create({
+              data: {
+                id: productIdStr,
+                name: item.product.name || 'Skincare Product',
+                slug: `product-${productIdStr}`,
+                sku: `SKU-PROD-${productIdStr}`,
+                description: item.product.description || '',
+                price: Number(item.product.price) || 0,
+                stock_qty: 999,
+                brand_id: firstBrand?.id || null,
+                is_active: true,
+              },
+            });
+          }
+
+          const createdVariant = await tx.productVariant.create({
+            data: {
+              product_id: dbProduct.id,
+              label: item.variant?.label || 'Standard',
+              sku: `SKU-${productIdStr}-${Date.now()}`,
+              price: Number(item.variant?.price || item.product.price) || 0,
+              stock_qty: 999,
+            },
+          });
+          variantId = createdVariant.id;
         }
 
         await tx.orderItem.create({
@@ -223,25 +255,21 @@ export async function POST(request: Request) {
           },
         });
 
-        // Decrement variant stock in database
+        // Decrement variant stock
         await tx.productVariant.update({
           where: { id: variantId },
-          data: {
-            stock_qty: {
-              decrement: item.quantity,
-            },
-          },
+          data: { stock_qty: { decrement: item.quantity } },
         });
 
-        // Decrement main product global stock in database
-        await tx.product.update({
-          where: { id: String(item.product.id) },
-          data: {
-            stock_qty: {
-              decrement: item.quantity,
-            },
-          },
-        });
+        // Decrement product stock (best-effort)
+        try {
+          await tx.product.update({
+            where: { id: String(item.product.id) },
+            data: { stock_qty: { decrement: item.quantity } },
+          });
+        } catch {
+          // ignore if product update fails
+        }
       }
 
       // Create an Admin notification alert for the new order

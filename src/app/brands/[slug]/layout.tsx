@@ -12,10 +12,7 @@ async function getBrandData(slug: string) {
   try {
     const b = await prisma.brand.findFirst({
       where: {
-        OR: [
-          { id: slug },
-          { slug: slug },
-        ],
+        id: slug,
       },
       include: {
         products: {
@@ -27,9 +24,9 @@ async function getBrandData(slug: string) {
 
     if (b) {
       return {
-        id: b.slug || b.id,
+        id: b.id,
         name: b.name,
-        tagline: b.description || 'Clinical Formulations',
+        tagline: 'Clinical Formulations',
         description: b.description || `${b.name} clinical skincare products formulated for maximum efficacy.`,
         country: 'Clinical Lab',
         coverImage: b.logo || `${baseUrl}/logo.PNG`,

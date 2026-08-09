@@ -13,26 +13,54 @@ export default function BrandDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
 
-  const brand = brands.find((b) => b.id === slug);
-  const [dbProducts, setDbProducts] = useState<typeof products>([]);
+  const [dbBrands, setDbBrands] = useState<any[]>([]);
+  const [dbProducts, setDbProducts] = useState<any[]>([]);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
-    fetch('/api/products')
-      .then((res) => res.json())
-      .then((data) => {
-        if (Array.isArray(data)) {
-          setDbProducts(data);
-        }
+    Promise.all([
+      fetch('/api/products').then(r => r.json()),
+      fetch('/api/brands').then(r => r.json()),
+    ])
+      .then(([prods, brnds]) => {
+        if (Array.isArray(prods)) setDbProducts(prods);
+        if (Array.isArray(brnds)) setDbBrands(brnds);
         setLoaded(true);
       })
       .catch((err) => {
-        console.error('Failed to load products for brand page:', err);
+        console.error('Failed to load data for brand page:', err);
         setLoaded(true);
       });
   }, []);
 
-  const brandProducts = dbProducts.filter((p) => p.brand === slug);
+  const activeBrands = dbBrands.length > 0 ? dbBrands : brands;
+  const rawBrand = activeBrands.find((b) => b.id === slug || b.slug === slug);
+
+  const brand = rawBrand ? {
+    id: rawBrand.id,
+    name: rawBrand.name,
+    tagline: rawBrand.tagline || (brands.find(b => b.id === rawBrand.id)?.tagline) || 'Clinical Skincare',
+    description: rawBrand.description || (brands.find(b => b.id === rawBrand.id)?.description) || '',
+    logo: rawBrand.logo || (brands.find(b => b.id === rawBrand.id)?.logo) || '✦',
+    coverImage: (brands.find(b => b.id === rawBrand.id)?.coverImage) || rawBrand.coverImage || 'https://images.unsplash.com/photo-1596755389378-c31d21fd1273?q=80&w=1600&auto=format&fit=crop',
+    country: (brands.find(b => b.id === rawBrand.id)?.country) || rawBrand.country || 'International',
+    founded: (brands.find(b => b.id === rawBrand.id)?.founded) || rawBrand.founded || '2024',
+    accentColor: (brands.find(b => b.id === rawBrand.id)?.accentColor) || rawBrand.accentColor || '#C9956D',
+  } : null;
+
+  const brandProducts = dbProducts.filter((p) => p.brand === brand?.id);
+
+  if (!loaded) {
+    return (
+      <>
+        <Navbar />
+        <div style={{ minHeight: '60vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-base)' }}>
+          <p style={{ color: 'var(--text-muted)' }}>Loading collection...</p>
+        </div>
+        <Footer />
+      </>
+    );
+  }
 
   if (!brand) {
     return (
@@ -330,7 +358,7 @@ export default function BrandDetailPage() {
           .brand-products-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
         }
         @media (max-width: 420px) {
-          .brand-products-grid { grid-template-columns: 1fr; }
+          .brand-products-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
         }
       `}</style>
     </>

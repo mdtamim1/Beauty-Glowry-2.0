@@ -1,292 +1,273 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
-import { ArrowRight, Package, MapPin, Calendar, Search, Globe, Sparkles, SlidersHorizontal } from 'lucide-react';
+import { ArrowRight, Search, Star, Package, ChevronRight } from 'lucide-react';
 import { brands as staticBrands, products as staticProducts } from '../../data/products';
 import Navbar from '../../components/Navbar';
 import Footer from '../../components/Footer';
 
+// ── Brand accent gradients ────────────────────────────────────────────────────
+const BRAND_GRADIENTS: Record<string, string> = {
+  'beauty-glowry': 'linear-gradient(135deg, #1a0d00 0%, #3d1f00 40%, #c9956d 100%)',
+  'dermalab':       'linear-gradient(135deg, #001a10 0%, #023d22 40%, #4caf82 100%)',
+  'pureact':        'linear-gradient(135deg, #00061a 0%, #02174a 40%, #60a5fa 100%)',
+  'luminos':        'linear-gradient(135deg, #1a0d00 0%, #4a2700 40%, #f0a54b 100%)',
+};
+
+const DEFAULT_GRADIENT = 'linear-gradient(135deg, #0f0c08 0%, #2a1f14 40%, #c9956d 100%)';
+
 export default function BrandsPage() {
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [dbProducts, setDbProducts] = useState<any[]>([]);
-  const [dbBrands, setDbBrands] = useState<any[]>([]);
-  const [loaded, setLoaded] = useState(false);
-  
-  // Filtering states
+  const [dbBrands, setDbBrands]     = useState<any[]>([]);
+  const [loaded, setLoaded]         = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCountry, setSelectedCountry] = useState<string>('All');
+  const [hoveredId, setHoveredId]   = useState<string | null>(null);
+  const heroRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     Promise.all([
-      fetch('/api/products').then((res) => res.json()),
-      fetch('/api/brands').then((res) => res.json())
+      fetch('/api/products').then(r => r.json()),
+      fetch('/api/brands').then(r => r.json()),
     ])
-      .then(([productsData, brandsData]) => {
-        if (Array.isArray(productsData)) setDbProducts(productsData);
-        if (Array.isArray(brandsData)) setDbBrands(brandsData);
+      .then(([prods, brnds]) => {
+        if (Array.isArray(prods))  setDbProducts(prods);
+        if (Array.isArray(brnds)) setDbBrands(brnds);
         setLoaded(true);
       })
-      .catch((err) => {
-        console.error('Failed to load data for brands page:', err);
-        setLoaded(true);
-      });
+      .catch(() => setLoaded(true));
   }, []);
 
   const activeBrands = dbBrands.length > 0 ? dbBrands : staticBrands;
 
-  const brandsWithCount = useMemo(() => {
-    return activeBrands.map((brand) => {
-      // Find fallback info from static brands if database lacks them
-      const staticMatch = staticBrands.find((sb) => sb.id === brand.id);
+  const brandsData = useMemo(() => {
+    return activeBrands.map(brand => {
+      const st = staticBrands.find(s => s.id === brand.id);
+      const prods = dbProducts.filter(p => p.brand === brand.id);
       return {
         id: brand.id,
         name: brand.name,
-        logo: brand.logo || staticMatch?.logo || '✦',
-        tagline: staticMatch?.tagline || 'Dermatological Formulations',
-        description: brand.description || staticMatch?.description || 'Precision formulations engineered for skin efficiency.',
-        coverImage: staticMatch?.coverImage || 'https://images.unsplash.com/photo-1596755389378-c31d21fd1273?q=80&w=1600&auto=format&fit=crop',
-        country: staticMatch?.country || 'International',
-        founded: staticMatch?.founded || '2024',
-        accentColor: staticMatch?.accentColor || '#C9956D',
-        productCount: dbProducts.filter((p) => p.brand === brand.id).length,
-        productsList: dbProducts.filter((p) => p.brand === brand.id),
+        tagline: st?.tagline || brand.tagline || 'Dermatological Excellence',
+        description: brand.description || st?.description || '',
+        logo: brand.logo || st?.logo || '✦',
+        coverImage: st?.coverImage || brand.coverImage || 'https://images.unsplash.com/photo-1596755389378-c31d21fd1273?q=80&w=1600&auto=format&fit=crop',
+        country: st?.country || brand.country || 'International',
+        founded: st?.founded || brand.founded || '2024',
+        accentColor: st?.accentColor || brand.accentColor || '#C9956D',
+        gradient: BRAND_GRADIENTS[brand.id] || DEFAULT_GRADIENT,
+        productCount: prods.length,
+        productsList: prods,
+        topRating: prods.length > 0
+          ? Math.max(...prods.map(p => p.rating || 0))
+          : null,
       };
     });
   }, [activeBrands, dbProducts]);
 
-  // Unique countries for filtering
-  const countries = useMemo(() => {
-    const list = brandsWithCount.map((b) => b.country);
-    return ['All', ...Array.from(new Set(list))];
-  }, [brandsWithCount]);
+  const filtered = useMemo(() => {
+    if (!searchTerm) return brandsData;
+    const q = searchTerm.toLowerCase();
+    return brandsData.filter(b =>
+      b.name.toLowerCase().includes(q) ||
+      b.tagline.toLowerCase().includes(q) ||
+      b.country.toLowerCase().includes(q)
+    );
+  }, [brandsData, searchTerm]);
 
-  // Filtered brands
-  const filteredBrands = useMemo(() => {
-    return brandsWithCount.filter((brand) => {
-      const matchesSearch = brand.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-        brand.tagline.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        brand.description.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCountry = selectedCountry === 'All' || brand.country === selectedCountry;
-      return matchesSearch && matchesCountry;
-    });
-  }, [brandsWithCount, searchTerm, selectedCountry]);
-
-  // Stats computation
-  const stats = useMemo(() => {
-    const uniqueCountries = new Set(brandsWithCount.map(b => b.country)).size;
-    return {
-      totalBrands: brandsWithCount.length,
-      regions: uniqueCountries,
-      totalProducts: dbProducts.length
-    };
-  }, [brandsWithCount, dbProducts]);
+  const totalProducts = dbProducts.length;
 
   return (
     <>
       <Navbar />
 
-      {/* ── Page Header & Stats Banner ─────────────────────────────────────────── */}
-      <div className="brands-hero">
-        <div className="container-lg brands-hero-content">
-          <div className="brands-title-block">
-            <span className="brands-badge">
-              <Sparkles size={12} style={{ color: 'var(--accent)' }} /> CLINICAL PARTNERS
-            </span>
-            <h1 className="brands-heading">Our Skincare Houses</h1>
-            <p className="brands-subtitle">
-              Science-first dermatological formulators selected for clinical potency, clean actives, and measurable skin transformation.
-            </p>
-          </div>
+      {/* ══ HERO ═══════════════════════════════════════════════════════════════ */}
+      <div className="bh-hero" ref={heroRef}>
+        {/* Background grid of brand images */}
+        <div className="bh-hero-bg-grid" aria-hidden>
+          {brandsData.slice(0, 4).map((b, i) => (
+            <div
+              key={b.id}
+              className="bh-hero-bg-cell"
+              style={{ backgroundImage: `url(${b.coverImage})` }}
+            />
+          ))}
+        </div>
+        <div className="bh-hero-veil" />
 
-          {/* Stats boxes */}
-          <div className="brands-stats-row">
-            <div className="brand-stat-box">
-              <span className="brand-stat-num">{stats.totalBrands}</span>
-              <span className="brand-stat-label">Active Brands</span>
-            </div>
-            <div className="brand-stat-box">
-              <span className="brand-stat-num">{stats.regions}</span>
-              <span className="brand-stat-label">Origin Countries</span>
-            </div>
-            <div className="brand-stat-box">
-              <span className="brand-stat-num">{stats.totalProducts}</span>
-              <span className="brand-stat-label">Formulations</span>
-            </div>
+        <div className="container-lg bh-hero-inner">
+          <p className="bh-eyebrow">Our Skincare Partners</p>
+          <h1 className="bh-hero-title">
+            Brands you can<br />
+            <em>trust &amp; love</em>
+          </h1>
+          <p className="bh-hero-sub">
+            Curated clinical skincare houses — each selected for ingredient integrity,
+            proven efficacy, and measurable skin transformation.
+          </p>
+
+          {/* Stats strip */}
+          <div className="bh-stats-strip">
+            {[
+              { n: brandsData.length, l: 'Clinical Brands' },
+              { n: totalProducts,     l: 'Formulations' },
+              { n: new Set(brandsData.map(b => b.country)).size, l: 'Countries' },
+            ].map(({ n, l }) => (
+              <div key={l} className="bh-stat">
+                <span className="bh-stat-n">{n}</span>
+                <span className="bh-stat-l">{l}</span>
+              </div>
+            ))}
           </div>
         </div>
-      </div>
 
-      {/* ── Search & Filter Row ────────────────────────────────────────────────── */}
-      <div className="brands-filter-section">
-        <div className="container-lg brands-filter-row">
-          {/* Search bar */}
-          <div className="brands-search-wrapper">
-            <Search size={16} className="brands-search-icon" />
+        {/* Floating search bar */}
+        <div className="bh-search-float">
+          <div className="bh-search-wrap">
+            <Search size={16} className="bh-search-icon" />
             <input
               type="text"
-              placeholder="Search clinical brand..."
+              placeholder="Search brands, origins…"
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="brands-search-input"
+              onChange={e => setSearchTerm(e.target.value)}
+              className="bh-search-input"
             />
+            {searchTerm && (
+              <button className="bh-search-clear" onClick={() => setSearchTerm('')}>✕</button>
+            )}
           </div>
-
-          {/* Country filter tags */}
-          <div className="brands-tags-group">
-            <span className="filter-label">
-              <Globe size={13} /> Country:
-            </span>
-            <div className="brands-tags-scroll">
-              {countries.map((country) => (
-                <button
-                  key={country}
-                  onClick={() => setSelectedCountry(country)}
-                  className={`brand-filter-tag ${selectedCountry === country ? 'active' : ''}`}
-                >
-                  {country}
-                </button>
-              ))}
-            </div>
-          </div>
+          <span className="bh-search-count">
+            {filtered.length} brand{filtered.length !== 1 ? 's' : ''}
+          </span>
         </div>
       </div>
 
-      {/* ── Brand Grid ─────────────────────────────────────────────────────────── */}
-      <div className="brands-main-content">
+      {/* ══ BRAND CARDS GRID ═══════════════════════════════════════════════════ */}
+      <section className="bh-section">
         <div className="container-lg">
-          {filteredBrands.length === 0 ? (
-            <div className="brands-empty-state">
-              <Package size={36} style={{ color: 'var(--text-muted)', marginBottom: 12 }} />
-              <h3>No Brands Found</h3>
-              <p>Try refining your search terms or clearing the country filter.</p>
-              {(searchTerm || selectedCountry !== 'All') && (
-                <button
-                  onClick={() => { setSearchTerm(''); setSelectedCountry('All'); }}
-                  className="btn-outline"
-                  style={{ marginTop: 16, padding: '8px 20px', fontSize: 13 }}
-                >
-                  Reset Filters
-                </button>
-              )}
+          {filtered.length === 0 ? (
+            <div className="bh-empty">
+              <Package size={40} style={{ color: 'var(--text-muted)', marginBottom: 16 }} />
+              <h3>No brands match "{searchTerm}"</h3>
+              <button className="btn-outline" style={{ marginTop: 16, padding: '10px 24px', fontSize: 13 }}
+                onClick={() => setSearchTerm('')}>
+                Clear Search
+              </button>
             </div>
           ) : (
-            <div className="brands-custom-grid">
-              {filteredBrands.map((brand) => {
-                const isHovered = hoveredId === brand.id;
+            <div className="bh-grid">
+              {filtered.map((brand, idx) => {
+                const isHov = hoveredId === brand.id;
                 return (
                   <Link
                     key={brand.id}
                     href={`/brands/${brand.id}`}
-                    className="brand-card-link"
+                    className="bh-card-link"
                     onMouseEnter={() => setHoveredId(brand.id)}
                     onMouseLeave={() => setHoveredId(null)}
                   >
                     <article
-                      className="brand-card"
+                      className={`bh-card bh-card-${(idx % 4 === 0 || idx % 4 === 3) ? 'wide' : 'narrow'}`}
                       style={{
-                        borderColor: isHovered ? brand.accentColor : 'var(--border-default)',
-                        boxShadow: isHovered
-                          ? `0 30px 70px ${brand.accentColor}18, 0 8px 32px rgba(0,0,0,0.12)`
-                          : '0 4px 16px rgba(0,0,0,0.02)',
-                        transform: isHovered ? 'translateY(-6px)' : 'translateY(0)',
-                      }}
+                        '--brand-color': brand.accentColor,
+                        boxShadow: isHov
+                          ? `0 32px 80px ${brand.accentColor}28, 0 8px 28px rgba(0,0,0,0.16)`
+                          : '0 2px 12px rgba(0,0,0,0.04)',
+                        transform: isHov ? 'translateY(-8px)' : 'none',
+                      } as React.CSSProperties}
                     >
-                      {/* Card Cover Banner */}
-                      <div className="brand-card-banner">
+                      {/* ── Cover image with gradient overlay */}
+                      <div className="bh-card-cover">
                         <div
-                          className="brand-card-cover-bg"
+                          className="bh-card-cover-img"
                           style={{
                             backgroundImage: `url(${brand.coverImage})`,
-                            transform: isHovered ? 'scale(1.08)' : 'scale(1)',
+                            transform: isHov ? 'scale(1.07)' : 'scale(1)',
                           }}
                         />
-                        <div className="brand-card-overlay" />
-                        
-                        {/* Circle logo over banner */}
+                        {/* Dark gradient base */}
                         <div
-                          className="brand-card-logo-circle"
-                          style={{
-                            borderColor: brand.accentColor,
-                            background: `rgba(28,28,25,0.85)`,
-                            transform: isHovered ? 'scale(1.1) translateY(-6px)' : 'scale(1) translateY(0)',
-                          }}
-                        >
-                          {brand.logo}
+                          className="bh-card-cover-grad"
+                          style={{ background: brand.gradient }}
+                        />
+                        {/* Soft veil */}
+                        <div className="bh-card-cover-veil" />
+
+                        {/* ── Top badges */}
+                        <div className="bh-card-top-row">
+                          <span className="bh-card-origin">
+                            {brand.country}
+                          </span>
+                          {brand.productCount > 0 && (
+                            <span className="bh-card-count-badge">
+                              {brand.productCount} products
+                            </span>
+                          )}
+                        </div>
+
+                        {/* ── Brand name block (over image) */}
+                        <div className="bh-card-name-block">
+                          <span
+                            className="bh-card-logo-glyph"
+                            style={{ color: brand.accentColor }}
+                          >
+                            {brand.logo}
+                          </span>
+                          <h2 className="bh-card-name">{brand.name}</h2>
+                          <p
+                            className="bh-card-tagline"
+                            style={{ color: brand.accentColor }}
+                          >
+                            {brand.tagline}
+                          </p>
                         </div>
                       </div>
 
-                      {/* Card Info Content */}
-                      <div className="brand-card-body">
-                        <div className="brand-card-meta-top">
-                          <span className="brand-card-country">
-                            <MapPin size={12} /> {brand.country}
-                          </span>
-                          <span className="brand-card-year">
-                            <Calendar size={12} /> Est. {brand.founded}
-                          </span>
-                        </div>
+                      {/* ── Card body */}
+                      <div className="bh-card-body">
+                        <p className="bh-card-desc">{brand.description}</p>
 
-                        <h2 className="brand-card-title">{brand.name}</h2>
-                        
-                        <p className="brand-card-tagline" style={{ color: brand.accentColor }}>
-                          {brand.tagline}
-                        </p>
-                        
-                        <p className="brand-card-desc">{brand.description}</p>
-
-                        {/* Key formulations (product thumbnails) */}
+                        {/* Product thumbnail strip */}
                         {brand.productsList.length > 0 && (
-                          <div className="brand-card-products">
-                            <p className="brand-card-products-title">
-                              Featured Formulations ({brand.productCount})
-                            </p>
-                            <div className="brand-card-products-row">
-                              {brand.productsList.slice(0, 3).map((prod) => (
-                                <Link
-                                  key={prod.id}
-                                  href={`/product/${prod.id}`}
-                                  onClick={(e) => e.stopPropagation()} // prevent outer Link click
-                                  className="brand-mini-product-link"
-                                  title={prod.name}
-                                >
-                                  <img src={prod.image} alt={prod.name} className="brand-mini-product-img" />
-                                </Link>
+                          <div className="bh-card-prods">
+                            <span className="bh-card-prods-label">Featured</span>
+                            <div className="bh-card-prods-strip">
+                              {brand.productsList.slice(0, 4).map(p => (
+                                <div key={p.id} className="bh-prod-thumb">
+                                  <img src={p.image} alt={p.name} />
+                                </div>
                               ))}
-                              {brand.productsList.length > 3 && (
-                                <div className="brand-mini-product-more">
-                                  +{brand.productsList.length - 3}
+                              {brand.productsList.length > 4 && (
+                                <div className="bh-prod-thumb bh-prod-more">
+                                  +{brand.productsList.length - 4}
                                 </div>
                               )}
                             </div>
                           </div>
                         )}
 
-                        {/* Bottom CTA Row */}
-                        <div className="brand-card-cta-row" style={{ marginTop: brand.productsList.length > 0 ? 20 : 'auto' }}>
-                          <span
-                            className="brand-card-cta-text"
-                            style={{
-                              color: isHovered ? brand.accentColor : 'var(--text-primary)',
-                            }}
-                          >
-                            Explore Formulations
-                          </span>
-                          <div
-                            className="brand-card-arrow-circle"
-                            style={{
-                              background: isHovered ? brand.accentColor : 'transparent',
-                              borderColor: isHovered ? brand.accentColor : 'var(--border-default)',
-                            }}
-                          >
-                            <ArrowRight
-                              size={14}
-                              style={{
-                                color: isHovered ? '#fff' : 'var(--text-muted)',
-                                transform: isHovered ? 'translateX(3px)' : 'translateX(0)',
-                              }}
-                            />
+                        {/* Bottom CTA */}
+                        <div className="bh-card-cta">
+                          <div className="bh-card-meta">
+                            {brand.topRating && (
+                              <span className="bh-card-rating">
+                                <Star size={11} style={{ fill: '#C9956D', color: '#C9956D' }} />
+                                {brand.topRating.toFixed(1)}
+                              </span>
+                            )}
+                            <span className="bh-card-since">Est. {brand.founded}</span>
                           </div>
+                          <span
+                            className="bh-card-explore"
+                            style={{ color: isHov ? brand.accentColor : 'var(--text-primary)' }}
+                          >
+                            Explore
+                            <span
+                              className="bh-card-arrow"
+                              style={{ background: isHov ? brand.accentColor : 'var(--bg-elevated)' }}
+                            >
+                              <ArrowRight size={13} style={{ color: isHov ? '#fff' : 'var(--text-muted)' }} />
+                            </span>
+                          </span>
                         </div>
                       </div>
                     </article>
@@ -296,491 +277,610 @@ export default function BrandsPage() {
             </div>
           )}
         </div>
-      </div>
+      </section>
+
+      {/* ══ BOTTOM TRUST STRIP ════════════════════════════════════════════════ */}
+      <section className="bh-trust">
+        <div className="container-lg bh-trust-inner">
+          <p className="bh-trust-label">Why our brands?</p>
+          {[
+            { icon: '🔬', h: 'Clinically Tested', s: 'Every formula validated with independent dermatological trials.' },
+            { icon: '🌿', h: 'Clean Actives',     s: 'No harmful additives — just potent, effective ingredients.' },
+            { icon: '📋', h: 'Full Transparency', s: 'Complete INCI lists and concentration disclosure.' },
+            { icon: '🌍', h: 'Global Sourcing',   s: 'Ingredients sourced from certified labs worldwide.' },
+          ].map(({ icon, h, s }) => (
+            <div key={h} className="bh-trust-item">
+              <span className="bh-trust-icon">{icon}</span>
+              <strong className="bh-trust-h">{h}</strong>
+              <p className="bh-trust-s">{s}</p>
+            </div>
+          ))}
+        </div>
+      </section>
 
       <Footer />
 
       <style>{`
-        /* Immersive Hero styling */
-        .brands-hero {
-          background: linear-gradient(to bottom, var(--bg-surface) 0%, var(--bg-base) 100%);
-          border-bottom: 1px solid var(--border-default);
-          padding: 80px 0 64px;
+        /* ══ HERO ═══════════════════════════════════════════════════════════ */
+        .bh-hero {
           position: relative;
-        }
-
-        .brands-hero-content {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-end;
-          gap: 40px;
-        }
-
-        .brands-title-block {
-          flex: 1;
-          max-width: 600px;
-        }
-
-        .brands-badge {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          font-size: 11px;
-          font-weight: 700;
-          letter-spacing: 0.14em;
-          color: var(--accent);
-          background: rgba(201, 149, 109, 0.08);
-          padding: 6px 14px;
-          border-radius: 99px;
-          margin-bottom: 16px;
-          border: 1px solid rgba(201, 149, 109, 0.15);
-        }
-
-        .brands-heading {
-          font-family: 'Cormorant Garamond', Georgia, serif;
-          font-size: clamp(34px, 5.5vw, 52px);
-          font-weight: 400;
-          color: var(--text-primary);
-          line-height: 1.1;
-          margin-bottom: 14px;
-        }
-
-        .brands-subtitle {
-          font-size: 15px;
-          color: var(--text-secondary);
-          line-height: 1.65;
-        }
-
-        .brands-stats-row {
-          display: flex;
-          gap: 16px;
-          flex-shrink: 0;
-        }
-
-        .brand-stat-box {
-          background: var(--bg-surface);
-          border: 1px solid var(--border-default);
-          border-radius: 12px;
-          padding: 16px 24px;
-          min-width: 130px;
+          min-height: 520px;
           display: flex;
           flex-direction: column;
-          align-items: center;
-          text-align: center;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.02);
+          justify-content: flex-end;
+          overflow: hidden;
+          background: var(--text-primary);
+          padding-bottom: 56px;
         }
 
-        .brand-stat-num {
-          font-family: 'Cormorant Garamond', Georgia, serif;
-          font-size: 32px;
+        .bh-hero-bg-grid {
+          position: absolute;
+          inset: 0;
+          display: grid;
+          grid-template-columns: repeat(4, 1fr);
+        }
+        .bh-hero-bg-cell {
+          background-size: cover;
+          background-position: center;
+          opacity: 0.22;
+        }
+        .bh-hero-veil {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            to bottom,
+            rgba(26,26,24,0.5) 0%,
+            rgba(26,26,24,0.82) 60%,
+            rgba(26,26,24,0.96) 100%
+          );
+        }
+
+        .bh-hero-inner {
+          position: relative;
+          z-index: 2;
+          padding-top: 100px;
+        }
+
+        .bh-eyebrow {
+          font-size: 11px;
           font-weight: 700;
+          letter-spacing: 0.18em;
+          text-transform: uppercase;
           color: var(--accent);
-          line-height: 1.1;
+          margin-bottom: 16px;
         }
 
-        .brand-stat-label {
-          font-size: 10px;
+        .bh-hero-title {
+          font-family: 'Cormorant Garamond', Georgia, serif;
+          font-size: clamp(40px, 6vw, 72px);
+          font-weight: 400;
+          color: var(--bg-base);
+          line-height: 1.08;
+          margin-bottom: 20px;
+        }
+        .bh-hero-title em {
+          font-style: italic;
+          color: var(--accent);
+        }
+
+        .bh-hero-sub {
+          font-size: 15px;
+          color: rgba(250,247,242,0.55);
+          line-height: 1.7;
+          max-width: 500px;
+          margin-bottom: 40px;
+        }
+
+        /* Stats strip */
+        .bh-stats-strip {
+          display: flex;
+          gap: 0;
+        }
+        .bh-stat {
+          display: flex;
+          flex-direction: column;
+          padding: 16px 32px 16px 0;
+          margin-right: 32px;
+          border-right: 1px solid rgba(250,247,242,0.12);
+        }
+        .bh-stat:last-child { border-right: none; margin-right: 0; }
+        .bh-stat-n {
+          font-family: 'Cormorant Garamond', Georgia, serif;
+          font-size: 36px;
           font-weight: 600;
+          color: var(--accent);
+          line-height: 1;
+        }
+        .bh-stat-l {
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.1em;
           text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: var(--text-muted);
+          color: rgba(250,247,242,0.4);
           margin-top: 4px;
         }
 
-        /* Filter section */
-        .brands-filter-section {
-          background: var(--bg-surface);
-          border-bottom: 1px solid var(--border-default);
-          padding: 16px 0;
-          position: sticky;
-          top: 0;
+        /* Floating search */
+        .bh-search-float {
+          position: relative;
           z-index: 10;
-          backdrop-filter: blur(12px);
-          background: rgba(255, 255, 255, 0.85);
-        }
-        .dark .brands-filter-section {
-          background: rgba(28, 28, 25, 0.85);
-        }
-
-        .brands-filter-row {
+          margin-top: 0;
+          background: var(--bg-surface);
+          border-top: 1px solid var(--border-default);
+          padding: 16px 0;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 24px;
+          gap: 16px;
+          padding-left: max(32px, calc((100% - 1240px) / 2 + 32px));
+          padding-right: max(32px, calc((100% - 1240px) / 2 + 32px));
+          backdrop-filter: blur(20px);
+          -webkit-backdrop-filter: blur(20px);
         }
-
-        .brands-search-wrapper {
-          position: relative;
-          width: 320px;
+        .bh-search-wrap {
           display: flex;
           align-items: center;
-        }
-
-        .brands-search-icon {
-          position: absolute;
-          left: 14px;
-          color: var(--text-muted);
-        }
-
-        .brands-search-input {
-          width: 100%;
-          padding: 10px 14px 10px 38px;
+          gap: 10px;
           background: var(--bg-base);
           border: 1px solid var(--border-default);
           border-radius: 99px;
+          padding: 10px 18px;
+          flex: 1;
+          max-width: 400px;
+          transition: border-color 0.2s, box-shadow 0.2s;
+        }
+        .bh-search-wrap:focus-within {
+          border-color: var(--accent);
+          box-shadow: 0 0 0 3px rgba(201,149,109,0.12);
+        }
+        .bh-search-icon { color: var(--text-muted); flex-shrink: 0; }
+        .bh-search-input {
+          flex: 1;
+          border: none;
+          background: transparent;
+          font-family: 'DM Sans', sans-serif;
           font-size: 13.5px;
           color: var(--text-primary);
           outline: none;
-          transition: all 0.2s ease;
         }
-
-        .brands-search-input:focus {
-          border-color: var(--accent);
-          background: var(--bg-surface);
-          box-shadow: 0 0 0 4px rgba(201, 149, 109, 0.1);
-        }
-
-        .brands-tags-group {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          overflow: hidden;
-        }
-
-        .filter-label {
-          font-size: 12px;
-          font-weight: 700;
+        .bh-search-input::placeholder { color: var(--text-muted); }
+        .bh-search-clear {
+          background: none;
+          border: none;
           color: var(--text-muted);
-          text-transform: uppercase;
-          letter-spacing: 0.05em;
-          display: flex;
-          align-items: center;
-          gap: 5px;
-          flex-shrink: 0;
-        }
-
-        .brands-tags-scroll {
-          display: flex;
-          gap: 8px;
-          overflow-x: auto;
-          scrollbar-width: none;
-          padding: 4px 0;
-        }
-
-        .brands-tags-scroll::-webkit-scrollbar {
-          display: none;
-        }
-
-        .brand-filter-tag {
-          padding: 6px 16px;
-          border-radius: 99px;
-          border: 1px solid var(--border-default);
-          background: transparent;
-          font-size: 12px;
-          font-weight: 600;
-          color: var(--text-secondary);
           cursor: pointer;
-          transition: all 0.2s ease;
+          font-size: 12px;
+          padding: 2px 4px;
+          line-height: 1;
+          transition: color 0.15s;
+        }
+        .bh-search-clear:hover { color: var(--text-primary); }
+        .bh-search-count {
+          font-size: 12px;
+          color: var(--text-muted);
+          font-family: 'DM Mono', monospace;
           white-space: nowrap;
         }
 
-        .brand-filter-tag:hover {
-          color: var(--text-primary);
-          border-color: var(--text-secondary);
-        }
-
-        .brand-filter-tag.active {
-          background: var(--text-primary);
-          color: var(--bg-base);
-          border-color: var(--text-primary);
-        }
-
-        /* Main Grid Content */
-        .brands-main-content {
+        /* ══ BRAND GRID SECTION ════════════════════════════════════════════ */
+        .bh-section {
           background: var(--bg-base);
-          padding: 56px 0 100px;
+          padding: 64px 0 100px;
         }
 
-        .brands-custom-grid {
+        /* Masonry-style: alternating wide/narrow */
+        .bh-grid {
           display: grid;
-          grid-template-columns: repeat(1, 1fr);
-          gap: 32px;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 24px;
         }
+        /* Every 4th card (0-indexed 0 and 3) spans 2 cols — makes mosaic pattern */
+        .bh-card-wide  { grid-column: span 2; }
+        .bh-card-narrow { grid-column: span 1; }
 
-        @media (min-width: 640px) {
-          .brands-custom-grid {
-            grid-template-columns: repeat(2, 1fr);
-            gap: 28px;
-          }
-        }
-
-        @media (min-width: 1024px) {
-          .brands-custom-grid {
-            grid-template-columns: repeat(3, 1fr);
-            gap: 32px;
-          }
-        }
-
-        .brand-card-link {
+        .bh-card-link {
           text-decoration: none;
           color: inherit;
           display: block;
+          height: 100%;
         }
 
-        .brand-card {
+        .bh-card {
           background: var(--bg-surface);
           border: 1px solid var(--border-default);
-          border-radius: 16px;
+          border-radius: 20px;
           overflow: hidden;
           display: flex;
           flex-direction: column;
           height: 100%;
-          transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          min-height: 460px;
+          transition:
+            transform 0.45s cubic-bezier(0.16,1,0.3,1),
+            box-shadow 0.45s cubic-bezier(0.16,1,0.3,1),
+            border-color 0.3s ease;
+        }
+        .bh-card:hover {
+          border-color: rgba(201,149,109,0.35);
         }
 
-        .brand-card-banner {
+        /* ── Cover */
+        .bh-card-cover {
           position: relative;
-          height: 130px;
+          height: 240px;
           overflow: hidden;
-          background: var(--bg-elevated);
+          flex-shrink: 0;
         }
+        .bh-card-wide .bh-card-cover { height: 280px; }
 
-        .brand-card-cover-bg {
+        .bh-card-cover-img {
           position: absolute;
           inset: 0;
           background-size: cover;
           background-position: center;
-          transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+          transition: transform 0.65s cubic-bezier(0.16,1,0.3,1);
         }
-
-        .brand-card-overlay {
+        .bh-card-cover-grad {
           position: absolute;
           inset: 0;
-          background: linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.55) 100%);
+          opacity: 0.72;
+          mix-blend-mode: multiply;
+        }
+        .bh-card-cover-veil {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(
+            to bottom,
+            rgba(0,0,0,0.08) 0%,
+            rgba(0,0,0,0.55) 70%,
+            rgba(0,0,0,0.82) 100%
+          );
         }
 
-        .brand-card-logo-circle {
+        /* Top badges */
+        .bh-card-top-row {
           position: absolute;
-          bottom: -24px;
-          left: 24px;
-          width: 56px;
-          height: 56px;
-          border-radius: 50%;
-          border: 2px solid;
+          top: 16px;
+          left: 16px;
+          right: 16px;
+          z-index: 4;
           display: flex;
           align-items: center;
-          justify-content: center;
-          font-size: 20px;
+          justify-content: space-between;
+        }
+        .bh-card-origin {
+          font-size: 9.5px;
+          font-weight: 800;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
+          color: rgba(250,247,242,0.7);
+          background: rgba(0,0,0,0.35);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          padding: 4px 10px;
+          border-radius: 99px;
+          border: 1px solid rgba(255,255,255,0.1);
+        }
+        .bh-card-count-badge {
+          font-size: 9.5px;
           font-weight: 700;
-          color: #FAF7F2;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-          transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-          z-index: 2;
+          color: rgba(250,247,242,0.8);
+          background: rgba(201,149,109,0.35);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          padding: 4px 10px;
+          border-radius: 99px;
+          border: 1px solid rgba(201,149,109,0.3);
         }
 
-        .brand-card-body {
-          padding: 38px 24px 24px;
+        /* Brand name block over cover */
+        .bh-card-name-block {
+          position: absolute;
+          bottom: 20px;
+          left: 22px;
+          right: 22px;
+          z-index: 4;
+        }
+        .bh-card-logo-glyph {
+          font-size: 22px;
+          line-height: 1;
+          display: block;
+          margin-bottom: 6px;
+          filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
+        }
+        .bh-card-name {
+          font-family: 'Cormorant Garamond', Georgia, serif;
+          font-size: 28px;
+          font-weight: 700;
+          color: #FAF7F2;
+          line-height: 1.1;
+          margin: 0 0 5px;
+          letter-spacing: 0.01em;
+          text-shadow: 0 2px 16px rgba(0,0,0,0.4);
+        }
+        .bh-card-wide .bh-card-name { font-size: 34px; }
+        .bh-card-tagline {
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          margin: 0;
+          opacity: 0.9;
+        }
+
+        /* ── Card body */
+        .bh-card-body {
+          padding: 22px 22px 20px;
           display: flex;
           flex-direction: column;
           flex: 1;
+          gap: 0;
         }
 
-        .brand-card-meta-top {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          font-size: 11px;
-          color: var(--text-muted);
-          margin-bottom: 12px;
-        }
-
-        .brand-card-country, .brand-card-year {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-          font-weight: 500;
-        }
-
-        .brand-card-title {
-          font-family: 'Cormorant Garamond', Georgia, serif;
-          font-size: 22px;
-          font-weight: 700;
-          color: var(--text-primary);
-          line-height: 1.2;
-          margin-bottom: 4px;
-        }
-
-        .brand-card-tagline {
-          font-size: 11px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          margin-bottom: 12px;
-        }
-
-        .brand-card-desc {
-          font-size: 13.5px;
+        .bh-card-desc {
+          font-size: 13px;
           color: var(--text-secondary);
-          line-height: 1.6;
-          margin-bottom: 16px;
+          line-height: 1.65;
+          margin-bottom: 18px;
           display: -webkit-box;
           -webkit-line-clamp: 3;
           -webkit-box-orient: vertical;
           overflow: hidden;
         }
 
-        /* Card Products Section */
-        .brand-card-products {
-          border-top: 1px dashed var(--border-default);
-          padding-top: 14px;
-          margin-top: auto;
-        }
-
-        .brand-card-products-title {
-          font-size: 10px;
-          font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.08em;
-          color: var(--text-muted);
-          margin-bottom: 8px;
-        }
-
-        .brand-card-products-row {
+        /* Product thumbnails */
+        .bh-card-prods {
           display: flex;
           align-items: center;
-          gap: 8px;
+          gap: 12px;
+          margin-bottom: 18px;
+          padding-bottom: 18px;
+          border-bottom: 1px solid var(--border-subtle);
         }
-
-        .brand-mini-product-link {
-          width: 40px;
-          height: 40px;
+        .bh-card-prods-label {
+          font-size: 9px;
+          font-weight: 800;
+          letter-spacing: 0.12em;
+          text-transform: uppercase;
+          color: var(--text-muted);
+          flex-shrink: 0;
+        }
+        .bh-card-prods-strip {
+          display: flex;
+          gap: 6px;
+          align-items: center;
+        }
+        .bh-prod-thumb {
+          width: 38px;
+          height: 38px;
           border-radius: 8px;
-          border: 1px solid var(--border-default);
           overflow: hidden;
-          background: var(--bg-base);
-          display: block;
+          border: 1px solid var(--border-default);
+          background: var(--bg-elevated);
+          flex-shrink: 0;
           transition: all 0.2s ease;
         }
-
-        .brand-mini-product-link:hover {
-          transform: translateY(-2px);
-          border-color: var(--accent);
-        }
-
-        .brand-mini-product-img {
-          width: 100%;
-          height: 100%;
-          object-fit: cover;
-        }
-
-        .brand-mini-product-more {
-          width: 40px;
-          height: 40px;
-          border-radius: 8px;
-          border: 1px dashed var(--border-default);
+        .bh-prod-thumb:hover { transform: translateY(-2px); border-color: var(--accent); }
+        .bh-prod-thumb img { width: 100%; height: 100%; object-fit: cover; }
+        .bh-prod-more {
           display: flex;
           align-items: center;
           justify-content: center;
-          font-size: 11px;
+          font-size: 10px;
           font-weight: 700;
           color: var(--text-muted);
-          background: var(--bg-base);
+          background: var(--bg-elevated);
+          border: 1px dashed var(--border-default);
         }
 
-        /* Card CTA row */
-        .brand-card-cta-row {
+        /* CTA row */
+        .bh-card-cta {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          padding-top: 14px;
+          margin-top: auto;
         }
-
-        .brand-card-cta-text {
-          font-size: 12px;
+        .bh-card-meta {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        }
+        .bh-card-rating {
+          display: flex;
+          align-items: center;
+          gap: 4px;
+          font-size: 11.5px;
           font-weight: 700;
-          text-transform: uppercase;
-          letter-spacing: 0.06em;
-          transition: color 0.2s ease;
+          color: var(--text-secondary);
+          font-family: 'DM Mono', monospace;
         }
-
-        .brand-card-arrow-circle {
-          width: 30px;
-          height: 30px;
+        .bh-card-since {
+          font-size: 10.5px;
+          color: var(--text-muted);
+          font-family: 'DM Mono', monospace;
+        }
+        .bh-card-explore {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0.08em;
+          text-transform: uppercase;
+          transition: color 0.25s ease;
+        }
+        .bh-card-arrow {
+          width: 28px;
+          height: 28px;
           border-radius: 50%;
-          border: 1px solid var(--border-default);
           display: flex;
           align-items: center;
           justify-content: center;
           transition: all 0.25s ease;
+          border: 1px solid var(--border-default);
         }
 
-        .brands-empty-state {
+        /* ══ EMPTY STATE ═══════════════════════════════════════════════════ */
+        .bh-empty {
           text-align: center;
-          padding: 60px 20px;
+          padding: 80px 24px;
           background: var(--bg-surface);
           border: 1px solid var(--border-default);
-          border-radius: 16px;
+          border-radius: 20px;
         }
-
-        .brands-empty-state h3 {
-          font-size: 18px;
-          font-weight: 700;
+        .bh-empty h3 {
+          font-family: 'Cormorant Garamond', Georgia, serif;
+          font-size: 22px;
           color: var(--text-primary);
           margin-bottom: 6px;
         }
 
-        .brands-empty-state p {
-          font-size: 14px;
+        /* ══ TRUST STRIP ═══════════════════════════════════════════════════ */
+        .bh-trust {
+          background: var(--bg-surface);
+          border-top: 1px solid var(--border-default);
+          padding: 56px 0;
+        }
+        .bh-trust-inner {
+          display: grid;
+          grid-template-columns: auto repeat(4, 1fr);
+          gap: 0 40px;
+          align-items: start;
+        }
+        .bh-trust-label {
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.14em;
+          text-transform: uppercase;
           color: var(--text-muted);
+          padding-right: 40px;
+          border-right: 1px solid var(--border-default);
+          align-self: center;
+          white-space: nowrap;
+        }
+        .bh-trust-item {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+        .bh-trust-icon {
+          font-size: 22px;
+          margin-bottom: 4px;
+        }
+        .bh-trust-h {
+          font-size: 13px;
+          font-weight: 700;
+          color: var(--text-primary);
+        }
+        .bh-trust-s {
+          font-size: 12px;
+          color: var(--text-muted);
+          line-height: 1.55;
         }
 
-        /* ── Mobile Responsive Overrides ────────────────────────────────────── */
+        /* ══ RESPONSIVE ════════════════════════════════════════════════════ */
+        @media (max-width: 1024px) {
+          .bh-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+          .bh-card-wide, .bh-card-narrow { grid-column: span 1; }
+          .bh-trust-inner {
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+          }
+          .bh-trust-label {
+            grid-column: span 2;
+            border-right: none;
+            padding-right: 0;
+            border-bottom: 1px solid var(--border-default);
+            padding-bottom: 16px;
+          }
+        }
+
+        /* ── TABLET ──────────────────────────────────────── */
         @media (max-width: 768px) {
-          .brands-hero {
-            padding: 48px 0 40px;
+          .bh-hero { min-height: 320px; padding-bottom: 16px; }
+          .bh-hero-inner { padding-top: 72px; }
+          .bh-hero-bg-grid { grid-template-columns: repeat(2, 1fr); }
+          .bh-hero-sub { display: none; }
+          .bh-stats-strip { gap: 0; }
+          .bh-stat { padding: 10px 16px 10px 0; margin-right: 16px; }
+          .bh-stat-n { font-size: 24px; }
+          .bh-search-float {
+            padding-left: 16px;
+            padding-right: 16px;
+            flex-wrap: wrap;
+            gap: 10px;
+          }
+          .bh-search-wrap { max-width: 100%; }
+          .bh-section { padding: 20px 0 56px; }
+
+          /* 2-column compact image tiles */
+          .bh-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+          }
+          .bh-card-wide, .bh-card-narrow { grid-column: span 1; }
+
+          /* Card becomes a pure image tile on mobile */
+          .bh-card {
+            min-height: 0;
+            border-radius: 14px;
+          }
+          /* Cover fills the entire card */
+          .bh-card-cover {
+            height: 165px;
+            border-radius: 14px;
+          }
+          /* Hide text body below image */
+          .bh-card-body { display: none; }
+
+          /* Tighten name block */
+          .bh-card-name-block {
+            bottom: 12px;
+            left: 12px;
+            right: 12px;
+          }
+          .bh-card-logo-glyph { font-size: 15px; margin-bottom: 2px; }
+          .bh-card-name { font-size: 18px !important; }
+          .bh-card-tagline { font-size: 8px; letter-spacing: 0.1em; }
+
+          /* Smaller badges */
+          .bh-card-top-row { top: 10px; left: 10px; right: 10px; }
+          .bh-card-origin { font-size: 8px; padding: 3px 7px; }
+          .bh-card-count-badge { font-size: 8px; padding: 3px 7px; }
+
+          /* Trust */
+          .bh-trust { padding: 40px 0; }
+          .bh-trust-inner { grid-template-columns: 1fr 1fr; gap: 20px; }
+          .bh-trust-label {
+            grid-column: span 2;
+            border-right: none;
+            padding-right: 0;
+            border-bottom: 1px solid var(--border-default);
+            padding-bottom: 12px;
+          }
+        }
+
+        /* ── MOBILE SM ─────────────────────────────────────── */
+        @media (max-width: 480px) {
+          .bh-hero-title { font-size: 30px; }
+          .bh-stats-strip { flex-wrap: wrap; gap: 0; }
+          .bh-stat { padding: 8px 0; margin: 0; flex: 0 0 50%; }
+          .bh-stat:nth-child(odd) {
+            border-right: 1px solid rgba(250,247,242,0.12);
+            padding-right: 16px;
           }
 
-          .brands-hero-content {
-            flex-direction: column;
-            align-items: flex-start;
-            gap: 24px;
-          }
+          /* Slightly smaller tiles */
+          .bh-grid { gap: 8px; }
+          .bh-card-cover { height: 150px; }
 
-          .brands-stats-row {
-            width: 100%;
-            overflow-x: auto;
-            padding-bottom: 6px;
-          }
-
-          .brand-stat-box {
-            flex: 1;
-            padding: 12px 16px;
-            min-width: 100px;
-          }
-
-          .brand-stat-num {
-            font-size: 26px;
-          }
-
-          .brands-filter-row {
-            flex-direction: column;
-            align-items: stretch;
-            gap: 16px;
-          }
-
-          .brands-search-wrapper {
-            width: 100%;
-          }
-
-          .brands-tags-group {
-            width: 100%;
-          }
-
-          .brands-main-content {
-            padding: 32px 0 64px;
-          }
+          /* Trust 1 col */
+          .bh-trust-inner { grid-template-columns: 1fr; gap: 16px; }
+          .bh-trust-label { grid-column: span 1; }
         }
       `}</style>
     </>
   );
 }
+

@@ -538,3 +538,99 @@ input:focus, select:focus, textarea:focus {
   border-radius: 99px;
   transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* ─── Products Page Layout ───────────────────────── */
+.products-toolbar-wrap {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border-default);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.products-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 14px;
+  padding-bottom: 14px;
+  gap: 12px;
+}
+.products-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--border-default);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.products-filter-btn:hover {
+  border-color: var(--text-primary);
+  background: var(--bg-elevated);
+}
+.products-page-title {
+  font-size: 48px;
+  font-weight: 400;
+}
+.products-main-grid {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  gap: 40px;
+  padding-top: 40px;
+  padding-bottom: 80px;
+  align-items: start;
+}
+.products-desktop-sidebar {
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.products-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.products-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.tag-filter-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent);
+  background: rgba(201,149,109,0.08);
+  border: 1px solid rgba(201,149,109,0.25);
+  border-radius: 99px;
+}
+
+@media (max-width: 1100px) {
+  .products-main-grid { grid-template-columns: 190px 1fr; gap: 28px; }
+  .products-grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .products-page-title { font-size: 38px; }
+}
+@media (max-width: 768px) {
+  .products-main-grid { grid-template-columns: 1fr; }
+  .products-desktop-sidebar { display: none; }
+  .products-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .products-page-title { font-size: 28px; }
+}
+@media (max-width: 420px) {
+  .products-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+}
