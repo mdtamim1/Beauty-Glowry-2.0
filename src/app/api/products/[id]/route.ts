@@ -214,7 +214,7 @@ export async function PUT(
         where: { product_id: p.id }
       });
 
-      const incomingSkus = data.variants.map(v => v.sku).filter(Boolean);
+      const incomingSkus = (data.variants as any[]).map((v: any) => v.sku).filter(Boolean);
 
       // Delete variants that are no longer present and not referenced in order items
       const toDelete = existingVariants.filter(ev => !incomingSkus.includes(ev.sku));
@@ -228,7 +228,7 @@ export async function PUT(
       }
 
       // Upsert incoming variants
-      for (const v of data.variants) {
+      for (const v of data.variants as any[]) {
         const sizeLabel = v.label || v.size || 'Standard';
         const variantSku = v.sku || `${slug.slice(0, 3).toUpperCase()}-${sizeLabel.toUpperCase()}`;
 
