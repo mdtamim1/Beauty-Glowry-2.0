@@ -1670,6 +1670,309 @@ export default function AdminOrders() {
   const [currentSession, setCurrentSession] = useState<any>(null);
   const [quickFraudOrder, setQuickFraudOrder] = useState<Order | null>(null);
   const [quickCourierOrder, setQuickCourierOrder] = useState<Order | null>(null);
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  // Clear selection when search/filter changes
+  useEffect(() => {
+    setSelectedIds([]);
+  }, [statusFilter, search]);
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedIds(filtered.map(o => o.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectOne = (id: string, checked: boolean) => {
+    if (checked) {
+      setSelectedIds(prev => [...prev, id]);
+    } else {
+      setSelectedIds(prev => prev.filter(item => item !== id));
+    }
+  };
+
+  const handleBulkStatusUpdate = async (status: OrderStatus) => {
+    if (selectedIds.length === 0) return;
+    setUpdating('bulk');
+    try {
+      const promises = selectedIds.map(async (id) => {
+        const res = await fetch(`/api/orders/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
+          body: JSON.stringify({ status }),
+        });
+        if (!res.ok) throw new Error(`Failed to update order ${id}`);
+      });
+
+      await Promise.all(promises);
+
+      setOrders(prev => prev.map(o => selectedIds.includes(o.id) ? { ...o, status } : o));
+      setSuccessMsg(`Successfully updated status of ${selectedIds.length} orders to "${status}"!`);
+      logActivity('Bulk order status updated', `Changed status of ${selectedIds.length} orders to "${status}"`);
+      setSelectedIds([]);
+      setTimeout(() => setSuccessMsg(''), 3500);
+    } catch (err: any) {
+      console.error(err);
+      alert('Failed to update some orders. Please try again.');
+    } finally {
+      setUpdating(null);
+    }
+  };
+
+  const handlePrintInvoices = (ids: string[]) => {
+    const printOrders = orders.filter(o => ids.includes(o.id));
+    if (printOrders.length === 0) return;
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('Pop-up blocked. Please allow pop-ups to print invoices.');
+      return;
+    }
+
+    const htmlContent = `
+      <html>
+        <head>
+          <title>Print Invoices - Beauty Glowry</title>
+          <style>
+            @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=DM+Mono&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400&display=swap');
+            body {
+              font-family: 'DM Sans', sans-serif;
+              color: #1a1a1a;
+              margin: 0;
+              padding: 0;
+              background: #fff;
+            }
+            .invoice-container {
+              width: 100%;
+              max-width: 800px;
+              margin: 0 auto;
+              padding: 40px;
+              box-sizing: border-box;
+              page-break-after: always;
+            }
+            .invoice-container:last-child {
+              page-break-after: avoid;
+            }
+            .header-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 30px;
+            }
+            .header-logo {
+              font-family: 'Cormorant Garamond', serif;
+              font-size: 28px;
+              font-weight: 600;
+              letter-spacing: 0.08em;
+              text-transform: uppercase;
+              color: #c9956d;
+            }
+            .header-info {
+              text-align: right;
+              font-size: 12px;
+              color: #777;
+              line-height: 1.6;
+            }
+            .meta-section {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 30px;
+              background: #faf7f2;
+              border-radius: 8px;
+            }
+            .meta-box {
+              padding: 20px;
+              vertical-align: top;
+              font-size: 13px;
+              line-height: 1.6;
+            }
+            .meta-box-title {
+              font-size: 11px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.1em;
+              color: #888;
+              margin-bottom: 8px;
+            }
+            .meta-box-content strong {
+              color: #000;
+              font-size: 14px;
+            }
+            .items-table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-bottom: 30px;
+            }
+            .items-table th {
+              background: #1a1a17;
+              color: #fff;
+              font-size: 11px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.1em;
+              padding: 10px 14px;
+              text-align: left;
+            }
+            .items-table td {
+              border-bottom: 1px solid #eee;
+              padding: 14px;
+              font-size: 13px;
+            }
+            .items-table th:last-child, .items-table td:last-child {
+              text-align: right;
+            }
+            .items-table td.qty-cell {
+              font-family: 'DM Mono', monospace;
+              color: #555;
+            }
+            .items-table td.price-cell {
+              font-family: 'DM Mono', monospace;
+            }
+            .summary-table {
+              width: 320px;
+              margin-left: auto;
+              border-collapse: collapse;
+            }
+            .summary-table td {
+              padding: 8px 14px;
+              font-size: 13px;
+              color: #555;
+            }
+            .summary-table td:last-child {
+              text-align: right;
+              font-family: 'DM Mono', monospace;
+              font-weight: 700;
+              color: #000;
+            }
+            .summary-table tr.total-row td {
+              border-top: 1px solid #ddd;
+              font-size: 15px;
+              font-weight: 700;
+              color: #c9956d;
+              padding-top: 12px;
+            }
+            .summary-table tr.total-row td:last-child {
+              font-size: 18px;
+              color: #c9956d;
+            }
+            .footer-note {
+              margin-top: 60px;
+              text-align: center;
+              border-top: 1px dashed #ddd;
+              padding-top: 20px;
+              font-size: 11px;
+              color: #888;
+              line-height: 1.6;
+            }
+            @media print {
+              body {
+                background: #fff;
+                padding: 0;
+              }
+              .invoice-container {
+                padding: 20px 0;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          ${printOrders.map(order => `
+            <div class="invoice-container">
+              <!-- Header -->
+              <table class="header-table">
+                <tr>
+                  <td class="header-logo">Beauty Glowry</td>
+                  <td class="header-info">
+                    <strong>Beauty Glowry Ltd.</strong><br/>
+                    House 12, Road 4, Dhanmondi, Dhaka 1205<br/>
+                    hello@beautyglowry.com | +880 1700 000000
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Meta Info -->
+              <table class="meta-section">
+                <tr>
+                  <td class="meta-box" style="width: 50%;">
+                    <div class="meta-box-title">Invoice To</div>
+                    <div class="meta-box-content">
+                      <strong>${order.customer}</strong><br/>
+                      Phone: ${order.phone}<br/>
+                      Address: ${order.address}<br/>
+                      ${order.customerNote ? `<em style="color:#666;font-size:12px;">Note: "${order.customerNote}"</em>` : ''}
+                    </div>
+                  </td>
+                  <td class="meta-box" style="width: 50%; border-left: 1px solid #e5dfd5;">
+                    <div class="meta-box-title">Invoice Details</div>
+                    <div class="meta-box-content">
+                      <strong>Invoice: ${order.id}</strong><br/>
+                      Date: ${order.date}<br/>
+                      Payment Method: ${order.payment}<br/>
+                      Status: ${order.status}
+                    </div>
+                  </td>
+                </tr>
+              </table>
+
+              <!-- Items Table -->
+              <table class="items-table">
+                <thead>
+                  <tr>
+                    <th>Product Description</th>
+                    <th style="width: 100px;">Price</th>
+                    <th style="width: 80px; text-align: center;">Qty</th>
+                    <th style="width: 120px; text-align: right;">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${order.items.map(item => `
+                    <tr>
+                      <td>${item.name}</td>
+                      <td class="price-cell">৳${item.price.toLocaleString()}</td>
+                      <td class="qty-cell" style="text-align: center;">${item.qty}</td>
+                      <td class="price-cell" style="text-align: right;">৳${(item.price * item.qty).toLocaleString()}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+
+              <!-- Summary -->
+              <table class="summary-table">
+                <tr>
+                  <td>Subtotal</td>
+                  <td>৳${(order.total - order.shipping).toLocaleString()}</td>
+                </tr>
+                <tr>
+                  <td>Shipping Fee</td>
+                  <td>৳${order.shipping}</td>
+                </tr>
+                <tr class="total-row">
+                  <td>Total Payable</td>
+                  <td>৳${order.total.toLocaleString()}</td>
+                </tr>
+              </table>
+
+              <!-- Footer -->
+              <div class="footer-note">
+                Thank you for your purchase!<br/>
+                Please keep this invoice copy for any future warranty or return queries within 7 days.
+              </div>
+            </div>
+          `).join('')}
+          <script>
+            window.onload = function() {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
 
   // Load session from LocalStorage
   useEffect(() => {
@@ -2025,25 +2328,119 @@ export default function AdminOrders() {
         })}
       </div>
 
-      {/* Search */}
-      <div style={{ position: 'relative', maxWidth: 360 }}>
-        <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: C.muted }} />
-        <input
-          type="search"
-          name="order-search"
-          autoComplete="off"
-          placeholder="Search order ID, customer, phone..."
-          value={search} onChange={e => setSearch(e.target.value)}
-          style={{ width: '100%', padding: '9px 12px 9px 36px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, color: C.text, outline: 'none' }}
-          onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
-          onBlur={e => (e.currentTarget.style.borderColor = C.border)}
-        />
+      {/* Search & Bulk Actions Bar */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
+        <div style={{ position: 'relative', width: '100%', maxWidth: 360 }}>
+          <Search size={14} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: C.muted }} />
+          <input
+            type="search"
+            name="order-search"
+            autoComplete="off"
+            placeholder="Search order ID, customer, phone..."
+            value={search} onChange={e => setSearch(e.target.value)}
+            style={{ width: '100%', padding: '9px 12px 9px 36px', background: C.surface, border: `1px solid ${C.border}`, borderRadius: 8, fontSize: 13, color: C.text, outline: 'none' }}
+            onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
+            onBlur={e => (e.currentTarget.style.borderColor = C.border)}
+          />
+        </div>
+
+        {/* Bulk Action Controls */}
+        {selectedIds.length > 0 && (
+          <div
+            className="animate-fade-up"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+              padding: '6px 16px',
+              background: 'rgba(201, 149, 109, 0.08)',
+              border: `1px solid ${C.accent}40`,
+              borderRadius: 8,
+            }}
+          >
+            <span style={{ fontSize: 12, fontWeight: 700, color: C.text }}>
+              Selected: <strong style={{ color: C.accent }}>{selectedIds.length}</strong>
+            </span>
+
+            <button
+              onClick={() => setSelectedIds([])}
+              style={{ background: 'none', border: 'none', color: C.muted, fontSize: 11, cursor: 'pointer', fontWeight: 700, padding: 0 }}
+              onMouseEnter={e => e.currentTarget.style.color = '#fff'}
+              onMouseLeave={e => e.currentTarget.style.color = C.muted}
+            >
+              Clear
+            </button>
+
+            <div style={{ width: 1, height: 16, background: C.border }} />
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 11, color: C.muted, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Status:</span>
+              <div style={{ position: 'relative' }}>
+                <select
+                  disabled={updating === 'bulk'}
+                  onChange={e => {
+                    if (e.target.value) {
+                      handleBulkStatusUpdate(e.target.value as OrderStatus);
+                      e.target.value = '';
+                    }
+                  }}
+                  style={{
+                    appearance: 'none',
+                    padding: '5px 24px 5px 10px',
+                    background: C.surface,
+                    border: `1px solid ${C.border}`,
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 700,
+                    color: C.text,
+                    cursor: 'pointer',
+                    outline: 'none',
+                  }}
+                >
+                  <option value="">Bulk Update...</option>
+                  {ALL_STATUSES.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+                <ChevronDown size={10} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: C.muted, pointerEvents: 'none' }} />
+              </div>
+            </div>
+
+            <button
+              onClick={() => handlePrintInvoices(selectedIds)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '6px 12px',
+                background: C.accent,
+                border: 'none',
+                borderRadius: 6,
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#fff',
+                cursor: 'pointer',
+                transition: 'opacity 0.2s',
+              }}
+              onMouseEnter={e => e.currentTarget.style.opacity = '0.9'}
+              onMouseLeave={e => e.currentTarget.style.opacity = '1'}
+            >
+              <Printer size={11} /> Print Invoices ({selectedIds.length})
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Orders Table */}
       <div style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, overflow: 'hidden' }}>
         {/* Header row */}
-        <div style={{ display: 'grid', gridTemplateColumns: '110px 1fr 1.2fr 130px 100px 90px 140px 120px', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${C.border}`, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '40px 110px 1fr 1.2fr 130px 100px 90px 140px 145px', gap: 12, padding: '12px 20px', borderBottom: `1px solid ${C.border}`, fontSize: 10, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: C.muted, alignItems: 'center' }}>
+          <div>
+            <input
+              type="checkbox"
+              checked={filtered.length > 0 && selectedIds.length === filtered.length}
+              onChange={e => handleSelectAll(e.target.checked)}
+              style={{ cursor: 'pointer', width: 14, height: 14 }}
+            />
+          </div>
           <div>Order ID</div><div>Customer</div><div>Location</div><div>Date &amp; Time</div><div>Amount</div><div>Payment</div><div>Status</div><div>Actions</div>
         </div>
 
@@ -2077,7 +2474,7 @@ export default function AdminOrders() {
               <React.Fragment key={order.id}>
                 <div
                   style={{
-                    display: 'grid', gridTemplateColumns: '110px 1fr 1.2fr 130px 100px 90px 140px 120px',
+                    display: 'grid', gridTemplateColumns: '40px 110px 1fr 1.2fr 130px 100px 90px 140px 145px',
                     gap: 12, padding: '14px 20px', alignItems: 'center',
                     borderBottom: `1px solid ${C.border}`, transition: 'background 0.15s',
                     background: 'transparent',
@@ -2085,6 +2482,14 @@ export default function AdminOrders() {
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.02)'; }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}
                 >
+                  <div>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(order.id)}
+                      onChange={e => handleSelectOne(order.id, e.target.checked)}
+                      style={{ cursor: 'pointer', width: 14, height: 14 }}
+                    />
+                  </div>
                   <span style={{ fontSize: 12, fontWeight: 700, color: C.accent, fontFamily: "'DM Mono', monospace" }}>{order.id}</span>
                   <div>
                     <p style={{ fontSize: 13, fontWeight: 600, color: C.text, marginBottom: 2 }}>{order.customer}</p>
@@ -2125,28 +2530,35 @@ export default function AdminOrders() {
                       : <ChevronDown size={11} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', color: STATUS_STYLES[order.status]?.color || C.muted, pointerEvents: 'none' }} />
                     }
                   </div>
-                  {/* Actions: View + Fraud + Courier */}
+                  {/* Actions: View + Fraud + Courier + Print Invoice */}
                   <div style={{ display: 'flex', gap: 5 }}>
                     <button
                       title="View / Edit Order"
                       onClick={() => setViewOrder(order)}
-                      style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, cursor: 'pointer', color: C.muted }}
+                      style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'none', border: `1px solid ${C.border}`, borderRadius: 6, cursor: 'pointer', color: C.muted }}
                     >
-                      <Eye size={13} />
+                      <Eye size={12} />
                     </button>
                     <button
                       title="Check Fraud"
                       onClick={() => setQuickFraudOrder(order)}
-                      style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 6, cursor: 'pointer', color: C.info }}
+                      style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(96,165,250,0.1)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 6, cursor: 'pointer', color: C.info }}
                     >
-                      <Shield size={13} />
+                      <Shield size={12} />
                     </button>
                     <button
                       title="Send to Steadfast"
                       onClick={() => setQuickCourierOrder(order)}
-                      style={{ width: 30, height: 30, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.35)', borderRadius: 6, cursor: 'pointer', color: '#10B981' }}
+                      style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.35)', borderRadius: 6, cursor: 'pointer', color: '#10B981' }}
                     >
-                      <Truck size={13} />
+                      <Truck size={12} />
+                    </button>
+                    <button
+                      title="Print Invoice"
+                      onClick={() => handlePrintInvoices([order.id])}
+                      style={{ width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(201,149,109,0.1)', border: '1px solid rgba(201,149,109,0.35)', borderRadius: 6, cursor: 'pointer', color: C.accent }}
+                    >
+                      <Printer size={12} />
                     </button>
                   </div>
                 </div>
