@@ -59,6 +59,12 @@ export async function DELETE(request: Request) {
       return NextResponse.json({ error: 'Category ID is required' }, { status: 400 });
     }
 
+    // Unlink child categories referencing this category
+    await prisma.category.updateMany({
+      where: { parent_id: id },
+      data: { parent_id: null }
+    });
+
     // Unlink products associated with this category
     await prisma.product.updateMany({
       where: { category_id: id },

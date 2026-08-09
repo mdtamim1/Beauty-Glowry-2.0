@@ -208,20 +208,53 @@ export async function PUT(
       }
     }
 
-    // If variants array is provided, recreate them
+    // If variants array is provided, upsert them
     if (data.variants && Array.isArray(data.variants)) {
-      await prisma.productVariant.deleteMany({ where: { product_id: p.id } });
-      for (const v of data.variants) {
-        await prisma.productVariant.create({
-          data: {
-            product_id: p.id,
-            size: v.label || v.size,
-            sku: v.sku || `${slug.slice(0, 3).toUpperCase()}-${(v.label || v.size || 'std').toUpperCase()}`,
-            price: v.price || data.price || p.price,
-            stock_qty: v.stock || data.stock || p.stock_qty,
-            image: data.image || p.sku, // fallback
-          },
+      const existingVariants = await prisma.productVariant.findMany({
+        where: { product_id: p.id }
+      });
+
+      const incomingSkus = data.variants.map(v => v.sku).filter(Boolean);
+
+      // Delete variants that are no longer present and not referenced in order items
+      const toDelete = existingVariants.filter(ev => !incomingSkus.includes(ev.sku));
+      for (const ev of toDelete) {
+        const orderItemCount = await prisma.orderItem.count({
+          where: { product_variant_id: ev.id }
         });
+        if (orderItemCount === 0) {
+          await prisma.productVariant.delete({ where: { id: ev.id } });
+        }
+      }
+
+      // Upsert incoming variants
+      for (const v of data.variants) {
+        const sizeLabel = v.label || v.size || 'Standard';
+        const variantSku = v.sku || `${slug.slice(0, 3).toUpperCase()}-${sizeLabel.toUpperCase()}`;
+
+        const existing = existingVariants.find(ev => ev.sku === variantSku);
+        if (existing) {
+          await prisma.productVariant.update({
+            where: { id: existing.id },
+            data: {
+              size: sizeLabel,
+              price: v.price || data.price || p.price,
+              stock_qty: v.stock || data.stock || p.stock_qty,
+              image: data.image || p.images[0]?.url || p.sku,
+            }
+          });
+        } else {
+          await prisma.productVariant.create({
+            data: {
+              product_id: p.id,
+              size: sizeLabel,
+              sku: variantSku,
+              price: v.price || data.price || p.price,
+              stock_qty: v.stock || data.stock || p.stock_qty,
+              image: data.image || p.images[0]?.url || p.sku,
+            }
+          });
+        }
       }
     }
 
