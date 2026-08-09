@@ -109,7 +109,14 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Name, price, and main image are required' }, { status: 400 });
     }
 
-    const slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    let slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    
+    // Check if product with this id/slug already exists, if so append a suffix
+    const existingProduct = await prisma.product.findUnique({ where: { id: slug } });
+    if (existingProduct) {
+      slug = `${slug}-${Math.floor(100 + Math.random() * 900)}`;
+    }
+
     const catSlug = data.category ? data.category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : 'uncategorized';
 
     // Ensure category exists
@@ -126,6 +133,7 @@ export async function POST(request: Request) {
 
     const newProduct = await prisma.product.create({
       data: {
+        id: slug,
         name: data.name,
         slug,
         brand_id: brandId,
