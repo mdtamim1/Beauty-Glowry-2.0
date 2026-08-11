@@ -7,20 +7,48 @@ export const authOptions: NextAuthOptions = {
     FacebookProvider({
       clientId: (process.env.FACEBOOK_CLIENT_ID || "").trim(),
       clientSecret: (process.env.FACEBOOK_CLIENT_SECRET || "").trim(),
+      // Explicitly request email & public profile to avoid missing email issues
+      authorization: {
+        params: {
+          scope: "email,public_profile",
+        },
+      },
     }),
     GoogleProvider({
       clientId: (process.env.GOOGLE_CLIENT_ID || "").trim(),
       clientSecret: (process.env.GOOGLE_CLIENT_SECRET || "").trim(),
+      authorization: {
+        params: {
+          scope: "openid email profile",
+        },
+      },
     }),
   ],
 
   secret: (process.env.NEXTAUTH_SECRET || "beautyglowry-auth-secret-key-123456").trim(),
+
   callbacks: {
-    async jwt({ token, account }) {
+    async signIn({ account, profile }) {
+      // Block sign-in if provider credentials are not configured
+      if (account?.provider === 'facebook') {
+        const clientId = (process.env.FACEBOOK_CLIENT_ID || "").trim();
+        if (!clientId) return false;
+      }
+      if (account?.provider === 'google') {
+        const clientId = (process.env.GOOGLE_CLIENT_ID || "").trim();
+        if (!clientId) return false;
+      }
+      return true;
+    },
+    async jwt({ token, account, profile }) {
       if (account) {
         token.accessToken = account.access_token;
         token.provider = account.provider;
         token.providerAccountId = account.providerAccountId;
+      }
+      // Ensure email is captured from profile if not on token
+      if (profile && !token.email) {
+        token.email = (profile as any).email || null;
       }
       return token;
     },
@@ -31,6 +59,7 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
   },
+
   pages: {
     signIn: "/",
     error: "/",
@@ -40,3 +69,4 @@ export const authOptions: NextAuthOptions = {
 const handler = NextAuth(authOptions);
 
 export { handler as GET, handler as POST };
+

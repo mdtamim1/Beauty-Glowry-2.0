@@ -34,7 +34,9 @@ export async function GET() {
       isVisible: s.is_active,
     }));
 
-    return NextResponse.json(formattedSections);
+    const response = NextResponse.json(formattedSections);
+    response.headers.set('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    return response;
   } catch (error: any) {
     console.error('[API Admin Homepage Sections GET Error]:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });

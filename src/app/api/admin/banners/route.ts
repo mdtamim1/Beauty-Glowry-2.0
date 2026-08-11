@@ -38,7 +38,9 @@ export async function GET() {
       isActive: b.is_active,
     }));
 
-    return NextResponse.json(formattedBanners);
+    const response = NextResponse.json(formattedBanners);
+    response.headers.set('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    return response;
   } catch (error: any) {
     console.error('[API Admin Banners GET Error]:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });

@@ -202,15 +202,55 @@ export default function AdminReviews() {
   if (loading && reviews.length === 0 && qnas.length === 0) {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: 10 }}>
+        <style>{`
+          @keyframes shimmer {
+            0% { background-position: -400px 0; }
+            100% { background-position: 400px 0; }
+          }
+          .rv-skel {
+            border-radius: 6px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.09) 50%, rgba(255,255,255,0.04) 75%);
+            background-size: 400px 100%;
+            animation: shimmer 1.4s infinite;
+          }
+        `}</style>
+        {/* Header skeleton */}
         <div>
-          <div style={{ width: 160, height: 24, background: C.border, borderRadius: 4, marginBottom: 8 }} />
-          <div style={{ width: 220, height: 14, background: C.border, borderRadius: 4 }} />
+          <div className="rv-skel" style={{ width: 200, height: 26, marginBottom: 10 }} />
+          <div className="rv-skel" style={{ width: 280, height: 14 }} />
         </div>
+        {/* Tab bar skeleton */}
         <div style={{ display: 'flex', gap: 16, borderBottom: `1px solid ${C.border}`, paddingBottom: 10 }}>
-          <div style={{ width: 120, height: 30, background: C.border, borderRadius: 4 }} />
-          <div style={{ width: 180, height: 30, background: C.border, borderRadius: 4 }} />
+          <div className="rv-skel" style={{ width: 120, height: 32, borderRadius: 8 }} />
+          <div className="rv-skel" style={{ width: 160, height: 32, borderRadius: 8 }} />
         </div>
-        <div style={{ height: 140, background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10 }} />
+        {/* Filter chips skeleton */}
+        <div style={{ display: 'flex', gap: 8 }}>
+          {[80, 100, 100, 100].map((w, i) => (
+            <div key={i} className="rv-skel" style={{ width: w, height: 28, borderRadius: 20 }} />
+          ))}
+        </div>
+        {/* Cards skeleton */}
+        {[1,2,3].map((i) => (
+          <div key={i} style={{ background: C.surface, border: `1px solid ${C.border}`, borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 12, opacity: 1 - i * 0.2 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                <div className="rv-skel" style={{ width: 36, height: 36, borderRadius: '50%' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div className="rv-skel" style={{ width: 120, height: 13 }} />
+                  <div className="rv-skel" style={{ width: 80, height: 10 }} />
+                </div>
+              </div>
+              <div className="rv-skel" style={{ width: 70, height: 22, borderRadius: 20 }} />
+            </div>
+            <div className="rv-skel" style={{ width: '90%', height: 13 }} />
+            <div className="rv-skel" style={{ width: '70%', height: 13 }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <div className="rv-skel" style={{ width: 80, height: 28, borderRadius: 6 }} />
+              <div className="rv-skel" style={{ width: 80, height: 28, borderRadius: 6 }} />
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

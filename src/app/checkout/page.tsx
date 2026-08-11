@@ -167,28 +167,100 @@ function CheckoutContent() {
   ];
   const stepIdx = steps.findIndex(s => s.key === step);
 
-  /* ── ORDER SUCCESS ──────────────────────────────────────────────────── */
+  /* ── ORDER SUCCESS POPUP ────────────────────────────────────────────── */
   if (placed) return (
     <>
       <Navbar />
-      <div className="co-success">
-        <div className="co-success-icon">
-          <Check size={36} color="#fff" />
-        </div>
-        <h1 className="co-success-title">Order Confirmed!</h1>
-        {orderNumber && (
-          <p className="co-success-num">Order #{orderNumber}</p>
-        )}
-        <p className="co-success-msg">
-          Thank you, <strong>{form.name}</strong>. Your order is received.<br />
-          We'll call you at <strong>{form.phone}</strong> within 24 hours.
-        </p>
-        <div className="co-success-actions">
-          <Link href="/products" className="btn-primary">Continue Shopping <ArrowRight size={14} /></Link>
-          <Link href="/account" className="btn-ghost">View Orders</Link>
+      <div style={{ minHeight: '60vh', background: 'var(--bg-base)' }} />
+      <Footer />
+      {/* Premium Order Success Popup */}
+      <div className="co-popup-overlay">
+        <div className="co-popup">
+          {/* Decorative particles */}
+          <div className="co-popup-particles">
+            {[...Array(12)].map((_, i) => (
+              <span key={i} className={`co-particle co-particle--${i % 4}`} style={{ '--i': i } as React.CSSProperties} />
+            ))}
+          </div>
+
+          {/* Checkmark icon */}
+          <div className="co-popup-icon">
+            <div className="co-popup-ring co-popup-ring--1" />
+            <div className="co-popup-ring co-popup-ring--2" />
+            <div className="co-popup-checkmark">
+              <Check size={32} color="#fff" strokeWidth={3} />
+            </div>
+          </div>
+
+          {/* Heading */}
+          <div className="co-popup-header">
+            <p className="co-popup-tag">✦ Order Placed Successfully</p>
+            <h1 className="co-popup-title">Thank You, {form.name.split(' ')[0]}!</h1>
+            {orderNumber && (
+              <div className="co-popup-order-num">
+                <span>Order ID</span>
+                <strong>#{orderNumber}</strong>
+              </div>
+            )}
+          </div>
+
+          {/* Order summary inside popup */}
+          <div className="co-popup-items">
+            {checkoutItems.slice(0, 3).map(item => {
+              const price = item.variant?.price ?? item.product.price;
+              return (
+                <div key={item.id} className="co-popup-item">
+                  <img src={item.product.image} alt={item.product.name} className="co-popup-item-img" />
+                  <div className="co-popup-item-info">
+                    <p className="co-popup-item-name">{item.product.name}</p>
+                    {item.variant?.label && <p className="co-popup-item-var">{item.variant.label}</p>}
+                  </div>
+                  <span className="co-popup-item-qty">×{item.quantity}</span>
+                  <span className="co-popup-item-price">৳{(price * item.quantity).toLocaleString()}</span>
+                </div>
+              );
+            })}
+            {checkoutItems.length > 3 && (
+              <p className="co-popup-more">+{checkoutItems.length - 3} more item{checkoutItems.length - 3 > 1 ? 's' : ''}</p>
+            )}
+          </div>
+
+          {/* Totals row */}
+          <div className="co-popup-totals">
+            <div className="co-popup-total-row">
+              <span>Subtotal</span><span>৳{subtotal.toLocaleString()}</span>
+            </div>
+            <div className="co-popup-total-row">
+              <span>Shipping</span>
+              <span style={{ color: shipping === 0 ? 'var(--sage-dark)' : undefined }}>
+                {shipping === 0 ? 'FREE ✓' : `৳${shipping}`}
+              </span>
+            </div>
+            {couponApplied && (
+              <div className="co-popup-total-row" style={{ color: 'var(--sage-dark)' }}>
+                <span>Coupon Discount</span><span>−৳{couponDiscount.toLocaleString()}</span>
+              </div>
+            )}
+            <div className="co-popup-total-final">
+              <span>Total Paid</span>
+              <span className="co-popup-total-amount">৳{total.toLocaleString()}</span>
+            </div>
+          </div>
+
+          {/* Message */}
+          <p className="co-popup-msg">
+            📞 We'll call <strong>{form.phone}</strong> within 24 hours to confirm.
+          </p>
+
+          {/* Actions */}
+          <div className="co-popup-actions">
+            <Link href="/products" className="co-popup-btn-primary">
+              Continue Shopping <ArrowRight size={15} />
+            </Link>
+            <Link href="/" className="co-popup-btn-ghost">Back to Home</Link>
+          </div>
         </div>
       </div>
-      <Footer />
     </>
   );
 
@@ -542,11 +614,57 @@ function CheckoutContent() {
               <div className="co-card animate-fade-up">
                 <h2 className="co-card-title">Review & Confirm</h2>
 
-                {/* Delivery summary box */}
+                {/* ── Order items preview ─────────────────── */}
+                <div className="co-preview-section">
+                  <p className="co-preview-section-label">🛍 Your Items ({checkoutItems.length})</p>
+                  <div className="co-preview-items">
+                    {checkoutItems.map(item => {
+                      const price = item.variant?.price ?? item.product.price;
+                      return (
+                        <div key={item.id} className="co-preview-item">
+                          <div className="co-preview-img-wrap">
+                            <img src={item.product.image} alt={item.product.name} className="co-preview-img" />
+                            <span className="co-preview-qty-badge">{item.quantity}</span>
+                          </div>
+                          <div className="co-preview-item-info">
+                            <p className="co-preview-item-name">{item.product.name}</p>
+                            {item.variant?.label && (
+                              <p className="co-preview-item-variant">{item.variant.label}</p>
+                            )}
+                          </div>
+                          <span className="co-preview-item-price">৳{(price * item.quantity).toLocaleString()}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  {/* Price summary */}
+                  <div className="co-preview-totals">
+                    <div className="co-preview-total-row">
+                      <span>Subtotal</span><span>৳{subtotal.toLocaleString()}</span>
+                    </div>
+                    <div className="co-preview-total-row">
+                      <span>Shipping</span>
+                      <span style={{ color: shipping === 0 ? 'var(--sage-dark)' : undefined }}>
+                        {shipping === 0 ? 'FREE ✓' : `৳${shipping}`}
+                      </span>
+                    </div>
+                    {couponApplied && (
+                      <div className="co-preview-total-row" style={{ color: 'var(--sage-dark)' }}>
+                        <span>Coupon</span><span>−৳{couponDiscount.toLocaleString()}</span>
+                      </div>
+                    )}
+                    <div className="co-preview-total-final">
+                      <span>Total</span>
+                      <span className="co-preview-total-amount">৳{total.toLocaleString()}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── Delivery & payment summary ──────────── */}
                 <div className="co-confirm-box">
                   <div className="co-confirm-row">
-                    <User size={14} style={{ color: 'var(--text-muted)' }} />
-                    <div>
+                    <User size={14} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 2 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <p className="co-confirm-name">{form.name}</p>
                       <p className="co-confirm-detail">{form.phone}{form.email ? ` · ${form.email}` : ''}</p>
                     </div>
@@ -554,19 +672,19 @@ function CheckoutContent() {
                   </div>
                   <div className="co-confirm-divider" />
                   <div className="co-confirm-row">
-                    <MapPin size={14} style={{ color: 'var(--text-muted)' }} />
-                    <div>
+                    <MapPin size={14} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 2 }} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
                       <p className="co-confirm-detail">{form.address}</p>
-                      <p className="co-confirm-detail">{form.area ? `${form.area}, ` : ''}{form.thana}, {form.district}</p>
+                      <p className="co-confirm-detail">{[form.area, form.thana, form.district].filter(Boolean).join(', ')}</p>
                     </div>
                     <button type="button" className="co-confirm-edit" onClick={() => setStep('shipping')}>Edit</button>
                   </div>
                   <div className="co-confirm-divider" />
                   <div className="co-confirm-row">
-                    <span style={{ fontSize: 16 }}>
+                    <span style={{ fontSize: 16, flexShrink: 0 }}>
                       {form.paymentMethod === 'cod' ? '💵' : form.paymentMethod === 'bkash' ? '📱' : '💳'}
                     </span>
-                    <p className="co-confirm-detail">
+                    <p className="co-confirm-detail" style={{ flex: 1 }}>
                       {form.paymentMethod === 'cod' ? 'Cash on Delivery' :
                        form.paymentMethod === 'bkash' ? 'bKash / Nagad' : 'Card Payment'}
                     </p>
@@ -582,9 +700,7 @@ function CheckoutContent() {
 
                 {/* Error banner */}
                 {orderError && (
-                  <div className="co-order-error">
-                    ⚠ {orderError}
-                  </div>
+                  <div className="co-order-error">⚠ {orderError}</div>
                 )}
 
                 <div className="co-nav">
@@ -592,11 +708,7 @@ function CheckoutContent() {
                     <ArrowLeft size={16} /> Back
                   </button>
                   <form onSubmit={handleSubmit}>
-                    <button
-                      type="submit"
-                      className="co-btn-place"
-                      disabled={submitting}
-                    >
+                    <button type="submit" className="co-btn-place" disabled={submitting}>
                       {submitting ? (
                         <span className="co-spinner" />
                       ) : (
@@ -1000,37 +1112,271 @@ function CheckoutContent() {
           font-size: 11px; color: var(--text-muted);
         }
 
-        /* ══ SUCCESS + EMPTY ══════════════════════════════════════════════ */
-        .co-success {
-          min-height: 80vh; display: flex; flex-direction: column;
-          align-items: center; justify-content: flex-start;
-          text-align: center; padding: 80px 20px 40px;
-          background: var(--bg-base);
+        /* ══ ORDER PREVIEW (Confirm Step) ═════════════════════════════════ */
+        .co-preview-section {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-default);
+          border-radius: 14px;
+          overflow: hidden;
+          margin-bottom: 20px;
         }
-        .co-success-icon {
-          width: 80px; height: 80px; border-radius: 50%;
-          background: linear-gradient(135deg, #8b9d77, #6a825a);
+        .co-preview-section-label {
+          font-size: 12px; font-weight: 700;
+          letter-spacing: 0.08em; text-transform: uppercase;
+          color: var(--text-muted);
+          padding: 12px 18px;
+          border-bottom: 1px solid var(--border-default);
+          background: var(--bg-surface);
+        }
+        .co-preview-items {
+          padding: 14px 18px;
+          display: flex; flex-direction: column; gap: 12px;
+          max-height: 260px; overflow-y: auto;
+          scrollbar-width: thin;
+        }
+        .co-preview-item {
+          display: flex; align-items: center; gap: 12px;
+        }
+        .co-preview-img-wrap { position: relative; flex-shrink: 0; }
+        .co-preview-img {
+          width: 50px; height: 50px;
+          border-radius: 10px; object-fit: cover;
+          border: 1px solid var(--border-default);
+        }
+        .co-preview-qty-badge {
+          position: absolute; top: -5px; right: -5px;
+          width: 18px; height: 18px; border-radius: 50%;
+          background: var(--accent); color: #fff;
+          font-size: 10px; font-weight: 700;
           display: flex; align-items: center; justify-content: center;
-          margin-bottom: 28px;
-          box-shadow: 0 16px 48px rgba(139,157,119,0.3);
-          animation: co-pop 0.5s cubic-bezier(0.16,1,0.3,1);
         }
-        @keyframes co-pop { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
-        .co-success-title {
-          font-family: 'Cormorant Garamond', Georgia, serif;
-          font-size: 40px; font-weight: 400; color: var(--text-primary);
-          margin-bottom: 10px;
+        .co-preview-item-info { flex: 1; min-width: 0; }
+        .co-preview-item-name {
+          font-size: 13px; font-weight: 600; color: var(--text-primary);
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+          line-height: 1.4;
         }
-        .co-success-num {
-          font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 16px;
+        .co-preview-item-variant { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+        .co-preview-item-price {
           font-family: 'DM Mono', monospace;
+          font-size: 13px; font-weight: 700;
+          color: var(--accent); flex-shrink: 0;
         }
-        .co-success-msg {
-          font-size: 15px; color: var(--text-secondary);
-          line-height: 1.7; max-width: 440px; margin-bottom: 36px;
+        .co-preview-totals {
+          border-top: 1px solid var(--border-default);
+          padding: 12px 18px;
+          display: flex; flex-direction: column; gap: 8px;
         }
-        .co-success-actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+        .co-preview-total-row {
+          display: flex; justify-content: space-between;
+          font-size: 13px; color: var(--text-secondary);
+        }
+        .co-preview-total-final {
+          display: flex; justify-content: space-between; align-items: center;
+          padding-top: 10px; border-top: 1px solid var(--border-default);
+          font-size: 14px; font-weight: 700; color: var(--text-primary);
+          margin-top: 4px;
+        }
+        .co-preview-total-amount {
+          font-family: 'Cormorant Garamond', Georgia, serif;
+          font-size: 24px; font-weight: 600; color: var(--accent);
+        }
 
+        /* ══ ORDER SUCCESS POPUP ══════════════════════════════════════════ */
+        .co-popup-overlay {
+          position: fixed; inset: 0; z-index: 9000;
+          background: rgba(0,0,0,0.75);
+          backdrop-filter: blur(8px);
+          -webkit-backdrop-filter: blur(8px);
+          display: flex; align-items: center; justify-content: center;
+          padding: 16px;
+          animation: co-overlay-in 0.3s ease;
+        }
+        @keyframes co-overlay-in { from { opacity: 0; } to { opacity: 1; } }
+
+        .co-popup {
+          position: relative;
+          background: var(--bg-surface);
+          border: 1px solid rgba(201,149,109,0.25);
+          border-radius: 24px;
+          padding: 40px 32px 32px;
+          width: 100%; max-width: 480px;
+          max-height: 90vh; overflow-y: auto;
+          text-align: center;
+          box-shadow: 0 40px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(201,149,109,0.1);
+          animation: co-popup-in 0.5s cubic-bezier(0.16,1,0.3,1);
+          scrollbar-width: thin;
+        }
+        @keyframes co-popup-in {
+          from { opacity: 0; transform: scale(0.88) translateY(20px); }
+          to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+
+        /* Decorative particles */
+        .co-popup-particles { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: 24px; }
+        .co-particle {
+          position: absolute;
+          width: 6px; height: 6px; border-radius: 50%;
+          animation: co-particle-float 3s ease-in-out infinite;
+          animation-delay: calc(var(--i) * 0.25s);
+          opacity: 0.6;
+        }
+        .co-particle--0 { background: #C9956D; top: 15%; left: 10%; }
+        .co-particle--1 { background: #8B9D77; top: 20%; right: 12%; width: 8px; height: 8px; }
+        .co-particle--2 { background: #C9956D; bottom: 25%; left: 8%; border-radius: 2px; }
+        .co-particle--3 { background: #F0A54B; bottom: 20%; right: 10%; }
+        @keyframes co-particle-float {
+          0%, 100% { transform: translateY(0) rotate(0deg); opacity: 0.6; }
+          50%       { transform: translateY(-12px) rotate(180deg); opacity: 0.3; }
+        }
+
+        /* Animated check icon */
+        .co-popup-icon {
+          position: relative; width: 90px; height: 90px;
+          margin: 0 auto 24px; display: flex;
+          align-items: center; justify-content: center;
+        }
+        .co-popup-ring {
+          position: absolute; border-radius: 50%;
+          border: 2px solid rgba(201,149,109,0.25);
+          animation: co-ring-expand 2s ease-in-out infinite;
+        }
+        .co-popup-ring--1 { width: 100%; height: 100%; animation-delay: 0s; }
+        .co-popup-ring--2 { width: 80%; height: 80%; animation-delay: 0.3s; border-color: rgba(201,149,109,0.15); }
+        @keyframes co-ring-expand {
+          0%, 100% { transform: scale(1); opacity: 0.6; }
+          50%       { transform: scale(1.08); opacity: 0.2; }
+        }
+        .co-popup-checkmark {
+          width: 64px; height: 64px; border-radius: 50%;
+          background: linear-gradient(135deg, #C9956D 0%, #A07050 100%);
+          display: flex; align-items: center; justify-content: center;
+          box-shadow: 0 12px 36px rgba(201,149,109,0.45);
+          animation: co-check-pop 0.6s 0.2s cubic-bezier(0.16,1,0.3,1) both;
+        }
+        @keyframes co-check-pop {
+          from { transform: scale(0.4); opacity: 0; }
+          to   { transform: scale(1); opacity: 1; }
+        }
+
+        .co-popup-tag {
+          font-size: 11px; font-weight: 700; letter-spacing: 0.12em;
+          text-transform: uppercase; color: var(--accent);
+          margin-bottom: 8px;
+        }
+        .co-popup-title {
+          font-family: 'Cormorant Garamond', Georgia, serif;
+          font-size: 34px; font-weight: 500; color: var(--text-primary);
+          margin-bottom: 14px; line-height: 1.2;
+        }
+        .co-popup-order-num {
+          display: inline-flex; align-items: center; gap: 10px;
+          padding: 8px 18px;
+          background: rgba(201,149,109,0.1);
+          border: 1px solid rgba(201,149,109,0.25);
+          border-radius: 99px; margin-bottom: 24px;
+          font-size: 13px; color: var(--text-secondary);
+        }
+        .co-popup-order-num strong {
+          font-family: 'DM Mono', monospace;
+          font-size: 14px; color: var(--accent); font-weight: 700;
+        }
+
+        /* Items in popup */
+        .co-popup-items {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-default);
+          border-radius: 12px;
+          overflow: hidden; margin-bottom: 16px;
+          text-align: left;
+        }
+        .co-popup-item {
+          display: flex; align-items: center; gap: 10px;
+          padding: 10px 14px;
+          border-bottom: 1px solid var(--border-default);
+        }
+        .co-popup-item:last-child { border-bottom: none; }
+        .co-popup-item-img {
+          width: 44px; height: 44px; border-radius: 8px;
+          object-fit: cover; flex-shrink: 0;
+          border: 1px solid var(--border-default);
+        }
+        .co-popup-item-info { flex: 1; min-width: 0; }
+        .co-popup-item-name {
+          font-size: 12px; font-weight: 600; color: var(--text-primary);
+          white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .co-popup-item-var { font-size: 10px; color: var(--text-muted); margin-top: 1px; }
+        .co-popup-item-qty { font-size: 12px; color: var(--text-muted); flex-shrink: 0; }
+        .co-popup-item-price {
+          font-family: 'DM Mono', monospace;
+          font-size: 12px; font-weight: 700;
+          color: var(--accent); flex-shrink: 0;
+        }
+        .co-popup-more {
+          padding: 8px 14px; font-size: 11px;
+          color: var(--text-muted); text-align: center;
+          border-top: 1px solid var(--border-default);
+        }
+
+        /* Totals in popup */
+        .co-popup-totals {
+          background: var(--bg-elevated);
+          border: 1px solid var(--border-default);
+          border-radius: 12px;
+          padding: 14px 16px;
+          display: flex; flex-direction: column; gap: 8px;
+          margin-bottom: 18px; text-align: left;
+        }
+        .co-popup-total-row {
+          display: flex; justify-content: space-between;
+          font-size: 13px; color: var(--text-secondary);
+        }
+        .co-popup-total-final {
+          display: flex; justify-content: space-between; align-items: center;
+          border-top: 1px solid var(--border-default);
+          padding-top: 10px; margin-top: 4px;
+          font-size: 14px; font-weight: 700; color: var(--text-primary);
+        }
+        .co-popup-total-amount {
+          font-family: 'Cormorant Garamond', Georgia, serif;
+          font-size: 26px; font-weight: 600; color: var(--accent);
+        }
+
+        .co-popup-msg {
+          font-size: 13px; color: var(--text-secondary);
+          line-height: 1.6; margin-bottom: 24px;
+        }
+
+        .co-popup-actions {
+          display: flex; flex-direction: column; gap: 10px;
+        }
+        .co-popup-btn-primary {
+          display: flex; align-items: center; justify-content: center; gap: 8px;
+          padding: 14px 24px;
+          background: linear-gradient(135deg, #c9956d 0%, #a87650 100%);
+          color: #fff; text-decoration: none;
+          border-radius: 12px; font-size: 14px; font-weight: 700;
+          letter-spacing: 0.02em;
+          box-shadow: 0 8px 24px rgba(201,149,109,0.35);
+          transition: all 0.2s ease;
+        }
+        .co-popup-btn-primary:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 12px 32px rgba(201,149,109,0.45);
+        }
+        .co-popup-btn-ghost {
+          display: flex; align-items: center; justify-content: center;
+          padding: 12px 24px;
+          background: transparent;
+          border: 1px solid var(--border-default);
+          color: var(--text-muted); text-decoration: none;
+          border-radius: 12px; font-size: 13px; font-weight: 600;
+          transition: all 0.2s;
+        }
+        .co-popup-btn-ghost:hover { color: var(--text-primary); border-color: var(--text-secondary); }
+
+        /* ══ EMPTY STATE ══════════════════════════════════════════════════ */
         .co-empty {
           min-height: 60vh; display: flex; flex-direction: column;
           align-items: center; justify-content: center;
@@ -1042,9 +1388,7 @@ function CheckoutContent() {
         @media (max-width: 800px) {
           .co-body {
             grid-template-columns: 1fr;
-            grid-template-areas:
-              "summary"
-              "form";
+            grid-template-areas: "summary" "form";
             padding: 16px 12px 0;
             gap: 16px;
           }
@@ -1064,8 +1408,16 @@ function CheckoutContent() {
           .co-btn-next, .co-btn-back, .co-btn-place { width: 100%; justify-content: center; }
           .co-pay-btn { padding: 12px 14px; gap: 10px; }
           .co-pay-icon { font-size: 18px; }
-          .co-success-title { font-size: 30px; }
           .co-summary-items { max-height: 220px; }
+          /* Confirm step mobile */
+          .co-preview-items { max-height: 200px; }
+          .co-preview-img { width: 44px; height: 44px; }
+          .co-confirm-row { padding: 12px 14px; }
+          /* Popup mobile */
+          .co-popup { padding: 32px 20px 24px; border-radius: 20px; }
+          .co-popup-title { font-size: 28px; }
+          .co-popup-icon { width: 70px; height: 70px; }
+          .co-popup-checkmark { width: 52px; height: 52px; }
         }
 
         @keyframes fadeUp {

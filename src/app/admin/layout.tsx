@@ -56,11 +56,13 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const router = useRouter();
 
+  // Run seed only once on mount (not on every pathname change)
   useEffect(() => {
-    // Dynamically require and run database seed setup
     const { seedTeamData } = require('./utils');
     seedTeamData();
+  }, []);
 
+  useEffect(() => {
     if (pathname === '/admin' || pathname === '/admin/') return;
 
     const sessionStr = localStorage.getItem('bg_admin_session');
@@ -91,7 +93,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     loadNotifications();
-    const interval = setInterval(loadNotifications, 10000);
+    // Poll every 30s instead of 10s — reduces server load by 3x
+    const interval = setInterval(loadNotifications, 30000);
     return () => clearInterval(interval);
   }, []);
 

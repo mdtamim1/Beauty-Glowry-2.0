@@ -2506,10 +2506,45 @@ export default function AdminOrders() {
         </div>
 
         {ordersLoading ? (
-          <div style={{ padding: '40px 20px', textAlign: 'center', color: C.muted, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, fontSize: 13 }}>
-            <div style={{ width: 16, height: 16, border: `2px solid ${C.border}`, borderTopColor: C.accent, borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
-            Loading orders...
-          </div>
+          <>
+            <style>{`
+              @keyframes shimmer {
+                0% { background-position: -400px 0; }
+                100% { background-position: 400px 0; }
+              }
+              .order-skeleton-cell {
+                height: 14px;
+                border-radius: 4px;
+                background: linear-gradient(90deg, rgba(255,255,255,0.04) 25%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.04) 75%);
+                background-size: 400px 100%;
+                animation: shimmer 1.4s infinite;
+              }
+            `}</style>
+            {[1,2,3,4,5,6].map((i) => (
+              <div key={i} style={{
+                display: 'grid', gridTemplateColumns: '40px 110px 1fr 1.2fr 130px 100px 90px 140px 145px',
+                gap: 12, padding: '16px 20px', alignItems: 'center',
+                borderBottom: `1px solid ${C.border}`, opacity: 1 - i * 0.1,
+              }}>
+                <div className="order-skeleton-cell" style={{ width: 14, height: 14, borderRadius: 3 }} />
+                <div className="order-skeleton-cell" style={{ width: '80%' }} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  <div className="order-skeleton-cell" style={{ width: '70%' }} />
+                  <div className="order-skeleton-cell" style={{ width: '50%', height: 10 }} />
+                </div>
+                <div className="order-skeleton-cell" style={{ width: '60%' }} />
+                <div className="order-skeleton-cell" style={{ width: '75%' }} />
+                <div className="order-skeleton-cell" style={{ width: '65%' }} />
+                <div className="order-skeleton-cell" style={{ width: '55%' }} />
+                <div className="order-skeleton-cell" style={{ width: 60, height: 22, borderRadius: 20 }} />
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <div className="order-skeleton-cell" style={{ width: 28, height: 28, borderRadius: 6 }} />
+                  <div className="order-skeleton-cell" style={{ width: 28, height: 28, borderRadius: 6 }} />
+                  <div className="order-skeleton-cell" style={{ width: 28, height: 28, borderRadius: 6 }} />
+                </div>
+              </div>
+            ))}
+          </>
         ) : filtered.length === 0 ? (
           <div style={{ padding: '60px 20px', textAlign: 'center', color: C.muted }}>
             <Filter size={32} style={{ margin: '0 auto 12px', opacity: 0.4 }} />

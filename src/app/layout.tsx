@@ -4,6 +4,7 @@ import "./globals.css";
 import WhatsAppButton from "../components/WhatsAppButton";
 import AuthInterceptor from "../components/AuthInterceptor";
 import CompareTray from "../components/CompareTray";
+import NextAuthProvider from "../components/NextAuthProvider";
 import { prisma } from "../lib/prisma";
 
 const cormorant = Cormorant_Garamond({
@@ -66,32 +67,49 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({
-  children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  let storeConfig = {
-    storeName: 'Beauty Glowry',
-    storeTagline: 'Clinical Skincare for Every Skin Type',
-    storeEmail: 'hello@beautyglowry.com',
-    storePhone: '+880 1700 000000',
-    storeAddress: 'House 12, Road 4, Dhanmondi, Dhaka 1205',
-    googleSiteVerification: '',
-    bingSiteVerification: '',
-  };
+// ─── In-memory cache for store config (avoids DB query on every page request) ───
+const DEFAULT_STORE_CONFIG = {
+  storeName: 'Beauty Glowry',
+  storeTagline: 'Clinical Skincare for Every Skin Type',
+  storeEmail: 'hello@beautyglowry.com',
+  storePhone: '+880 1700 000000',
+  storeAddress: 'House 12, Road 4, Dhanmondi, Dhaka 1205',
+  googleSiteVerification: '',
+  bingSiteVerification: '',
+};
 
+let _storeConfigCache: typeof DEFAULT_STORE_CONFIG | null = null;
+let _storeConfigCachedAt = 0;
+const STORE_CONFIG_TTL_MS = 5 * 60 * 1000; // 5 minutes
+
+async function getStoreConfig() {
+  const now = Date.now();
+  if (_storeConfigCache && now - _storeConfigCachedAt < STORE_CONFIG_TTL_MS) {
+    return _storeConfigCache;
+  }
+  let config = { ...DEFAULT_STORE_CONFIG };
   try {
     const section = await prisma.homepageSection.findFirst({
       where: { section_type: 'store_settings' },
     });
     if (section) {
       const parsed = JSON.parse(section.config_json || '{}');
-      storeConfig = { ...storeConfig, ...parsed };
+      config = { ...config, ...parsed };
     }
   } catch (e) {
     console.error('[RootLayout] Failed to load store settings:', e);
   }
+  _storeConfigCache = config;
+  _storeConfigCachedAt = now;
+  return config;
+}
+
+export default async function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  const storeConfig = await getStoreConfig();
 
   const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://beautyglowry.com';
 
@@ -157,10 +175,12 @@ export default async function RootLayout({
         className="min-h-full flex flex-col"
         style={{ background: "var(--bg-base)", color: "var(--text-primary)", fontFamily: "'DM Sans', system-ui, sans-serif" }}
       >
-        {children}
-        <AuthInterceptor />
-        <WhatsAppButton />
-        <CompareTray />
+        <NextAuthProvider>
+          {children}
+          <AuthInterceptor />
+          <WhatsAppButton />
+          <CompareTray />
+        </NextAuthProvider>
       </body>
     </html>
   );

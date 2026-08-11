@@ -33,7 +33,7 @@ export default function AdminAuthPage() {
 
     try {
       const payload = {
-        email: loginType === 'admin' ? email || 'beautyglowry@tamim.com' : email,
+        email: email,
         password,
         loginType,
         ...(twoFactorRequired ? { twoFactorCode } : {}),
@@ -317,7 +317,7 @@ export default function AdminAuthPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder={loginType === 'admin' ? 'beautyglowry@tamim.com' : 'name@beautyglowry.com'}
+                  placeholder={loginType === 'admin' ? 'Enter admin email' : 'name@beautyglowry.com'}
                     autoFocus
                     style={{
                       width: '100%',

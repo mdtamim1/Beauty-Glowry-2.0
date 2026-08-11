@@ -59,7 +59,19 @@ export default function CustomerAccountModal({ isOpen, onClose }: CustomerAccoun
       const params = new URLSearchParams(window.location.search);
       const err = params.get('error');
       if (err) {
-        setError(`Authentication failed: ${err}. Please verify that your Google/Facebook API credentials and NEXTAUTH_SECRET/NEXTAUTH_URL are correctly configured in your hosting environment variables.`);
+        const errorMessages: Record<string, string> = {
+          'OAuthCallback': 'Facebook/Google login failed. Make sure the redirect URL is allowed in your Facebook App settings.',
+          'OAuthSignin': 'Could not start the login process. Please try again.',
+          'Configuration': 'OAuth is not configured. Please check FACEBOOK_CLIENT_ID and FACEBOOK_CLIENT_SECRET in your environment.',
+          'AccessDenied': 'Access was denied. Please allow the required permissions and try again.',
+          'Verification': 'Verification failed. Please try again.',
+        };
+        const msg = errorMessages[err] || `Login failed (${err}). Please try again or use email login.`;
+        setError(msg);
+        // Clean error param from URL without page reload
+        const url = new URL(window.location.href);
+        url.searchParams.delete('error');
+        window.history.replaceState({}, '', url.toString());
       }
     }
   }, [isOpen]);

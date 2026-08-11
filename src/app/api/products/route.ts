@@ -94,7 +94,10 @@ export async function GET(request: Request) {
       };
     });
 
-    return NextResponse.json(formattedProducts);
+    const response = NextResponse.json(formattedProducts);
+    // Cache for 60s, serve stale for up to 5 min while revalidating in background
+    response.headers.set('Cache-Control', 's-maxage=60, stale-while-revalidate=300');
+    return response;
   } catch (error: any) {
     console.error('[API Products GET Error]:', error);
     return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
