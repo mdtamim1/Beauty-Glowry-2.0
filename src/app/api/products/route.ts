@@ -113,6 +113,9 @@ export async function POST(request: Request) {
     }
 
     let slug = data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    if (!slug) {
+      slug = `product-${Date.now()}`;
+    }
     
     // Check if product with this id/slug already exists, if so append a suffix
     const existingProduct = await prisma.product.findUnique({ where: { id: slug } });
@@ -120,19 +123,58 @@ export async function POST(request: Request) {
       slug = `${slug}-${Math.floor(100 + Math.random() * 900)}`;
     }
 
-    const catSlug = data.category ? data.category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : 'uncategorized';
-
-    // Ensure category exists
+    // 1. Ensure category exists safely
+    let categoryId: string | null = null;
     if (data.category) {
-      await prisma.category.upsert({
+      const catSlug = data.category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') || 'uncategorized';
+      const cat = await prisma.category.upsert({
         where: { slug: catSlug },
         update: { name: data.category },
         create: { id: catSlug, name: data.category, slug: catSlug },
       });
+      categoryId = cat.id;
     }
 
-    // Ensure brand exists
-    const brandId = data.brand || 'beauty-glowry';
+    // 2. Ensure brand exists safely (resolves Foreign key constraint violation)
+    let brandId: string | null = null;
+    const rawBrand = data.brand || 'beauty-glowry';
+    const brandSlug = rawBrand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') || 'beauty-glowry';
+    
+    const existingBrand = await prisma.brand.findFirst({
+      where: {
+        OR: [
+          { id: rawBrand },
+          { slug: brandSlug },
+          { name: { equals: rawBrand, mode: 'insensitive' } },
+        ],
+      },
+    });
+
+    if (existingBrand) {
+      brandId = existingBrand.id;
+    } else {
+      const brandDisplayName = rawBrand === 'beauty-glowry' ? 'Beauty Glowry' : rawBrand;
+      const createdBrand = await prisma.brand.create({
+        data: {
+          id: brandSlug,
+          name: brandDisplayName,
+          slug: brandSlug,
+        },
+      });
+      brandId = createdBrand.id;
+    }
+
+    // 3. Generate guaranteed unique SKU for product
+    const baseSkuPrefix = (data.sku || slug.replace(/[^a-z0-9]/gi, '').slice(0, 6) || 'PROD').toUpperCase();
+    let finalSku = data.sku;
+    if (!finalSku) {
+      finalSku = `${baseSkuPrefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+      let skuExists = await prisma.product.findUnique({ where: { sku: finalSku } });
+      while (skuExists) {
+        finalSku = `${baseSkuPrefix}-${Math.floor(1000 + Math.random() * 9000)}`;
+        skuExists = await prisma.product.findUnique({ where: { sku: finalSku } });
+      }
+    }
 
     const newProduct = await prisma.product.create({
       data: {
@@ -140,9 +182,9 @@ export async function POST(request: Request) {
         name: data.name,
         slug,
         brand_id: brandId,
-        category_id: catSlug,
-        description: data.description,
-        ingredients: data.inciList,
+        category_id: categoryId,
+        description: data.description || '',
+        ingredients: data.inciList || '',
         how_to_use: data.usageSteps ? (Array.isArray(data.usageSteps) ? data.usageSteps.join('\n') : data.usageSteps) : '',
         skin_type_tags: [
           ...(data.skinTypes ? (Array.isArray(data.skinTypes) ? data.skinTypes : data.skinTypes.split(',').map((s: string) => s.trim())) : []),
@@ -150,15 +192,15 @@ export async function POST(request: Request) {
         ].filter(Boolean),
         price: data.price,
         discount_price: data.originalPrice || data.price,
-        sku: data.sku || `${slug.slice(0, 3).toUpperCase()}-STD`,
+        sku: finalSku,
         stock_qty: data.stock || 0,
-        is_featured: data.isBestseller || data.isNew || false,
+        is_featured: data.isBestseller || data.isNew || data.isFeatured || false,
         is_active: data.isActive !== false,
         is_free_delivery: data.isFreeDelivery || false,
       },
     });
 
-    // Create Main Image and Gallery Images in ProductImage
+    // 4. Create Main Image and Gallery Images in ProductImage
     const imagesToCreate = [];
     if (data.image) {
       imagesToCreate.push({
@@ -190,16 +232,19 @@ export async function POST(request: Request) {
       });
     }
 
-    // Create variants if provided
-    if (data.variants && Array.isArray(data.variants)) {
-      for (const v of data.variants) {
+    // 5. Create variants if provided
+    if (data.variants && Array.isArray(data.variants) && data.variants.length > 0) {
+      for (let i = 0; i < data.variants.length; i++) {
+        const v = data.variants[i];
+        const sizeLabel = v.label || v.size || 'Standard';
+        const vSku = v.sku || `${finalSku}-${sizeLabel.toUpperCase().replace(/[^A-Z0-9]/g, '') || 'VAR'}-${i + 1}`;
         await prisma.productVariant.create({
           data: {
             product_id: newProduct.id,
-            size: v.label || v.size,
-            sku: v.sku || `${slug.slice(0, 3).toUpperCase()}-${(v.label || v.size || 'std').toUpperCase()}`,
+            size: sizeLabel,
+            sku: vSku,
             price: v.price || data.price,
-            stock_qty: v.stock || data.stock,
+            stock_qty: v.stock !== undefined ? v.stock : (data.stock || 0),
             image: data.image,
           },
         });
@@ -210,7 +255,7 @@ export async function POST(request: Request) {
         data: {
           product_id: newProduct.id,
           size: data.size || '30ml',
-          sku: data.sku || `${slug.slice(0, 3).toUpperCase()}-STD`,
+          sku: `${finalSku}-STD`,
           price: data.price,
           stock_qty: data.stock || 0,
           image: data.image,

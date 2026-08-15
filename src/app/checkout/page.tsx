@@ -534,11 +534,11 @@ function CheckoutContent() {
                     )}
                   </div>
                   <div>
-                    <Label>Full Address *</Label>
+                    <Label>Full Address</Label>
                     <Field icon={<MapPin size={15} />}>
                       <textarea
-                        required rows={3}
-                        placeholder="House no, Road, Area..."
+                        rows={3}
+                        placeholder="House no, Road, Area... (optional)"
                         value={form.address}
                         onChange={e => update('address', e.target.value)}
                         className="co-input co-input--icon co-textarea"

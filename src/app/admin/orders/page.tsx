@@ -525,13 +525,13 @@ function ViewOrderModal({ order, onClose, onSave, geocodeData }: {
   };
 
   const handleUpdate = () => {
-    if (!customerName || !customerPhone || !customerAddress) return;
+    if (!customerName || !customerPhone) return;
     const updatedOrder: Order = {
       ...order,
       customer: customerName,
       phone: customerPhone,
       email: customerEmail,
-      address: `${customerAddress}${thana ? ', ' + thana : ''}${district ? ', ' + district : ''}`,
+      address: [customerAddress?.trim(), thana, district].filter(Boolean).join(', '),
       items: orderItems.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
       total,
       shipping: deliveryCharge,
@@ -650,11 +650,11 @@ function ViewOrderModal({ order, onClose, onSave, geocodeData }: {
             </div>
 
             {/* Address */}
-            <LabeledField label="Customer Address" required>
+            <LabeledField label="Customer Address">
               <div style={{ position: 'relative' }}>
                 <MapPin size={12} style={{ position: 'absolute', left: 10, top: 12, color: C.muted, pointerEvents: 'none' }} />
                 <textarea
-                  rows={2} placeholder="House No, Road, Village / Area..."
+                  rows={2} placeholder="House No, Road, Village / Area... (optional)"
                   value={customerAddress} onChange={e => setCustomerAddress(e.target.value)}
                   style={{ ...iS, paddingLeft: 28, resize: 'none' }}
                   onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
@@ -1073,10 +1073,10 @@ function ViewOrderModal({ order, onClose, onSave, geocodeData }: {
             </div>
 
             {/* Validation warning */}
-            {(!customerName || !customerPhone || !customerAddress) && (
+            {(!customerName || !customerPhone) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: `${C.warning}10`, border: `1px solid ${C.warning}30`, borderRadius: 7 }}>
                 <AlertCircle size={13} style={{ color: C.warning, flexShrink: 0 }} />
-                <p style={{ fontSize: 11, color: C.warning }}>Name, Phone, and Address are required to save the order.</p>
+                <p style={{ fontSize: 11, color: C.warning }}>Name and Phone are required to save the order.</p>
               </div>
             )}
           </div>
@@ -1106,13 +1106,13 @@ function ViewOrderModal({ order, onClose, onSave, geocodeData }: {
               </button>
               <button
                 onClick={handleUpdate}
-                disabled={!customerName || !customerPhone || !customerAddress}
+                disabled={!customerName || !customerPhone}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 8, padding: '9px 24px',
-                  background: (!customerName || !customerPhone || !customerAddress) ? C.muted : C.accent,
+                  background: (!customerName || !customerPhone) ? C.muted : C.accent,
                   border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, color: '#fff',
-                  cursor: (!customerName || !customerPhone || !customerAddress) ? 'not-allowed' : 'pointer',
-                  boxShadow: (!customerName || !customerPhone || !customerAddress) ? 'none' : `0 4px 16px rgba(201,149,109,0.3)`,
+                  cursor: (!customerName || !customerPhone) ? 'not-allowed' : 'pointer',
+                  boxShadow: (!customerName || !customerPhone) ? 'none' : `0 4px 16px rgba(201,149,109,0.3)`,
                   transition: 'all 0.2s',
                 }}
               >
@@ -1236,13 +1236,13 @@ function CreateOrderModal({ onClose, onSave, geocodeData }: { onClose: () => voi
   };
 
   const handleSave = () => {
-    if (!customerName || !customerPhone || !customerAddress) return;
+    if (!customerName || !customerPhone) return;
     const order: Order = {
       id: invoiceNo,
       customer: customerName,
       phone: customerPhone,
       email: customerEmail,
-      address: `${customerAddress}${thana ? ', ' + thana : ''}${district ? ', ' + district : ''}`,
+      address: [customerAddress?.trim(), thana, district].filter(Boolean).join(', '),
       items: orderItems.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
       total,
       shipping: deliveryCharge,
@@ -1351,11 +1351,11 @@ function CreateOrderModal({ onClose, onSave, geocodeData }: { onClose: () => voi
             </div>
 
             {/* Address */}
-            <LabeledField label="Customer Address" required>
+            <LabeledField label="Customer Address">
               <div style={{ position: 'relative' }}>
                 <MapPin size={12} style={{ position: 'absolute', left: 10, top: 12, color: C.muted, pointerEvents: 'none' }} />
                 <textarea
-                  rows={2} placeholder="House No, Road, Village / Area..."
+                  rows={2} placeholder="House No, Road, Village / Area... (optional)"
                   value={customerAddress} onChange={e => setCustomerAddress(e.target.value)}
                   style={{ ...iS, paddingLeft: 28, resize: 'none' }}
                   onFocus={e => (e.currentTarget.style.borderColor = C.accent)}
@@ -1670,10 +1670,10 @@ function CreateOrderModal({ onClose, onSave, geocodeData }: { onClose: () => voi
             </div>
 
             {/* Validation warning */}
-            {(!customerName || !customerPhone || !customerAddress) && (
+            {(!customerName || !customerPhone) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', background: `${C.warning}10`, border: `1px solid ${C.warning}30`, borderRadius: 7 }}>
                 <AlertCircle size={13} style={{ color: C.warning, flexShrink: 0 }} />
-                <p style={{ fontSize: 11, color: C.warning }}>Name, Phone, and Address are required to save the order.</p>
+                <p style={{ fontSize: 11, color: C.warning }}>Name and Phone are required to save the order.</p>
               </div>
             )}
           </div>
@@ -1691,13 +1691,13 @@ function CreateOrderModal({ onClose, onSave, geocodeData }: { onClose: () => voi
             </button>
             <button
               onClick={handleSave}
-              disabled={!customerName || !customerPhone || !customerAddress}
+              disabled={!customerName || !customerPhone}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '9px 24px',
-                background: (!customerName || !customerPhone || !customerAddress) ? C.muted : C.accent,
+                background: (!customerName || !customerPhone) ? C.muted : C.accent,
                 border: 'none', borderRadius: 7, fontSize: 13, fontWeight: 700, color: '#fff',
-                cursor: (!customerName || !customerPhone || !customerAddress) ? 'not-allowed' : 'pointer',
-                boxShadow: (!customerName || !customerPhone || !customerAddress) ? 'none' : `0 4px 16px rgba(201,149,109,0.3)`,
+                cursor: (!customerName || !customerPhone) ? 'not-allowed' : 'pointer',
+                boxShadow: (!customerName || !customerPhone) ? 'none' : `0 4px 16px rgba(201,149,109,0.3)`,
                 transition: 'all 0.2s',
               }}
             >

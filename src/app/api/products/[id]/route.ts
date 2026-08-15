@@ -133,15 +133,45 @@ export async function PUT(
 
     const slug = data.name ? data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : p.slug;
 
+    // 1. Ensure category exists safely
     let catSlug = p.category_id;
     if (data.category) {
-      const newCatSlug = data.category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
-      catSlug = newCatSlug;
-      await prisma.category.upsert({
+      const newCatSlug = data.category.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') || 'uncategorized';
+      const cat = await prisma.category.upsert({
         where: { slug: newCatSlug },
         update: { name: data.category },
         create: { id: newCatSlug, name: data.category, slug: newCatSlug },
       });
+      catSlug = cat.id;
+    }
+
+    // 2. Ensure brand exists safely
+    let brandId = p.brand_id;
+    if (data.brand) {
+      const rawBrand = data.brand;
+      const brandSlug = rawBrand.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') || 'beauty-glowry';
+      const existingBrand = await prisma.brand.findFirst({
+        where: {
+          OR: [
+            { id: rawBrand },
+            { slug: brandSlug },
+            { name: { equals: rawBrand, mode: 'insensitive' } },
+          ],
+        },
+      });
+      if (existingBrand) {
+        brandId = existingBrand.id;
+      } else {
+        const brandDisplayName = rawBrand === 'beauty-glowry' ? 'Beauty Glowry' : rawBrand;
+        const createdBrand = await prisma.brand.create({
+          data: {
+            id: brandSlug,
+            name: brandDisplayName,
+            slug: brandSlug,
+          },
+        });
+        brandId = createdBrand.id;
+      }
     }
 
     // Update product properties
@@ -150,7 +180,7 @@ export async function PUT(
       data: {
         name: data.name ?? p.name,
         slug,
-        brand_id: data.brand ?? p.brand_id,
+        brand_id: brandId,
         category_id: catSlug,
         description: data.description ?? p.description,
         ingredients: data.inciList ?? p.ingredients,
@@ -164,7 +194,7 @@ export async function PUT(
         price: data.price ?? p.price,
         discount_price: data.originalPrice ?? p.discount_price,
         stock_qty: data.stock ?? p.stock_qty,
-        is_featured: data.isBestseller ?? data.is_featured,
+        is_featured: data.isBestseller ?? data.isFeatured ?? data.is_featured,
         is_active: data.isActive !== undefined ? data.isActive : p.is_active,
         is_free_delivery: data.isFreeDelivery !== undefined ? data.isFreeDelivery : p.is_free_delivery,
       },
@@ -228,18 +258,19 @@ export async function PUT(
       }
 
       // Upsert incoming variants
-      for (const v of data.variants as any[]) {
+      for (let i = 0; i < data.variants.length; i++) {
+        const v = data.variants[i];
         const sizeLabel = v.label || v.size || 'Standard';
-        const variantSku = v.sku || `${slug.slice(0, 3).toUpperCase()}-${sizeLabel.toUpperCase()}`;
+        const variantSku = v.sku || `${p.sku}-${sizeLabel.toUpperCase().replace(/[^A-Z0-9]/g, '') || 'VAR'}-${i + 1}`;
 
-        const existing = existingVariants.find(ev => ev.sku === variantSku);
+        const existing = existingVariants.find(ev => ev.sku === variantSku || (ev.size === sizeLabel && !v.sku));
         if (existing) {
           await prisma.productVariant.update({
             where: { id: existing.id },
             data: {
               size: sizeLabel,
               price: v.price || data.price || p.price,
-              stock_qty: v.stock || data.stock || p.stock_qty,
+              stock_qty: v.stock !== undefined ? v.stock : (data.stock || p.stock_qty),
               image: data.image || p.images[0]?.url || p.sku,
             }
           });
@@ -250,7 +281,7 @@ export async function PUT(
               size: sizeLabel,
               sku: variantSku,
               price: v.price || data.price || p.price,
-              stock_qty: v.stock || data.stock || p.stock_qty,
+              stock_qty: v.stock !== undefined ? v.stock : (data.stock || p.stock_qty),
               image: data.image || p.images[0]?.url || p.sku,
             }
           });

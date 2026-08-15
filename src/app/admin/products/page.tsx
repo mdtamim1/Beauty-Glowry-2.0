@@ -1515,7 +1515,17 @@ export default function AdminProducts() {
     return matchSearch && matchCat;
   });
 
-  const openAdd = () => { setForm({ ...EMPTY_FORM }); setEditTarget(null); setShowModal(true); };
+  const openAdd = () => {
+    const defaultBrand = activeBrands.length > 0 ? activeBrands[0].id : 'beauty-glowry';
+    const defaultCat = activeCategories.length > 0 ? activeCategories[0].name : (categories[0] || 'Skincare');
+    setForm({
+      ...EMPTY_FORM,
+      brand: defaultBrand,
+      category: defaultCat,
+    });
+    setEditTarget(null);
+    setShowModal(true);
+  };
   const openEdit = (p: Product) => {
     setEditTarget(p);
     setForm({
@@ -1538,7 +1548,10 @@ export default function AdminProducts() {
   };
 
   const handleSave = async () => {
-    if (!form.name || !form.image) return;
+    if (!form.name || !form.image) {
+      alert('Please provide at least a product name and main image URL');
+      return;
+    }
     const parseActives = form.actives.split(',').filter(Boolean).map((a) => {
       const [name, concentration, unit] = a.split(':');
       return { name: name?.trim() || '', concentration: Number(concentration) || 0, unit: unit?.trim() || '%' };
@@ -1592,7 +1605,10 @@ export default function AdminProducts() {
         });
       }
 
-      if (!res.ok) throw new Error('Failed to save product');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to save product to database');
+      }
 
       // Log the product modification or creation
       if (editTarget) {
@@ -1608,9 +1624,9 @@ export default function AdminProducts() {
         setItems(latestProducts);
       }
       setShowModal(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to save product to database');
+      alert(err.message || 'Failed to save product to database');
     }
   };
 
@@ -1620,15 +1636,18 @@ export default function AdminProducts() {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
-      if (!res.ok) throw new Error('Failed to delete product');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Failed to delete product');
+      }
 
       setItems((prev) => prev.filter((p) => p.id !== id));
       logActivity('Product deleted', `Removed product ID ${id} from database`);
       setDeleteConfirm(null);
       setSelected((prev) => prev.filter((s) => s !== id));
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Failed to delete product from database');
+      alert(err.message || 'Failed to delete product from database');
     }
   };
 

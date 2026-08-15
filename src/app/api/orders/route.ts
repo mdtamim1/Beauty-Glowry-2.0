@@ -120,7 +120,7 @@ export async function POST(request: Request) {
       ? rawEmail.trim()
       : `guest_${phone?.replace(/\D/g, '')}@beautyglowry.com`;
 
-    if (!name || !phone || !address || !items || items.length === 0) {
+    if (!name || !phone || !items || items.length === 0) {
       return NextResponse.json({ error: 'Missing required checkout information' }, { status: 400 });
     }
 
@@ -150,10 +150,11 @@ export async function POST(request: Request) {
     }
 
     // 2. Address Resolution: Find or create default address for the user
+    const addressLine = address?.trim() || '';
     let addressRecord = await prisma.address.findFirst({
       where: {
         user_id: user.id,
-        address_line: address,
+        address_line: addressLine,
       },
     });
 
@@ -162,7 +163,7 @@ export async function POST(request: Request) {
         data: {
           user_id: user.id,
           label: 'Default Shipping Address',
-          address_line: address,
+          address_line: addressLine,
           city: district || 'Dhaka',
           zip: '1000',
         },
