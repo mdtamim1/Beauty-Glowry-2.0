@@ -117,10 +117,14 @@ export async function POST(request: Request) {
       slug = `product-${Date.now()}`;
     }
     
-    // Check if product with this id/slug already exists, if so append a suffix
-    const existingProduct = await prisma.product.findUnique({ where: { id: slug } });
-    if (existingProduct) {
-      slug = `${slug}-${Math.floor(100 + Math.random() * 900)}`;
+    // Ensure slug is unique — loop until we find a slug not yet in use
+    const baseSlug = slug;
+    let slugExists = await prisma.product.findFirst({ where: { OR: [{ id: slug }, { slug }] } });
+    let slugSuffix = 1;
+    while (slugExists) {
+      slug = `${baseSlug}-${slugSuffix}`;
+      slugSuffix++;
+      slugExists = await prisma.product.findFirst({ where: { OR: [{ id: slug }, { slug }] } });
     }
 
     // 1. Ensure category exists safely

@@ -131,7 +131,18 @@ export async function PUT(
       return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     }
 
-    const slug = data.name ? data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : p.slug;
+    // Generate slug from name and ensure it's unique (excluding the current product)
+    let slug = data.name ? data.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : p.slug;
+    if (data.name && slug !== p.slug) {
+      const baseSlug = slug;
+      let slugConflict = await prisma.product.findFirst({ where: { slug, NOT: { id: p.id } } });
+      let slugSuffix = 1;
+      while (slugConflict) {
+        slug = `${baseSlug}-${slugSuffix}`;
+        slugSuffix++;
+        slugConflict = await prisma.product.findFirst({ where: { slug, NOT: { id: p.id } } });
+      }
+    }
 
     // 1. Ensure category exists safely
     let catSlug = p.category_id;
