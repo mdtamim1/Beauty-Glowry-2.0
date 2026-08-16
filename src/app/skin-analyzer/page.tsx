@@ -158,26 +158,54 @@ export default function SkinAnalyzerPage() {
     const amCategories = result.routineRecommendations.am || [];
     const pmCategories = result.routineRecommendations.pm || [];
 
-    // Skin type helper to filter matched items
-    const skinType = (result.analysis.oiliness.score > 60 ? 'Oily' : result.analysis.hydration.score < 50 ? 'Dry' : 'Normal').toLowerCase();
+    // Skin type and concerns from AI result
+    const skinType: string = result.skinType || (result.analysis.oiliness.score > 60 ? 'Oily' : result.analysis.hydration.score < 50 ? 'Dry' : 'Normal');
+    const concernTags: string[] = result.concernTags || [];
+
+    // Score each product by relevance to the customer's skin analysis
+    const scoreProduct = (p: any): number => {
+      let score = 0;
+      const pSkinTypes: string[] = (p.skinTypes || []).map((s: string) => s.toLowerCase());
+      const pConcerns: string[] = (p.concerns || []).map((s: string) => s.toLowerCase());
+
+      // +3 if skin type matches
+      if (pSkinTypes.some(st => st.includes(skinType.toLowerCase()) || skinType.toLowerCase().includes(st) || st === 'all skin types')) {
+        score += 3;
+      }
+
+      // +2 for each concern tag that matches product concerns
+      concernTags.forEach(tag => {
+        const tagLower = tag.toLowerCase();
+        if (pConcerns.some(c => c.includes(tagLower.split(' ')[0]) || tagLower.includes(c.split(' ')[0]))) {
+          score += 2;
+        }
+      });
+
+      // +1 for featured/bestseller products
+      if (p.isBestseller || p.isFeatured) score += 1;
+
+      return score;
+    };
 
     const resolveProductsForCategories = (categoriesList: string[]) => {
       const selected: any[] = [];
+      const usedIds = new Set<any>();
+
       categoriesList.forEach(category => {
-        // Find products in this category matching skin suitability
+        // Match by category name
         const matches = dbProducts.filter((p: any) => {
-          const catName = p.category?.name || p.category;
-          return catName?.toLowerCase() === category.toLowerCase();
+          const catName = (p.category?.name || p.category || '').toLowerCase();
+          return catName === category.toLowerCase();
         });
 
         if (matches.length > 0) {
-          // Sort to prefer product matching skin type
-          const sorted = [...matches].sort((a, b) => {
-            const aMatch = a.skinTypes?.some((st: string) => st.toLowerCase().includes(skinType));
-            const bMatch = b.skinTypes?.some((st: string) => st.toLowerCase().includes(skinType));
-            return aMatch === bMatch ? 0 : aMatch ? -1 : 1;
-          });
-          selected.push(sorted[0]);
+          // Sort by relevance score descending
+          const sorted = [...matches].sort((a, b) => scoreProduct(b) - scoreProduct(a));
+          const best = sorted.find(p => !usedIds.has(p.id)) || sorted[0];
+          if (best && !usedIds.has(best.id)) {
+            selected.push(best);
+            usedIds.add(best.id);
+          }
         }
       });
       return selected;

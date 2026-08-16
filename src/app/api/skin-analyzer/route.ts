@@ -54,50 +54,72 @@ export async function POST(request: NextRequest) {
     // Call real Google Gemini API
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
 
-    const promptText = `You are a professional clinical dermatologist AI.
-First, verify if the image contains a clear human face. If the image does not contain a human face, or if the face is not clearly visible, you MUST return a JSON object containing ONLY the field "error" explaining the problem:
-{
-  "error": "No clear human face detected. Please upload or capture a front-facing selfie of your face."
-}
+    const promptText = `You are a board-certified clinical dermatologist AI with expertise in skin imaging analysis.
 
-If a human face is present, analyze the face and diagnose these skin concerns: Acne, Dark spots, Oiliness, Redness, Fine lines, Pores visibility, Skin Hydration, Dark Circles, and Skin Barrier.
+STEP 1 — FACE DETECTION:
+First, verify if the image contains a clear, well-lit, front-facing human face. If not, return ONLY:
+{ "error": "No clear human face detected. Please upload a front-facing selfie in good lighting." }
 
-For each skin concern, provide:
-1. A severity score (0 to 100).
-   - IMPORTANT: If the skin looks healthy, clean, smooth, and clear, assign a very low score (e.g., 0 to 12) for negative concerns (Acne, Redness, Fine Lines, Dark Spots, Dark Circles, Pores Visibility, and Oiliness). Be realistic and fair. Do not exaggerate issues if the skin is smooth.
-   - For positive concerns like Skin Hydration and Skin Barrier, a higher score is better. If the skin looks healthy, assign a high score (e.g., 85 to 98) representing excellent hydration and a strong barrier.
-2. A short description of your findings.
-3. Relative coordinates [x, y] (both integers between 0 and 100, where [0, 0] is left/top and [100, 100] is right/bottom) indicating where on the image this concern is visible, so the UI can draw pointers.
+STEP 2 — DETAILED SKIN ANALYSIS:
+If a human face is present, carefully analyze the actual visible skin in the photo. Do NOT guess or hallucinate — only report what you can genuinely observe.
 
-CRITICAL COORDINATES RULES:
-- Localized markers on the face should ONLY be used for: "acne", "darkSpots", "fineLines", and "darkCircles".
-- For all other concerns ("oiliness", "redness", "pores", "hydration", and "barrier"), you MUST always set "coords" to null because they are diffuse, general, or global skin properties.
-- Even for "acne", "darkSpots", "fineLines", and "darkCircles", you MUST set "coords" to null if the severity score is below 45 (representing mild or healthy state). Only show a pointer if there is a distinct, localized, and prominent issue.
-- Never output generic placeholder coordinates or stack multiple markers vertically (e.g., putting all points at [50, 30], [50, 35], [50, 40], etc.).
-- If you do provide a coordinate, it must map to the actual anatomical location on the face where the concern is observed:
-  * Forehead: near [50, 20]
-  * Left Cheek: near [35, 50]
-  * Right Cheek: near [65, 50]
-  * Nose: near [50, 45]
-  * Chin: near [50, 75]
-  * Under Left Eye: near [40, 38]
-  * Under Right Eye: near [60, 38]
+Analyze these 9 skin concerns based on what is ACTUALLY visible in the image:
+1. Acne (ব্রণ) — Visible pimples, pustules, papules, comedones, active breakouts
+2. Dark Spots (মেছতা) — Hyperpigmentation, post-acne marks, uneven skin tone patches
+3. Oiliness (তৈলাক্ততা) — Sebum shine, greasy T-zone appearance
+4. Redness (লালচে ভাব) — Erythema, irritation, rosacea signs
+5. Fine Lines (বলিরেখা) — Wrinkles around eyes, forehead, smile lines
+6. Pores Visibility (রোমকূপ) — Visibly enlarged or congested pores
+7. Skin Hydration (আর্দ্রতা) — Plumpness vs dryness/flakiness (higher score = better hydrated)
+8. Dark Circles (ডার্ক সার্কেল) — Periorbital dark pigmentation or puffiness
+9. Skin Barrier (ব্যারিয়ার) — Overall skin health, sensitivity, integrity (higher score = healthier)
 
-Also, recommend an AM and PM routine using general product categories: 'Cleansers & Washes', 'Toners & Essences', 'Serums & Elixirs', 'Moisturizers & Creams', 'Sun Protection'.
+SCORING RULES — BE ACCURATE, NOT GENEROUS:
+- Score 0-15: Excellent / Not detectable
+- Score 16-35: Very mild / Barely noticeable
+- Score 36-55: Mild to moderate
+- Score 56-75: Moderate / Clearly visible
+- Score 76-100: Severe / Prominent
+- For NEGATIVE concerns (Acne, Dark Spots, Oiliness, Redness, Fine Lines, Pores, Dark Circles): Higher score = WORSE condition
+- For POSITIVE concerns (Hydration, Barrier): Higher score = BETTER condition
+- If the skin in the photo looks genuinely clear and healthy — give low scores for negative concerns. Do NOT inflate scores.
+- If the skin shows real issues — accurately reflect the severity. Do NOT downplay.
 
-You MUST return the response ONLY as a minified JSON object matching this schema:
+SKIN TYPE DETECTION:
+Based on your analysis, determine the primary skin type:
+- "Oily" if oiliness score > 60
+- "Dry" if hydration score < 40
+- "Combination" if oiliness > 50 and some dry patches
+- "Normal" if balanced
+- "Sensitive" if redness > 50 or barrier < 40
+
+CONCERN TAGS (for product matching):
+Based on the top issues detected, select relevant concern tags from this exact list:
+["Acne & Blemishes", "Dark Spots & Hyperpigmentation", "Oiliness & Shine Control", "Redness & Sensitivity", "Anti-Aging & Fine Lines", "Enlarged Pores", "Hydration & Moisture", "Dark Circles & Eye Care", "Brightening", "Barrier Repair", "Dullness & Uneven Tone"]
+
+COORDINATE RULES:
+- Only set coords for: "acne", "darkSpots", "fineLines", "darkCircles" — AND only if score ≥ 45
+- All other concerns MUST have "coords": null
+- Anatomical reference: Forehead[50,20], Left Cheek[35,50], Right Cheek[65,50], Nose[50,45], Chin[50,75], Under Left Eye[40,38], Under Right Eye[60,38]
+
+AM/PM ROUTINE — use ONLY these category names exactly:
+'Cleansers & Washes', 'Toners & Essences', 'Serums & Elixirs', 'Moisturizers & Creams', 'Sun Protection'
+
+Return ONLY a minified JSON with this exact schema:
 {
   "analysis": {
-    "acne": { "score": number, "description": string, "coords": [number, number] | null },
-    "darkSpots": { "score": number, "description": string, "coords": [number, number] | null },
-    "oiliness": { "score": number, "description": string, "coords": [number, number] | null },
-    "redness": { "score": number, "description": string, "coords": [number, number] | null },
-    "fineLines": { "score": number, "description": string, "coords": [number, number] | null },
-    "pores": { "score": number, "description": string, "coords": [number, number] | null },
-    "hydration": { "score": number, "description": string, "coords": [number, number] | null },
-    "darkCircles": { "score": number, "description": string, "coords": [number, number] | null },
-    "barrier": { "score": number, "description": string, "coords": [number, number] | null }
+    "acne": { "score": number, "description": string, "coords": [number,number]|null },
+    "darkSpots": { "score": number, "description": string, "coords": [number,number]|null },
+    "oiliness": { "score": number, "description": string, "coords": [number,number]|null },
+    "redness": { "score": number, "description": string, "coords": [number,number]|null },
+    "fineLines": { "score": number, "description": string, "coords": [number,number]|null },
+    "pores": { "score": number, "description": string, "coords": [number,number]|null },
+    "hydration": { "score": number, "description": string, "coords": [number,number]|null },
+    "darkCircles": { "score": number, "description": string, "coords": [number,number]|null },
+    "barrier": { "score": number, "description": string, "coords": [number,number]|null }
   },
+  "skinType": string,
+  "concernTags": string[],
   "overallRating": number,
   "overallComment": string,
   "routineRecommendations": {
