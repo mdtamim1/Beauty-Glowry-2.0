@@ -1,33 +1,10 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, DM_Sans, DM_Mono } from "next/font/google";
 import "./globals.css";
 import WhatsAppButton from "../components/WhatsAppButton";
 import AuthInterceptor from "../components/AuthInterceptor";
 import CompareTray from "../components/CompareTray";
 import NextAuthProvider from "../components/NextAuthProvider";
 import { prisma } from "../lib/prisma";
-
-const cormorant = Cormorant_Garamond({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-serif",
-  display: "swap",
-});
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-sans",
-  display: "swap",
-});
-
-const dmMono = DM_Mono({
-  subsets: ["latin"],
-  weight: ["400", "500"],
-  variable: "--font-mono",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://beautyglowry.com"),
@@ -149,7 +126,7 @@ export default async function RootLayout({
   return (
     <html
       lang="en"
-      className={`${cormorant.variable} ${dmSans.variable} ${dmMono.variable} h-full antialiased`}
+      className="h-full antialiased"
     >
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
